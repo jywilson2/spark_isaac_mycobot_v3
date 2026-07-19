@@ -29,7 +29,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 - [x] Complete lightweight suite passes (16 passed, 1 GPU test skipped).
 - [x] Python sources compile and `pyproject.toml` parses.
 - [x] No ROS, Isaac, hardware-control, sensor, or RL dependency is present.
-- [ ] `wip_phase0` is pushed; no project commit is pushed to `main`.
+- [x] `wip_phase0` is pushed; no project commit is pushed to `main`.
 
 ## Known environment status
 
