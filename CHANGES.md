@@ -1,5 +1,24 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-19 — Phase 7.1 complete (host acceptance)
+
+1. Landed the full Phase 7.1 cube-approach suite: validated config (14 mm cube,
+   0.08 m standoff, FK-aligned Mode D goal bank), cube clearance, Mode C
+   `plan_cspace`, illuminated Isaac plan/playback process split, drive-target
+   motion, and PhysX prohibited-contact evidence with null tip metrics.
+2. Restored empty-scene handling in `create_curobo_planner` (`cuboid: {}` is
+   empty) and kept `scene_config_path` as the Phase 0–6 path alias.
+3. Host evidence: CI 119 unit tests; GPU 8/8; Phase 7 GUI smoke lit; Phase 7.1
+   headless 5/5 with 0 contacts; GUI `--all-modes` 4/5 + 1 structured failure,
+   0 contacts on played episodes. Simulation metrics only.
+
+### Review recommended
+
+- Optional: reduce Mode B chained trajopt failures under `--all-modes` without
+  weakening thresholds; not required for Phase 7.1 landing.
+
+---
+
 ## 2026-07-19 — Phase 7.1 and contact-tool requirements
 
 ### Enumerated changes
