@@ -218,5 +218,6 @@ tracked with provenance; vendor meshes remain obtained into gitignored
 
 ## Next step
 
-Commit and push the tested Phase 7 state to `wip_phase7` only. Do not push
-`main`; Phase 8 remains future bounded residual-RL work.
+Phase 7 is landed on `wip_phase7` and fast-forwarded to `main`. Next planned
+work is Phase 8 bounded residual RL in Isaac Lab / Isaac Sim only, behind the
+Phase 5 seam and without replacing cuRobo planning.

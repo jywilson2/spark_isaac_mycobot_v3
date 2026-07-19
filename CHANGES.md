@@ -23,6 +23,8 @@
 8. Passed container CI (108 tests plus Ruff), host prerequisites/conversion,
    and both headless and GUI auto-exit smokes. Each smoke played all six
    waypoints and exited zero.
+9. Fast-forwarded `main` to the tested Phase 7 tip after the activated spark
+   GUI gate passed, preserving `wip_phase7` as the historical phase snapshot.
 
 ### Review recommended
 
