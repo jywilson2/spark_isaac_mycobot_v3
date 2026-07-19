@@ -9,7 +9,8 @@ limits, dynamics, and collision clearance before granting execution
 eligibility. Phase 5 adds a dry-run execution seam with zero residual output
 and deterministic safety projection; it has no hardware-driver dependency.
 Phase 6 adds reproducible randomized cases, replay records, taxonomy, and
-JSON/Markdown reports.
+JSON/Markdown reports. Phase 7 adds an Isaac-neutral validated playback-plan
+contract while keeping Kit imports outside this package.
 """
 
 from mycobot_curobo.benchmark import (
@@ -48,6 +49,14 @@ from mycobot_curobo.frames import (
     build_task_frame_candidates,
 )
 from mycobot_curobo.goal_set import SurfaceGoalSet, build_surface_goal_set
+from mycobot_curobo.plan_io import (
+    PlaybackPlan,
+    load_playback_plan,
+    playback_plan_from_dict,
+    require_executable_plan,
+    validated_plan_to_playback_dict,
+    write_playback_plan,
+)
 from mycobot_curobo.planner import (
     NamedJointState,
     NominalPlan,
@@ -129,6 +138,7 @@ __all__ = [
     "NominalPlanner",
     "Pose",
     "PlannerProfile",
+    "PlaybackPlan",
     "PlanningFailure",
     "PlanningOutcome",
     "PlanningRequest",
@@ -164,15 +174,20 @@ __all__ = [
     "load_curobo_robot_config",
     "load_benchmark_config",
     "load_planner_profile",
+    "load_playback_plan",
     "load_robot_model_spec",
     "load_residual_safety_profile",
     "load_validation_profile",
     "reorder_joint_state",
+    "playback_plan_from_dict",
+    "require_executable_plan",
     "sample_benchmark_cases",
     "serialize_request",
     "verify_environment",
     "validate_nominal_plan",
+    "validated_plan_to_playback_dict",
     "write_benchmark_reports",
+    "write_playback_plan",
     "ZeroResidualCorrector",
     "InMemoryCommandAdapter",
 ]

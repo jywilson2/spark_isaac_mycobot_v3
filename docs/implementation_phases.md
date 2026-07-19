@@ -146,12 +146,14 @@ execution replay, and a GPU-marked dual-run smoke gate.
 
 **Why this phase exists:** Planning success in cuRobo is necessary but not sufficient for teachability and sim regression. Isaac is the closed-loop visual oracle for approach-axis and orientation constraints.
 
-**Deliverables (planned):**
+**Implemented deliverables:**
 
-- Host launch / env scripts (`scripts/host/*`, `scripts/isaac_sim_env.sh`) — **scaffolded now**;
-- URDF→USD conversion and import helpers (`isaac_sim/*`) — **scaffolded now**;
-- Scene + trajectory player that consumes `NominalPlan` + `ConstraintReport`;
-- Headless and GUI smoke gates (host GPU only).
+- Versioned typed playback JSON generated only from `ValidatedPlan`;
+- NumPy-only pose metrics and exact named-DOF mapping helpers;
+- Isaac Sim 6.x articulation player with separate sim metrics and explicit
+  unevaluated tip metrics when `tcp_link` is unavailable;
+- Host prerequisite/vendor/USD orchestration plus headless and mandatory GUI
+  smoke gates.
 
 **Must not:**
 

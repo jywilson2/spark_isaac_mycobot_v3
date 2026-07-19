@@ -230,7 +230,7 @@ spark_delegate_to_host() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   # CLI: ./scripts/host/spark_host_exec.sh ./scripts/host/check_prereqs.sh [args...]
   # Phase 7: ./scripts/host/spark_host_exec.sh ./scripts/host/smoke_isaac_viz.sh
-  # (smoke_isaac_viz.sh is a placeholder until the NominalPlan player lands)
+  #            --gui --auto-exit
   if [[ $# -lt 1 ]]; then
     echo "Usage: $0 <repo-relative-script> [args...]" >&2
     exit 2

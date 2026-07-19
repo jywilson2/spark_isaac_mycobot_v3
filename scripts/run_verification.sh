@@ -5,8 +5,7 @@
 #   ./scripts/run_verification.sh spark    # DGX Spark host gates
 #   ./scripts/run_verification.sh help
 #
-# Until Phase 7 GUI smoke exists, spark mode runs unit tests plus optional GPU
-# integration tests. GUI smoke becomes a hard push gate only after Phase 7.
+# Phase 7 and later require the validated-plan GUI smoke in spark mode.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -29,7 +28,7 @@ Usage: ./scripts/run_verification.sh <ci|spark|help>
             2) pytest tests/unit -q
             3) ruff check . && ruff format --check .
             4) Optional: pytest -m gpu tests/integration when CUDA/cuRobo exist
-            5) Phase 7 GUI smoke: required only after that player lands
+            5) Required Phase 7 validated-plan GUI smoke
 
 Options (after mode):
   --skip-pytest    Skip the unit suite (debug only)
@@ -161,6 +160,16 @@ run_gpu_integration() {
   fi
 }
 
+run_isaac_gui_smoke() {
+  echo "=== Phase 7 Isaac Sim GUI smoke ==="
+  if [[ -f /.dockerenv ]]; then
+    bash "${ROOT}/scripts/host/spark_host_exec.sh" \
+      ./scripts/host/smoke_isaac_viz.sh --gui --auto-exit
+  else
+    bash "${ROOT}/scripts/host/smoke_isaac_viz.sh" --gui --auto-exit
+  fi
+}
+
 case "${MODE}" in
   ci)
     echo "############################################"
@@ -188,11 +197,7 @@ case "${MODE}" in
     else
       echo "NOTE: GPU integration not run (pass --with-gpu or SPARK_RUN_GPU_TESTS=1)."
     fi
-    if [[ -x "${ROOT}/scripts/host/smoke_isaac_viz.sh" ]]; then
-      if grep -q 'PHASE7_NOT_IMPLEMENTED' "${ROOT}/scripts/host/smoke_isaac_viz.sh"; then
-        echo "NOTE: Phase 7 GUI smoke stub present; GUI push gate not active yet."
-      fi
-    fi
+    run_isaac_gui_smoke
     echo "=== Spark verification PASSED ==="
     ;;
   *)

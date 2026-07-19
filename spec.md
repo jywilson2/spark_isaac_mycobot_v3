@@ -901,12 +901,17 @@ Visualize and closed-loop-validate Phase 3–6 plans in Isaac Sim on the DGX Spa
 3. Play validated `NominalPlan` joint trajectories in headless and GUI modes.
 4. Report sim tip / orientation metrics separately from cuRobo planning metrics.
 5. Keep Kit/python.sh resolution on the host (`scripts/isaac_sim_env.sh`, `scripts/host/*`).
+6. Cross the core/simulator boundary through a versioned, typed playback JSON
+   with exact joint names, SI units, scalar-first `wxyz`, and explicit
+   executable/validation status. Reject non-executable input before Kit starts.
 
 ### Design constraints
 
 - Core `mycobot_curobo` modules must not import Isaac Kit APIs.
 - Prefer host execution; container may only delegate via `spark_host_exec.sh`.
 - Simulation thresholds are sim metrics only — never claim physical accuracy.
+- A missing simulator TCP prim may leave tip metrics unevaluated after joint
+  playback; it must never cause invented pose values.
 
 ### Acceptance criteria
 

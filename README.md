@@ -16,8 +16,8 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 ## Current phase
 
-**Phase 6 — randomized workspace benchmark: implemented; container CI complete,
-host GPU smoke pending.**
+**Phase 7 — Isaac Sim validated-plan playback: implemented; final host smoke
+evidence is recorded in [`docs/phase7_isaac_sim.md`](docs/phase7_isaac_sim.md).**
 
 Full roadmap (Phases 0–10, including Isaac Sim, residual RL, and physical
 hardware): [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -46,13 +46,14 @@ Implemented now:
 - deterministic randomized workspace cases, frozen smoke/regression fixtures,
   exact failed-request replay, stable failure taxonomy, and JSON/Markdown
   reports;
-- Phase 7 Isaac Sim **scaffolding** (host scripts, URDF helpers, vendor obtain).
+- versioned validated-plan playback JSON, exact articulation DOF mapping,
+  NumPy pose metrics, and an Isaac Sim 6.x headless/GUI player.
 
 Not implemented through Phase 6:
 
 - non-empty-world collision-clearance evaluation (fails closed);
 - non-zero residual correction (Phase 8);
-- Isaac closed-loop player, residual RL training, hardware motion (Phases 7–10).
+- residual RL training and hardware motion (Phases 8–10).
 
 See [`STATUS.md`](STATUS.md) for acceptance status and [`CHANGES.md`](CHANGES.md)
 for the change inventory. The tested runtime evidence is in
@@ -258,26 +259,28 @@ seed sweeps create a fresh copied profile with the requested seed. Optional
 zero-residual execution rejection is reported separately from planning
 failures. See [`docs/phase6_benchmark.md`](docs/phase6_benchmark.md).
 
-## Isaac Sim scaffolding (Phase 7+)
+## Play a Phase 7 plan in Isaac Sim
 
-Optional host tooling adapted from v2. Not required for Phase 0 unit tests.
+Kit runs natively on the DGX Spark host. The player refuses non-executable
+plans before starting `SimulationApp`, maps the exact six joint names, and
+writes simulation pose metrics separately from cuRobo validation metrics.
 
 ```bash
 ./scripts/download_mycobot_ros2.sh          # vendor URDF + meshes (local)
 ./scripts/host/check_prereqs.sh             # host: Isaac python.sh + URDF
 ./scripts/convert_urdf_to_usd.sh            # host: URDF → USD
-./scripts/host/launch_isaac_sim.sh          # host: empty-stage GUI
+./scripts/host/smoke_isaac_viz.sh --headless
+./scripts/host/smoke_isaac_viz.sh --gui --auto-exit
 # From the Isaac ROS container:
-./scripts/host/spark_host_exec.sh ./scripts/host/check_prereqs.sh
+./scripts/host/spark_host_exec.sh \
+  ./scripts/host/smoke_isaac_viz.sh --gui --auto-exit
 ```
 
-`scripts/host/smoke_isaac_viz.sh` is a Phase 7 placeholder until a
-`NominalPlan` player exists. Install cuRobo **v0.8.0** into the Isaac Sim
-Python env when ready:
-
-```bash
-./scripts/host/install_curobo.sh
-```
+`./scripts/run_verification.sh spark` requires the auto-exiting GUI smoke; no
+environment bypass is supported. A missing `tcp_link` in the imported USD does
+not fabricate results: joint playback may complete while tip metrics are null
+and marked unevaluated. See
+[`docs/phase7_isaac_sim.md`](docs/phase7_isaac_sim.md).
 
 ## Safety boundary
 

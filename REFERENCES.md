@@ -152,10 +152,21 @@ compute-capability warning is retained in that report and is not suppressed.
 
 ## Phase 7 Isaac Sim libraries / host tooling
 
+- **Isaac Sim standalone Python environment**
+  <https://docs.isaacsim.omniverse.nvidia.com/latest/python_scripting/manual_standalone_python.html>
+  Authority for creating `SimulationApp` before importing Kit-dependent APIs.
+- **Isaac Sim Core API**
+  <https://docs.isaacsim.omniverse.nvidia.com/latest/py/source/extensions/isaacsim.core.api/docs/index.html>
+  `World` and articulation playback runtime used by the host player.
+- **OpenUSD physics articulation schema**
+  <https://openusd.org/release/api/class_usd_physics_articulation_root_a_p_i.html>
+  Used to discover the imported articulation root without assuming its path.
 - **Isaac Sim host `python.sh` resolution** — `scripts/isaac_sim_env.sh`
 - **Container → host delegation** — `scripts/host/spark_host_exec.sh`
 - **URDF import workarounds** — `isaac_sim/urdf_utils.py` (package://, COLLADA GUID)
 - **Joint drive gains (sim)** — `config/robots/joint_drives.yaml`
+- **Project Phase 7 report** —
+  [`docs/phase7_isaac_sim.md`](docs/phase7_isaac_sim.md)
 
 ## Phase 8 residual RL (planned)
 
