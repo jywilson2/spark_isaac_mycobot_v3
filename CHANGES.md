@@ -1,5 +1,32 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-18 — Phase 2 task frames
+
+### Enumerated changes
+
+1. Added immutable `SurfaceTarget` validation with explicit units/frames,
+   finite checks, normal normalization, pre-approach bounds, mutually exclusive
+   fixed/candidate rolls, and duplicate-angle rejection.
+2. Added configurable x/y/z signed TCP-axis task-frame construction, projected
+   tangent handling, deterministic least-aligned fallback, rotation validation,
+   and scalar-first quaternion conversion.
+3. Added ordered `SurfaceGoalSet` with stable goal-index-to-roll mapping and
+   public cuRoboV2 `GoalToolPose` conversion.
+4. Added typed `AppConfig` and `config/app.yml` so approach sign, axis, roll
+   density, bounds, paths, profiles, seed, and logging are startup-validated.
+5. Added tests for invalid inputs, all six axis/sign conventions, degeneracy,
+   fixed roll, index bounds, 512 seeded randomized normals, and GPU cuRobo goal
+   conversion.
+6. Added `docs/phase2_task_frames.md` and updated all project documentation.
+
+### Review recommended
+
+- Confirm the physical tool's signed approach-axis convention visually in
+  Phase 7 and again before hardware use. Phase 2 proves the configured
+  mathematics; it does not calibrate a physical tool.
+
+---
+
 ## 2026-07-18 — Phase 1 robot model
 
 ### Enumerated changes

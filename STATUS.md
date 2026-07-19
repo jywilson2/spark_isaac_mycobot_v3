@@ -4,7 +4,7 @@ Last updated: **2026-07-18**
 
 ## Current phase
 
-**Phase 1 — MyCobot 280 M5 model and cuRobo configuration: COMPLETE**
+**Phase 2 — surface target and task-frame generation: COMPLETE**
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–10)
@@ -18,7 +18,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 |-------|-------|--------|
 | 0 | Env / version guard | **Complete** |
 | 1 | Robot model + spheres | **Complete** |
-| 2 | Task frames / roll goals | Not started |
+| 2 | Task frames / roll goals | **Complete** |
 | 3 | `plan_grasp` nominal planning | Not started |
 | 4 | Independent validation | Not started |
 | 5 | Execution + zero residual seam | Not started |
@@ -46,6 +46,9 @@ planning-success claims, or hardware-readiness claims carry forward.
   CPU FK, named-state reordering, and five-case FK regression fixture.
 - Static collision spheres cover every configured robot collision link;
   self-collision is enabled and exercised by the GPU planner warmup.
+- Phase 2 typed surface targets, configurable signed tool-axis conventions,
+  robust tangent fallback, deterministic roll generation, rotation/quaternion
+  validation, goal-index mapping, and public cuRobo `GoalToolPose` conversion.
 
 ## Acceptance checklist (Phase 0)
 
@@ -87,9 +90,19 @@ tracked with provenance; vendor meshes remain obtained into gitignored
 - [x] Unit suite passes (29 tests); GPU integration passes (2 tests).
 - [x] No physical robot command is issued.
 
+## Acceptance checklist (Phase 2)
+
+- [x] Signed TCP approach axis aligns for x/y/z and signs ±1.
+- [x] All generated rotations are finite, orthonormal, and right-handed.
+- [x] All quaternions are normalized scalar-first `wxyz`.
+- [x] Roll generation preserves target position and deterministic ordering.
+- [x] Degenerate/near-parallel tangent hints use deterministic fallback.
+- [x] Seeded property test passes for 512 randomized normals.
+- [x] Three-roll public cuRoboV2 `GoalToolPose` conversion passes on GPU.
+- [x] Phase 2 unit tests pass (22 tests); cumulative lightweight suite passes.
+
 ## Next step
 
-Land the tested Phase 1 commit on `wip_phase1`, rebase/fast-forward `main`, then
-create `wip_phase2` from updated `main`. Phase 2 implements robust task-frame
-and roll-goal generation. Before hardware use, review the reduced collision
-sphere coverage against all vendor meshes.
+Land the tested Phase 2 commit on `wip_phase2`, rebase/fast-forward `main`, then
+create `wip_phase3` from updated `main`. Phase 3 implements the cuRoboV2
+`MotionPlanner.plan_grasp` adapter and structured nominal-plan results.

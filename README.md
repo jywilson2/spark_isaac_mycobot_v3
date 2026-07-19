@@ -13,7 +13,7 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 ## Current phase
 
-**Phase 1 — MyCobot 280 M5 model and cuRobo configuration: complete.**
+**Phase 2 — surface target and task-frame generation: complete.**
 
 Full roadmap (Phases 0–10, including Isaac Sim, residual RL, and physical
 hardware): [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -30,11 +30,13 @@ Implemented now:
 - validated cuRobo format-2.0 robot config with explicit joint/frame contracts;
 - independent CPU FK and five known-state regression fixtures;
 - static collision spheres, self-collision config, and GPU planner warmup;
+- typed surface targets and deterministic configurable roll goal sets;
+- public cuRoboV2 `GoalToolPose` conversion;
 - Phase 7 Isaac Sim **scaffolding** (host scripts, URDF helpers, vendor obtain).
 
-Not implemented through Phase 1:
+Not implemented through Phase 2:
 
-- target-frame generation / planning / validation (Phases 2–4);
+- nominal planning / independent validation (Phases 3–4);
 - residual seam, benchmarks (Phases 5–6);
 - Isaac closed-loop player, residual RL training, hardware motion (Phases 7–10).
 
@@ -114,6 +116,26 @@ On the DGX Spark host, construct and warm the cuRobo planner:
 The model uses `g_base`, `joint6_flange`, and an explicit identity
 `tcp_link` for the bare flange. A fitted tool requires a measured fixed TCP
 transform. See [`docs/phase1_robot_model.md`](docs/phase1_robot_model.md).
+
+## Build Phase 2 task frames
+
+```python
+from mycobot_curobo import SurfaceTarget, build_surface_goal_set
+
+target = SurfaceTarget.create(
+    position_base_m=[0.15, 0.0, 0.20],
+    surface_normal_base=[0.0, 0.0, 1.0],
+    tangent_hint_base=[1.0, 0.0, 0.0],
+    pre_approach_distance_m=0.05,
+    target_id="example",
+)
+goal_set = build_surface_goal_set(target)
+```
+
+The default signed axis is tool Z × -1 and the desired motion direction is
+against the outward normal. Defaults and roll angles come from
+`config/app.yml`; see
+[`docs/phase2_task_frames.md`](docs/phase2_task_frames.md).
 
 ## Isaac Sim scaffolding (Phase 7+)
 

@@ -57,6 +57,16 @@ compute-capability warning is retained in that report and is not suppressed.
   `cu12` / `cu13` install `cuda.core`; host install intentionally omits the
   `-torch` extra to preserve Isaac Sim's CUDA-enabled wheel.
 
+## Phase 2 task-frame APIs
+
+- **cuRobo v0.8.0 public types**
+  <https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/types.py>
+  Authority for public `Pose` and `GoalToolPose` imports.
+- **cuRoboV2 `GoalToolPose.from_poses`**
+  <https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/_src/types/tool_pose.py>
+  Defines `[batch, horizon, links, goalset, 3/4]` shape and ordered tool-frame
+  conversion. The project calls the class through `curobo.types`.
+
 ## Phase 7 Isaac Sim libraries / host tooling
 
 - **Isaac Sim host `python.sh` resolution** — `scripts/isaac_sim_env.sh`

@@ -1,0 +1,18 @@
+# Core application defaults. Behavior-changing values are loaded explicitly;
+# modules do not silently infer frames, signs, units, or roll density.
+robot_config_path: config/robots/mycobot_280_m5.yml
+scene_config_path: config/scenes/empty.yml
+tool_frame: tcp_link
+tool_approach_axis: z
+tool_approach_sign: -1
+approach_against_outward_normal: true
+default_roll_candidates_deg: [0, 45, 90, 135, 180, 225, 270, 315]
+normal_epsilon: 1.0e-9
+tangent_epsilon: 1.0e-9
+min_pre_approach_m: 0.01
+max_pre_approach_m: 0.15
+planner_profile_name: development_fast
+validation_profile_name: simulation_initial
+output_path: artifacts
+project_random_seed: 123
+logging_level: INFO
