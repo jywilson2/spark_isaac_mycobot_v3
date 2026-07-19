@@ -4,7 +4,7 @@ Last updated: **2026-07-18**
 
 ## Current phase
 
-**Phase 0 — repository bootstrap and environment verification: COMPLETE**
+**Phase 1 — MyCobot 280 M5 model and cuRobo configuration: COMPLETE**
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–10)
@@ -17,7 +17,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | Phase | Focus | Status |
 |-------|-------|--------|
 | 0 | Env / version guard | **Complete** |
-| 1 | Robot model + spheres | Not started |
+| 1 | Robot model + spheres | **Complete** |
 | 2 | Task frames / roll goals | Not started |
 | 3 | `plan_grasp` nominal planning | Not started |
 | 4 | Independent validation | Not started |
@@ -41,6 +41,11 @@ planning-success claims, or hardware-readiness claims carry forward.
 - Phase 7 Isaac Sim scaffolding adapted from v2 (host scripts, URDF helpers,
   vendor obtain script, staging URDFs). Vendor package obtained locally via
   `third_party/mycobot_ros2` → sibling symlink (gitignored).
+- Phase 1 cuRobo format-2.0 robot YAML, pinned vendor provenance/license,
+  corrected published velocity limits, explicit bare-flange TCP, independent
+  CPU FK, named-state reordering, and five-case FK regression fixture.
+- Static collision spheres cover every configured robot collision link;
+  self-collision is enabled and exercised by the GPU planner warmup.
 
 ## Acceptance checklist (Phase 0)
 
@@ -66,13 +71,25 @@ warning is recorded rather than suppressed and must be monitored during the
 Phase 1 planner warmup/kernel gate.
 
 Isaac Sim scaffolding is present for Phase 7+ but is **not** a Phase 0
-acceptance dependency. Staging URDFs under `assets/mycobot_280_m5/urdf/` are
-copied from v2 and still require Phase 1 provenance review before they are
-authoritative.
+acceptance dependency. The Phase 1 URDF derivative and vendor license are now
+tracked with provenance; vendor meshes remain obtained into gitignored
+`third_party/`.
+
+## Acceptance checklist (Phase 1)
+
+- [x] cuRobo v0.8.0 robot mapping loads and planner constructs on GPU.
+- [x] Planner warmup passes with self-collision enabled.
+- [x] Joint names/order, position/velocity/acceleration/jerk consistency pass.
+- [x] `tcp_link` is an explicit identity transform at the bare flange.
+- [x] Every collision link has static spheres (32 total).
+- [x] Five independent FK regression cases pass.
+- [x] cuRobo and CPU default TCP FK agree within 1 µm numerical tolerance.
+- [x] Unit suite passes (29 tests); GPU integration passes (2 tests).
+- [x] No physical robot command is issued.
 
 ## Next step
 
-Land the tested Phase 0 commit on `wip_phase0` and initialize `main`, then
-create `wip_phase1` from `main`. Phase 1 starts with asset provenance review.
-Do not start Phase 7 Isaac player work until Phases 0–6 (or at least 0–4) meet
-their gates per the roadmap.
+Land the tested Phase 1 commit on `wip_phase1`, rebase/fast-forward `main`, then
+create `wip_phase2` from updated `main`. Phase 2 implements robust task-frame
+and roll-goal generation. Before hardware use, review the reduced collision
+sphere coverage against all vendor meshes.

@@ -13,3 +13,7 @@ class MyCobotCuroboError(Exception):
 
 class EnvironmentVerificationError(MyCobotCuroboError):
     """The CUDA, PyTorch, or cuRobo runtime does not meet Phase 0 requirements."""
+
+
+class ConfigurationError(MyCobotCuroboError):
+    """Configuration or robot-model data is missing, ambiguous, or unsafe."""

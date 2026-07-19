@@ -1,0 +1,158 @@
+# MyCobot 280 M5 cuRoboV2 robot configuration (format 2.0).
+#
+# Vendor URDF/meshes:
+#   elephantrobotics/mycobot_ros2, humble, commit
+#   3999e2cda7460d61f4fd2ffaa31049f000eae7a8 (BSD)
+# Obtain with: ./scripts/download_mycobot_ros2.sh
+#
+# The bare-flange TCP is intentionally identity with joint6_flange. Replace
+# only with measured xyz+wxyz calibration when a physical tool is installed.
+# Acceleration/jerk are conservative planning assumptions because Elephant
+# Robotics publishes the 160 deg/s maximum speed but not acceleration/jerk.
+robot_cfg:
+  kinematics:
+    format_version: 2.0
+    asset_root_path: third_party/mycobot_ros2/mycobot_description/urdf/mycobot_280_m5
+    # Derived from the pinned vendor URDF; only zero velocity placeholders are
+    # replaced with the published 160 deg/s maximum.
+    urdf_path: assets/mycobot_280_m5/urdf/mycobot_280_m5_curobo.urdf
+    base_link: g_base
+    tool_frames:
+      - tcp_link
+    grasp_contact_link_names: []
+    use_global_cumul: true
+    cspace:
+      joint_names:
+        - joint2_to_joint1
+        - joint3_to_joint2
+        - joint4_to_joint3
+        - joint5_to_joint4
+        - joint6_to_joint5
+        - joint6output_to_joint6
+      default_joint_position: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      null_space_weight: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+      cspace_distance_weight: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+      max_acceleration: 3.0  # rad/s^2; conservative assumption
+      max_jerk: 30.0  # rad/s^3; conservative assumption
+    extra_links:
+      tcp_link:
+        link_name: tcp_link
+        joint_name: joint6_flange_to_tcp
+        parent_link_name: joint6_flange
+        joint_type: FIXED
+        fixed_transform: [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+    collision_link_names:
+      - g_base
+      - joint1
+      - joint2
+      - joint3
+      - joint4
+      - joint5
+      - joint6
+      - joint6_flange
+    mesh_link_names:
+      - g_base
+      - joint1
+      - joint2
+      - joint3
+      - joint4
+      - joint5
+      - joint6
+      - joint6_flange
+    collision_sphere_buffer: 0.003
+    self_collision_buffer:
+      g_base: 0.0
+      joint1: 0.0
+      joint2: 0.0
+      joint3: 0.0
+      joint4: 0.0
+      joint5: 0.0
+      joint6: 0.0
+      joint6_flange: 0.0
+    self_collision_ignore:
+      g_base: [joint1]
+      joint1: [g_base, joint2]
+      joint2: [joint1, joint3]
+      joint3: [joint2, joint4]
+      joint4: [joint3, joint5]
+      joint5: [joint4, joint6]
+      joint6: [joint5, joint6_flange]
+      joint6_flange: [joint6]
+    # Static link-frame spheres derived from v2's cuRobo mesh fit. The reduced
+    # set below is deliberately conservative scaffolding; Phase 1 GPU tests
+    # verify that every configured collision link has spheres and that the
+    # default state can be checked. Do not move these spheres for path shaping.
+    collision_spheres:
+      g_base:
+        - center: [0.01289, -0.04678, 0.03200]
+          radius: 0.008
+        - center: [-0.07290, 0.04309, 0.00000]
+          radius: 0.008
+        - center: [-0.07480, -0.04268, 0.00816]
+          radius: 0.008
+        - center: [0.07124, 0.03652, -0.03200]
+          radius: 0.008
+      joint1:
+        - center: [-0.02630, 0.00000, 0.02630]
+          radius: 0.016
+        - center: [0.00000, -0.02630, 0.02630]
+          radius: 0.016
+        - center: [0.00000, 0.00000, 0.05259]
+          radius: 0.016
+        - center: [0.02850, -0.04766, 0.01272]
+          radius: 0.008
+      joint2:
+        - center: [0.00000, 0.00000, 0.01881]
+          radius: 0.012
+        - center: [0.00000, 0.00000, 0.03761]
+          radius: 0.012
+        - center: [0.00000, 0.00000, 0.05642]
+          radius: 0.012
+        - center: [0.02432, 0.00343, -0.08363]
+          radius: 0.008
+      joint3:
+        - center: [0.02217, 0.00000, 0.00000]
+          radius: 0.014
+        - center: [0.02217, 0.00000, -0.04433]
+          radius: 0.014
+        - center: [0.02217, 0.00000, -0.08867]
+          radius: 0.014
+        - center: [0.02472, 0.01596, -0.12437]
+          radius: 0.008
+      joint4:
+        - center: [-0.04038, 0.00000, 0.02019]
+          radius: 0.013
+        - center: [-0.04038, 0.00000, 0.06057]
+          radius: 0.013
+        - center: [-0.02019, 0.00000, 0.10094]
+          radius: 0.013
+        - center: [-0.00689, 0.01003, 0.11232]
+          radius: 0.008
+      joint5:
+        - center: [-0.00923, -0.04217, 0.00528]
+          radius: 0.008
+        - center: [0.01529, -0.01131, 0.01205]
+          radius: 0.008
+        - center: [0.01051, -0.03523, 0.01334]
+          radius: 0.008
+        - center: [-0.01825, -0.03860, -0.03178]
+          radius: 0.008
+      joint6:
+        - center: [0.00000, 0.00000, 0.01559]
+          radius: 0.010
+        - center: [0.00000, 0.00000, 0.03117]
+          radius: 0.010
+        - center: [0.00000, 0.01559, 0.04676]
+          radius: 0.010
+        - center: [-0.00863, 0.03510, 0.04752]
+          radius: 0.008
+      joint6_flange:
+        - center: [0.00337, -0.00497, 0.01037]
+          radius: 0.008
+        - center: [-0.00373, 0.01877, 0.00026]
+          radius: 0.008
+        - center: [-0.01801, -0.00422, 0.01370]
+          radius: 0.008
+        - center: [0.01765, -0.00752, 0.01332]
+          radius: 0.008
+  load_dynamics: false

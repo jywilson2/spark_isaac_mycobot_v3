@@ -12,11 +12,17 @@ license = "Apache-2.0"
 authors = [{ name = "spark_isaac_mycobot_v3 contributors" }]
 dependencies = [
   "numpy>=1.24",
-  "nvidia-curobo[cu12-torch] @ git+https://github.com/NVlabs/curobo.git@v0.8.0",
+  "nvidia-curobo @ git+https://github.com/NVlabs/curobo.git@v0.8.0",
   "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
+cuda12 = [
+  "nvidia-curobo[cu12] @ git+https://github.com/NVlabs/curobo.git@v0.8.0",
+]
+cuda13 = [
+  "nvidia-curobo[cu13] @ git+https://github.com/NVlabs/curobo.git@v0.8.0",
+]
 dev = [
   "pytest>=7.4,<9",
   "ruff>=0.4",

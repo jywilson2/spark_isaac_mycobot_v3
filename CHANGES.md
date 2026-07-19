@@ -1,5 +1,42 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-18 — Phase 1 robot model
+
+### Enumerated changes
+
+1. Added `config/robots/mycobot_280_m5.yml` in cuRobo v0.8.0 format 2.0
+   with exact URDF joint order, explicit bare-flange `tcp_link`, conservative
+   acceleration/jerk assumptions, 32 static collision spheres, and
+   self-collision configuration.
+2. Pinned Elephant Robotics asset provenance to `mycobot_ros2` `humble`
+   commit `3999e2cda7460d61f4fd2ffaa31049f000eae7a8` and retained its
+   BSD-2-Clause license.
+3. Documented the derived cuRobo URDF: vendor transforms/position limits are
+   retained while zero velocity placeholders are replaced with the published
+   160 deg/s maximum.
+4. Added `mycobot_curobo.robot_model` with typed metadata, strict config
+   validation, explicit named-state reordering, independent CPU FK, and a
+   cuRobo adapter that resolves external paths deterministically.
+5. Added five FK regression fixtures, negative order/limit/config tests,
+   an inspection CLI + host wrapper, and a GPU integration test.
+6. Corrected CUDA dependency installation: project extras are `cuda12` /
+   `cuda13`, and the host installer uses cuRobo's `cu13` extra without
+   replacing Isaac Sim's CUDA-enabled PyTorch.
+7. Updated `spec.md` for the verified v0.8.0 external-config behavior and
+   updated all project documentation with Phase 1 evidence.
+
+### Review recommended
+
+- **Collision geometry:** visually review the reduced four-sphere-per-link set
+  against every vendor mesh before hardware use; increase density if coverage
+  is incomplete.
+- **TCP:** the identity transform is correct only for the bare flange. Any
+  attached tool requires measured calibration.
+- **Runtime:** continue monitoring the visible GB10 compute-capability warning
+  and pre-existing Isaac Lab package-version conflicts.
+
+---
+
 ## 2026-07-18 — Phase 0 completion
 
 ### Enumerated changes

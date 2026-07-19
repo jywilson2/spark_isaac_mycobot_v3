@@ -13,7 +13,7 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 ## Current phase
 
-**Phase 0 — repository bootstrap and environment verification: complete.**
+**Phase 1 — MyCobot 280 M5 model and cuRobo configuration: complete.**
 
 Full roadmap (Phases 0–10, including Isaac Sim, residual RL, and physical
 hardware): [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -27,11 +27,13 @@ Implemented now:
 - machine-readable environment report;
 - lightweight unit tests and a separately marked GPU import smoke test;
 - ruff lint/format configuration;
+- validated cuRobo format-2.0 robot config with explicit joint/frame contracts;
+- independent CPU FK and five known-state regression fixtures;
+- static collision spheres, self-collision config, and GPU planner warmup;
 - Phase 7 Isaac Sim **scaffolding** (host scripts, URDF helpers, vendor obtain).
 
-Not implemented in Phase 0:
+Not implemented through Phase 1:
 
-- robot model or collision-sphere configuration (Phase 1);
 - target-frame generation / planning / validation (Phases 2–4);
 - residual seam, benchmarks (Phases 5–6);
 - Isaac closed-loop player, residual RL training, hardware motion (Phases 7–10).
@@ -43,19 +45,24 @@ for the change inventory. The tested runtime evidence is in
 ## Install
 
 Use Python 3.10 or newer in a CUDA-capable NVIDIA environment. The direct
-dependency in `pyproject.toml` pins cuRobo to the exact `v0.8.0` Git tag and
-selects its CUDA 12 + PyTorch dependency set.
+dependency pins cuRobo to the exact `v0.8.0` Git tag. Select the matching CUDA
+runtime extra without allowing pip to replace an existing CUDA-enabled PyTorch:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e '.[dev]'
+python -m pip install -e '.[dev,cuda13]'  # DGX Spark / CUDA 13
+# or: python -m pip install -e '.[dev,cuda12]'
 ```
 
 PyTorch must match the installed NVIDIA driver/CUDA environment. If the default
 resolver selects an incompatible wheel, install the correct PyTorch CUDA wheel
 first, then repeat the editable install. Do not use CPU fallback for planning.
+
+On the Isaac Sim host, use `scripts/host/install_curobo.sh`; it deliberately
+installs cuRobo's `cu13` runtime extra without a Torch extra so Isaac Sim's
+cu130 wheel is preserved.
 
 ## Verify Phase 0
 
@@ -87,6 +94,26 @@ The verifier records:
 
 It exits nonzero if the exact cuRobo baseline, required public APIs, CUDA, or
 GPU allocation are unavailable.
+
+## Inspect Phase 1 robot model
+
+Obtain the pinned vendor URDF/meshes, then inspect CPU metadata/FK:
+
+```bash
+./scripts/download_mycobot_ros2.sh
+python3 scripts/inspect_robot_model.py
+```
+
+On the DGX Spark host, construct and warm the cuRobo planner:
+
+```bash
+./scripts/host/spark_host_exec.sh \
+  ./scripts/host/inspect_robot_model.sh
+```
+
+The model uses `g_base`, `joint6_flange`, and an explicit identity
+`tcp_link` for the bare flange. A fitted tool requires a measured fixed TCP
+transform. See [`docs/phase1_robot_model.md`](docs/phase1_robot_model.md).
 
 ## Isaac Sim scaffolding (Phase 7+)
 

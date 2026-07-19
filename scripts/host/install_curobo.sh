@@ -17,10 +17,12 @@ fi
 
 CUROBO_DIR="${CUROBO_DIR:-${HOME}/curobo}"
 CUROBO_REF="${CUROBO_REF:-v0.8.0}"
+CUROBO_CUDA_EXTRA="${CUROBO_CUDA_EXTRA:-cu13}"
 PY="${ISAACSIM_PYTHON_EXE}"
 
 echo "=== Install cuRobo ${CUROBO_REF} into ${PY} ==="
 echo "CUROBO_DIR=${CUROBO_DIR}"
+echo "CUROBO_CUDA_EXTRA=${CUROBO_CUDA_EXTRA}"
 
 "${PY}" -m pip install -q tomli wheel ninja
 
@@ -32,15 +34,11 @@ else
   git -C "${CUROBO_DIR}" checkout "${CUROBO_REF}"
 fi
 
-# Prefer isaacsim extra when available; fall back to plain editable install.
-set +e
-"${PY}" -m pip install -e "${CUROBO_DIR}[isaacsim]" --no-build-isolation
-rc=$?
-set -e
-if [[ "${rc}" -ne 0 ]]; then
-  echo "NOTE: pip install [isaacsim] failed; retrying without extra..."
-  "${PY}" -m pip install -e "${CUROBO_DIR}" --no-build-isolation
-fi
+# v0.8.0 uses CUDA-major extras, not the legacy/nonexistent ``isaacsim``
+# extra. Install ``cu13`` without ``-torch`` so pip cannot replace Isaac Sim's
+# CUDA-enabled PyTorch with a CPU wheel from PyPI. Override with
+# CUROBO_CUDA_EXTRA=cu12 on CUDA 12 after installing the correct torch wheel.
+"${PY}" -m pip install -e "${CUROBO_DIR}[${CUROBO_CUDA_EXTRA}]" --no-build-isolation
 
 "${PY}" - <<'PY'
 import curobo

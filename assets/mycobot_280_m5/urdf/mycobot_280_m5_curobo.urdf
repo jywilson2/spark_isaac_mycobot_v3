@@ -1,4 +1,11 @@
 <?xml version="1.1"?>
+<!--
+  Derived from Elephant Robotics mycobot_ros2 (BSD-2-Clause), humble commit
+  3999e2cda7460d61f4fd2ffaa31049f000eae7a8.
+  Phase 1 change: replace vendor velocity="0" placeholders with the published
+  MyCobot 280 maximum 160 deg/s (2.792527 rad/s). Geometry and transforms are
+  otherwise unchanged. See ../VENDOR_LICENSE and docs/phase1_robot_model.md.
+-->
 <robot  xmlns:xacro="http://www.ros.org/wiki/xacro" name="firefighter" >
 	
 <xacro:property name="width" value=".2" />

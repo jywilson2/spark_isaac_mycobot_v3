@@ -39,9 +39,23 @@ compute-capability warning is retained in that report and is not suppressed.
 
 - **Elephant Robotics `mycobot_ros2`**  
   <https://github.com/elephantrobotics/mycobot_ros2>  
-  Vendor URDF + meshes. Obtained locally via `scripts/download_mycobot_ros2.sh`
-  into gitignored `third_party/`. Staging kinematics/cuRobo URDFs under
-  `assets/mycobot_280_m5/urdf/` still require Phase 1 provenance review.
+  Vendor URDF + meshes pinned for Phase 1 to `humble` commit
+  `3999e2cda7460d61f4fd2ffaa31049f000eae7a8`. Obtained locally via
+  `scripts/download_mycobot_ros2.sh` into gitignored `third_party/`.
+- **Elephant Robotics `mycobot_description` BSD-2-Clause license**
+  Retained at `assets/mycobot_280_m5/VENDOR_LICENSE`.
+- **MyCobot 280 M5 published specifications**
+  <https://www.elephantrobotics.com/en/mycobot-280-m5-2023-specificatons-en/>
+  Source for the 160 deg/s family maximum. Acceleration and jerk remain
+  explicitly documented conservative assumptions.
+- **cuRobo v0.8.0 robot format-2.0 example**
+  <https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/content/configs/robot/franka.yml>
+  Authority for `robot_cfg.kinematics`, c-space, tool-frame, extra-link,
+  collision sphere, and self-collision fields.
+- **cuRobo v0.8.0 CUDA extras**
+  <https://github.com/NVlabs/curobo/blob/v0.8.0/pyproject.toml>
+  `cu12` / `cu13` install `cuda.core`; host install intentionally omits the
+  `-torch` extra to preserve Isaac Sim's CUDA-enabled wheel.
 
 ## Phase 7 Isaac Sim libraries / host tooling
 

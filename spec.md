@@ -464,7 +464,11 @@ Create a validated cuRobo v0.8.0 robot configuration for the exact MyCobot 280 M
 
 ### Acceptance criteria
 
-- `MotionPlannerCfg.create(robot="config/robots/mycobot_280_m5.yml", ...)` succeeds.
+- Loading `config/robots/mycobot_280_m5.yml` through the project adapter and
+  passing the validated mapping to `MotionPlannerCfg.create(robot=..., ...)`
+  succeeds. cuRobo v0.8.0 resolves a relative string against its installed
+  content directory, so project-owned paths must be resolved explicitly (see
+  `docs/phase1_robot_model.md`).
 - The planner can warm up on the GPU.
 - FK results are repeatable and within the test tolerance.
 - Self-collision checking can be executed for the default configuration.

@@ -1,11 +1,29 @@
-"""MyCobot 280 M5 constrained-approach planning foundations.
+"""MyCobot 280 M5 constrained-approach planning and validation.
 
-Phase 0 exposes only environment verification. Planning, robot-model,
-trajectory-validation, and residual interfaces are added one specification
-phase at a time after their acceptance criteria are implemented and tested.
+Phase 0 verifies the cuRobo/CUDA runtime. Phase 1 adds explicit robot metadata,
+joint-state ordering, limits, collision geometry, and independent CPU FK.
+Planning, trajectory validation, and residual interfaces are added one
+specification phase at a time after their acceptance criteria pass.
 """
 
-from mycobot_curobo.errors import EnvironmentVerificationError, MyCobotCuroboError
+from mycobot_curobo.errors import (
+    ConfigurationError,
+    EnvironmentVerificationError,
+    MyCobotCuroboError,
+)
+from mycobot_curobo.robot_model import (
+    BASE_LINK,
+    FLANGE_LINK,
+    JOINT_NAMES,
+    TCP_LINK,
+    JointLimits,
+    Pose,
+    RobotModelSpec,
+    forward_kinematics,
+    load_curobo_robot_config,
+    load_robot_model_spec,
+    reorder_joint_state,
+)
 from mycobot_curobo.version_guard import (
     EnvironmentReport,
     RuntimeSnapshot,
@@ -15,8 +33,20 @@ from mycobot_curobo.version_guard import (
 __all__ = [
     "EnvironmentReport",
     "EnvironmentVerificationError",
+    "ConfigurationError",
+    "BASE_LINK",
+    "FLANGE_LINK",
+    "JOINT_NAMES",
+    "JointLimits",
     "MyCobotCuroboError",
+    "Pose",
+    "RobotModelSpec",
     "RuntimeSnapshot",
+    "TCP_LINK",
+    "forward_kinematics",
+    "load_curobo_robot_config",
+    "load_robot_model_spec",
+    "reorder_joint_state",
     "verify_environment",
 ]
 
