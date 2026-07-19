@@ -10,6 +10,14 @@ validation do not authorize those components to generate replacement paths.
 
 ## Phase 0 implementation libraries
 
+## Phase 7.1 implementation references
+
+- **cuRobo v0.8.0 motion-planner result source**
+  <https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/_src/motion/motion_planner_result.py>
+  Used for the public-result-compatible `interpolated_trajectory` and
+  `interpolated_last_tstep` extraction used by the Mode C cuRobo relocation
+  adapter.
+
 - **NVIDIA cuRobo v0.8.0 tag**  
   <https://github.com/NVlabs/curobo/tree/v0.8.0>  
   Exact planning/runtime baseline.
@@ -168,16 +176,28 @@ compute-capability warning is retained in that report and is not suppressed.
 - **Project Phase 7 report** —
   [`docs/phase7_isaac_sim.md`](docs/phase7_isaac_sim.md)
 
-## Phase 7.1 cube-suite contracts (planned)
+## Phase 7.1 cube-suite contracts
 
-- **Project Phase 7.1 requirement report** —
+- **Project Phase 7.1 report (implemented)** —
   [`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md)
 - Reuses Phase 4 geometric/collision metrics, Phase 6 deterministic sampling
   and replay, and Phase 7 playback. Isaac tip metrics deliberately remain
   null/`not_evaluated`.
+- Host process split: `isaac_sim/plan_cube_suite.py` (cuRobo only) then
+  `isaac_sim/play_cube_suite.py` (Kit only). Sharing cuRobo/Warp with
+  `SimulationApp` in one process breaks Kit extension startup on this stack.
+- Implemented terminal standoff default `0.08 m` keeps flange collision spheres
+  clear of the cube at host-feasible grasp poses (simulation clearance only).
 - The 31 mm flange diameter used to derive the default 14 mm cube is an
   unverified design assumption, not a vendor-backed dimensional reference.
   Phase 9 must replace or confirm it with a recorded physical measurement.
+- **OpenUSD lighting schemas** —
+  <https://openusd.org/release/api/usd_lux_page_front.html>
+  Authority for `UsdLux.DomeLight` and `UsdLux.DistantLight` scene lighting.
+- **OpenUSD collision schema** —
+  <https://openusd.org/release/api/class_usd_physics_collision_a_p_i.html>
+  Authority for static cube collision geometry; PhysX contact reporting is
+  host-only evidence and remains separate from cuRobo validation.
 
 ## Phase 8 residual RL (planned)
 

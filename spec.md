@@ -951,6 +951,9 @@ the Phase 6 randomized benchmark or Phase 7 smoke.
 - The cube is represented consistently as world-collision geometry in cuRobo
   and Isaac. The contact-ready endpoint uses a positive configurable standoff
   from the cube face in Phase 7.1; physical contact is not commanded.
+- Isaac playback creates the configured dome and distant lights before the
+  first world reset. The static cube carries collision and contact-report APIs;
+  its arm-contact event count is an explicit per-episode acceptance metric.
 - Cube-face normals are sampled from labeled bins. The desired terminal motion
   is opposite the outward face normal and aligned to the configured signed TCP
   approach axis.
@@ -1281,8 +1284,11 @@ Use a validated named YAML configuration for:
 - root seed and start-state sampling/bank;
 - Modes A–D and explicit chained-failure behavior;
 - cube edge (default `0.014 m`), world pose AABB, and normal bins;
-- positive terminal standoff;
-- planner/validation/scene profiles;
+- positive terminal standoff (implemented default `0.08 m`, chosen so robot
+  collision spheres remain clear of the cube at host-feasible grasp poses);
+- Mode D goal-joint bank whose FK tip defines cube centres accepted only when
+  they fall inside the declared AABBs;
+- planner/validation/scene profiles and explicit lighting intensities;
 - console refresh/report fields and artifact path; and
 - required self/world collision and Isaac prohibited-contact gates.
 

@@ -1,0 +1,65 @@
+# Phase 7.1 cube-suite contract. Regions are conservative, unmeasured g_base AABBs
+# covering FK-aligned cube centres that remain start-clear for the bank.
+episode_count: 5
+root_seed: 123
+frame: g_base
+modes:
+  A:
+    enabled_by_default: true
+  B:
+    enabled_by_default: false
+  C:
+    enabled_by_default: false
+  D:
+    enabled_by_default: true
+chained_failure_policy: use_last_success
+safe_nest_label: safe_nest
+safe_nest_joint_position_rad: [0.0, -0.4, 0.6, 0.0, 0.4, 0.0]
+cube_edge_m: 0.014
+flange_diameter_assumption_m: 0.031
+# Collision-sphere clearance requires a larger standoff than the geometric face
+# gap alone; 0.08 m is the measured host-feasible default for this robot model.
+terminal_standoff_m: 0.08
+regions:
+  - label: front_left
+    minimum_m: [0.10, -0.23, 0.15]
+    maximum_m: [0.20, -0.10, 0.23]
+  - label: front_right
+    minimum_m: [0.18, -0.05, 0.15]
+    maximum_m: [0.23, 0.08, 0.23]
+normal_bins:
+  - label: fk_tool_plus_z
+    direction_base: [1.0, 0.0, 0.0]
+    cone_half_angle_deg: 15.0
+start_sampling: bank
+start_joint_bank:
+  - label: zeros
+    position_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  - label: forward_left
+    position_rad: [0.35, -0.45, 0.70, 0.10, 0.35, -0.20]
+  - label: forward_right
+    position_rad: [-0.35, -0.35, 0.55, -0.15, 0.30, 0.25]
+  - label: raised
+    position_rad: [0.20, -0.65, 0.85, 0.25, 0.45, -0.15]
+# Mode D goal diversity: seeded joint goals whose FK tip defines the cube approach.
+goal_joint_bank:
+  - label: goal_front_left_a
+    position_rad: [-0.536, -1.698, 1.210, -1.266, -0.864, 1.673]
+  - label: goal_front_left_b
+    position_rad: [-0.662, -0.623, -1.419, 0.464, 1.175, -0.819]
+  - label: goal_front_right_a
+    position_rad: [0.325, -0.685, -1.548, 0.965, -1.389, -1.613]
+planner_profile: benchmark_reproducible
+validation_profile: simulation_initial
+scene_revision_prefix: phase7_1-cube
+artifact_path: artifacts/phase7_1
+minimum_self_collision_clearance_m: 0.0
+minimum_world_collision_clearance_m: 0.0
+max_isaac_prohibited_contacts: 0
+lighting:
+  dome_intensity: 1000.0
+  distant_intensity: 3000.0
+  distant_angle_deg: [45.0, -30.0, 0.0]
+  color: [1.0, 1.0, 1.0]
+pre_approach_distance_m: 0.01
+roll_candidates_deg: [0]

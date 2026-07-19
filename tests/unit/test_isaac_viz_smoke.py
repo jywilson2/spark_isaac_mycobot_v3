@@ -16,6 +16,7 @@ ROOT = Path(__file__).parents[2]
 SMOKE = ROOT / "scripts" / "host" / "smoke_isaac_viz.sh"
 VERIFY = ROOT / "scripts" / "run_verification.sh"
 PLAYER = ROOT / "isaac_sim" / "play_nominal_plan.py"
+PHASE7_1_PLAYER = ROOT / "isaac_sim" / "play_cube_suite.py"
 PLAN = ROOT / "tests" / "data" / "phase7_validated_plan.json"
 
 
@@ -37,8 +38,14 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "phase7_validated_plan.json" in smoke
     assert "PHASE7_" + "NOT_IMPLEMENTED" not in smoke
     assert "--gui --auto-exit" in verification
+    assert "smoke_phase7_1_cube_suite.sh --gui --auto-exit --all-modes" in verification
     assert "spark_host_exec.sh" in verification
     assert "SPARK_RUN_ISAAC_GUI_SMOKE" not in verification
+    player = PLAYER.read_text(encoding="utf-8")
+    assert "add_scene_lighting" in player
+    assert "lighting_ready" in player
+    assert "scene_setup" in player
+    assert "set_joint_position_targets" in PHASE7_1_PLAYER.read_text(encoding="utf-8")
 
 
 def test_player_refuses_invalid_plan_before_isaac_import(tmp_path: Path) -> None:

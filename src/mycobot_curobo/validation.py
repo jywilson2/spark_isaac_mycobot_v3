@@ -10,11 +10,12 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 import numpy as np
 import yaml
 
+from mycobot_curobo.cube_scene import batch_sphere_cube_clearance_m
 from mycobot_curobo.errors import ConfigurationError
 from mycobot_curobo.frames import TaskFrameConfig, build_task_frame_candidates
 from mycobot_curobo.planner import NominalPlan, PlanningRequest
@@ -156,9 +157,28 @@ class CuroboTrajectoryEvaluator:
     that metric as unevaluated so validation fails closed.
     """
 
-    def __init__(self, planner: Any, *, scene_is_empty: bool) -> None:
+    def __init__(
+        self,
+        planner: Any,
+        *,
+        scene_is_empty: bool,
+        world_clearance_fn: Callable[[np.ndarray], np.ndarray] | None = None,
+        cube_center_m: tuple[float, float, float] | None = None,
+        cube_edge_m: float | None = None,
+    ) -> None:
         self._planner = planner
         self._scene_is_empty = bool(scene_is_empty)
+        if world_clearance_fn is not None and cube_center_m is not None:
+            raise ConfigurationError(
+                "provide either world_clearance_fn or cube geometry, not both"
+            )
+        if (cube_center_m is None) != (cube_edge_m is None):
+            raise ConfigurationError("cube_center_m and cube_edge_m must be supplied together")
+        if cube_edge_m is not None and (not math.isfinite(cube_edge_m) or cube_edge_m <= 0.0):
+            raise ConfigurationError("cube_edge_m must be positive and finite")
+        self._world_clearance_fn = world_clearance_fn
+        self._cube_center_m = cube_center_m
+        self._cube_edge_m = cube_edge_m
 
     def evaluate(self, position_rad: np.ndarray) -> KinematicCollisionBatch:
         import torch
@@ -202,18 +222,130 @@ class CuroboTrajectoryEvaluator:
             - second[..., 3]
         )
         self_clearance = np.min(pair_clearance, axis=1)
-        world_clearance = (
-            np.full(positions.shape[0], np.finfo(float).max, dtype=float)
-            if self._scene_is_empty
-            else None
-        )
+        if self._scene_is_empty:
+            world_clearance = np.full(positions.shape[0], np.finfo(float).max, dtype=float)
+            world_evaluated = True
+        elif self._world_clearance_fn is not None:
+            world_clearance = np.asarray(self._world_clearance_fn(spheres), dtype=float)
+            if world_clearance.shape != (positions.shape[0],):
+                raise ConfigurationError("world_clearance_fn must return one value per waypoint")
+            world_evaluated = True
+        elif self._cube_center_m is not None and self._cube_edge_m is not None:
+            world_clearance = batch_sphere_cube_clearance_m(
+                spheres, self._cube_center_m, self._cube_edge_m
+            )
+            world_evaluated = True
+        else:
+            world_clearance = None
+            world_evaluated = False
         return KinematicCollisionBatch(
             tcp_position_m=tcp_position,
             tcp_rotation_base_from_tool=rotations,
             self_collision_clearance_m=self_clearance,
             world_collision_clearance_m=world_clearance,
-            world_collision_evaluated=self._scene_is_empty,
+            world_collision_evaluated=world_evaluated,
         )
+
+
+@dataclass(frozen=True)
+class StartStateValidation:
+    """Fail-closed joint-limit and collision result for one initial state."""
+
+    valid: bool
+    violations: tuple[ValidationViolation, ...]
+
+
+def validate_start_state(
+    position_rad: np.ndarray,
+    *,
+    evaluator: TrajectoryEvaluator,
+    robot_spec: RobotModelSpec,
+    minimum_joint_limit_margin_rad: float = 0.0,
+    minimum_self_collision_clearance_m: float = 0.0,
+    minimum_world_collision_clearance_m: float = 0.0,
+) -> StartStateValidation:
+    """Validate a single start without pretending it is a complete trajectory."""
+
+    position = np.asarray(position_rad, dtype=float)
+    violations: list[ValidationViolation] = []
+    if position.shape != (len(JOINT_NAMES),) or not np.all(np.isfinite(position)):
+        return StartStateValidation(
+            False,
+            (
+                ValidationViolation(
+                    "start_state", 0, None, None, "start must be six finite radians"
+                ),
+            ),
+        )
+    margin = np.minimum(
+        position - robot_spec.limits.lower_rad, robot_spec.limits.upper_rad - position
+    )
+    if float(np.min(margin)) < minimum_joint_limit_margin_rad:
+        violations.append(
+            ValidationViolation(
+                "joint_position_margin",
+                0,
+                float(np.min(margin)),
+                minimum_joint_limit_margin_rad,
+                "start violates joint limit margin",
+            )
+        )
+    try:
+        geometry = evaluator.evaluate(position.reshape(1, -1))
+    except (RuntimeError, ValueError, ConfigurationError) as exc:
+        return StartStateValidation(
+            False,
+            tuple(
+                violations + [ValidationViolation("kinematics_collision", 0, None, None, str(exc))]
+            ),
+        )
+    if (
+        geometry.self_collision_clearance_m.shape != (1,)
+        or float(geometry.self_collision_clearance_m[0]) < minimum_self_collision_clearance_m
+    ):
+        measured = (
+            float(geometry.self_collision_clearance_m[0])
+            if geometry.self_collision_clearance_m.shape == (1,)
+            else None
+        )
+        violations.append(
+            ValidationViolation(
+                "self_collision_clearance",
+                0,
+                measured,
+                minimum_self_collision_clearance_m,
+                "start self-clearance is insufficient",
+            )
+        )
+    if not geometry.world_collision_evaluated or geometry.world_collision_clearance_m is None:
+        violations.append(
+            ValidationViolation(
+                "world_collision_clearance",
+                0,
+                None,
+                minimum_world_collision_clearance_m,
+                "start world clearance is unevaluated",
+            )
+        )
+    elif (
+        geometry.world_collision_clearance_m.shape != (1,)
+        or float(geometry.world_collision_clearance_m[0]) < minimum_world_collision_clearance_m
+    ):
+        measured = (
+            float(geometry.world_collision_clearance_m[0])
+            if geometry.world_collision_clearance_m.shape == (1,)
+            else None
+        )
+        violations.append(
+            ValidationViolation(
+                "world_collision_clearance",
+                0,
+                measured,
+                minimum_world_collision_clearance_m,
+                "start world clearance is insufficient",
+            )
+        )
+    return StartStateValidation(not violations, tuple(violations))
 
 
 def _rotation_error_rad(actual: np.ndarray, desired: np.ndarray) -> float:

@@ -29,6 +29,7 @@ Usage: ./scripts/run_verification.sh <ci|spark|help>
             3) ruff check . && ruff format --check .
             4) Optional: pytest -m gpu tests/integration when CUDA/cuRobo exist
             5) Required Phase 7 validated-plan GUI smoke
+            6) Required Phase 7.1 cube-suite GUI smoke
 
 Options (after mode):
   --skip-pytest    Skip the unit suite (debug only)
@@ -170,6 +171,16 @@ run_isaac_gui_smoke() {
   fi
 }
 
+run_phase7_1_isaac_gui_smoke() {
+  echo "=== Phase 7.1 Isaac Sim cube-suite GUI smoke ==="
+  if [[ -f /.dockerenv ]]; then
+    bash "${ROOT}/scripts/host/spark_host_exec.sh" \
+      ./scripts/host/smoke_phase7_1_cube_suite.sh --gui --auto-exit --all-modes
+  else
+    bash "${ROOT}/scripts/host/smoke_phase7_1_cube_suite.sh" --gui --auto-exit --all-modes
+  fi
+}
+
 case "${MODE}" in
   ci)
     echo "############################################"
@@ -198,6 +209,7 @@ case "${MODE}" in
       echo "NOTE: GPU integration not run (pass --with-gpu or SPARK_RUN_GPU_TESTS=1)."
     fi
     run_isaac_gui_smoke
+    run_phase7_1_isaac_gui_smoke
     echo "=== Spark verification PASSED ==="
     ;;
   *)

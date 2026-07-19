@@ -16,9 +16,8 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 ## Current phase
 
-**Phase 7 — Isaac Sim validated-plan playback: complete. Phase 7.1
-unknown-start normal-approach cube visualization requirements are finalized
-for implementation on `wip_phase7_1`.** See
+**Phase 7 — Isaac Sim validated-plan playback: complete. Phase 7.1 —
+unknown-start cube approach suite: complete on `wip_phase7_1`.** See
 [`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md).
 
 Full roadmap (Phases 0–11, including decimal Phases 7.1 and 9.1):
@@ -50,12 +49,18 @@ Implemented now:
   reports;
 - versioned validated-plan playback JSON, exact articulation DOF mapping,
   NumPy pose metrics, and an Isaac Sim 6.x headless/GUI player.
+- deterministic Phase 7.1 cube geometry/scene revisions, frozen episode replay,
+  A–D mode sampling, JSON/console reporting, and cube sphere-AABB clearance;
+- a fail-closed cube-world validation adapter and cuRobo-only joint relocation
+  adapter for Mode C;
+- illuminated Isaac Phase 7.1 plan/playback split (cuRobo process then Kit),
+  drive-target motion, PhysX prohibited-contact evidence, and null tip metrics.
 
 Not implemented:
 
-- non-empty-world collision-clearance evaluation (fails closed);
+- generic non-empty-world collision-clearance evaluation beyond the Phase 7.1
+  cube adapter (still fails closed);
 - non-zero residual correction (Phase 8);
-- Phase 7.1 cube-suite runtime;
 - Phase 9/9.1 fabricated contact tool and evaluation;
 - residual RL training and hardware motion (Phases 8–11).
 
@@ -286,22 +291,30 @@ not fabricate results: joint playback may complete while tip metrics are null
 and marked unevaluated. See
 [`docs/phase7_isaac_sim.md`](docs/phase7_isaac_sim.md).
 
-## Planned Phase 7.1 cube approach suite
+## Phase 7.1 cube approach suite
 
-Phase 7.1 will run **5 episodes by default** with independent unknown starts
+Phase 7.1 samples **5 episodes by default** with independent unknown starts
 (Mode A) and diverse 3D cube goals/normals (Mode D). Chained starts (B) and
 relocate-then-approach (C) are optional runtime modes, but acceptance testing
 must exercise all A–D modes.
 
 The default cube edge is **14 mm**, derived as approximately 25% of the area of
 an assumed 31 mm circular flange face. Phase 9 must measure that assumption.
-Live console output and matching JSON will report lateral/axis errors,
-self/world-collision status/clearance, prohibited Isaac contact events,
-failures, timing, p50/p95, seed, and replay inputs. The cube is collision
-geometry and the Phase 7.1 endpoint uses a positive configurable standoff;
-unevaluated non-empty-world clearance fails closed. Isaac tip metrics remain
-null/`not_evaluated`; see
+The default terminal standoff is **0.08 m** so collision spheres clear the cube
+at the Phase 4/7.1 grasp pose; Mode D samples FK-aligned cubes from a seeded
+goal-joint bank inside declared `g_base` AABBs. Reports include lateral/axis
+errors, clearances, prohibited Isaac contacts, failures, p50/p95, seed, and
+frozen replay inputs. Unevaluated non-cube non-empty worlds still fail closed.
+Isaac tip metrics remain null/`not_evaluated`; see
 [`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md).
+
+Host smoke plans in a cuRobo-only process, then plays in Kit with lighting,
+static contact-reporting cubes, labeled resets, and drive-target motion:
+
+```bash
+./scripts/host/spark_host_exec.sh \
+  ./scripts/host/smoke_phase7_1_cube_suite.sh --gui --auto-exit --all-modes
+```
 
 ## Planned Phase 9/9.1 contact tool
 

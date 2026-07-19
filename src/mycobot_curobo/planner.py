@@ -135,6 +135,9 @@ class PlannerBackend(Protocol):
     def plan_grasp(self, **kwargs: Any) -> Any:
         """Plan free-space approach and linear terminal segments."""
 
+    def plan_cspace(self, goal_state: Any, current_state: Any) -> Any:
+        """Plan a cuRobo-only joint-space relocation."""
+
     def reset_seed(self) -> None:
         """Reset backend samplers to the configured reproducible seed."""
 
@@ -231,6 +234,42 @@ def _bool_tensor(value: Any) -> bool:
         current = current.numpy()
     array = np.asarray(current)
     return bool(array.size and np.any(array))
+
+
+def _numpy(value: Any) -> np.ndarray:
+    current = value
+    if hasattr(current, "detach"):
+        current = current.detach()
+    if hasattr(current, "cpu"):
+        current = current.cpu()
+    if hasattr(current, "numpy"):
+        current = current.numpy()
+    return np.asarray(current)
+
+
+def _select_successful_joint_state(state: Any, success: Any, *, label: str) -> Any:
+    """Collapse a batched cuRobo joint trajectory onto the first successful seed."""
+
+    if state is None:
+        raise ConfigurationError(f"{label} trajectory is missing")
+    success_array = np.asarray(_numpy(success)).reshape(-1)
+    if success_array.size == 0 or not np.any(success_array):
+        raise ConfigurationError(f"{label} trajectory has no successful seed")
+    seed_index = int(np.flatnonzero(success_array)[0])
+    position = getattr(state, "position", None)
+    if position is None:
+        raise ConfigurationError(f"{label} trajectory position is missing")
+    position_array = _numpy(position)
+    while position_array.ndim > 2 and position_array.shape[0] == 1:
+        position_array = position_array[0]
+        state = state[0] if hasattr(state, "__getitem__") else state
+    if position_array.ndim == 3:
+        # [seed, waypoint, joint] or [batch, waypoint, joint] after squeeze.
+        return state[seed_index] if hasattr(state, "__getitem__") else state
+    if position_array.ndim == 4:
+        # [batch, seed, waypoint, joint]
+        return state[0, seed_index] if hasattr(state, "__getitem__") else state
+    return state
 
 
 def _integer_scalar(value: Any, label: str) -> int:
@@ -405,25 +444,117 @@ class NominalPlanner:
         )
 
 
+class RelocationPlanner:
+    """Fresh-backend cuRobo joint-space planner for Phase 7.1 Mode C.
+
+    This adapter deliberately follows the same construction, seed-reset, and
+    warmup lifecycle as :class:`NominalPlanner`; it does not synthesize a path.
+    """
+
+    def __init__(
+        self,
+        backend_factory: Callable[[], PlannerBackend],
+        profile: PlannerProfile,
+        *,
+        types_adapter: PlannerTypesAdapter | None = None,
+    ) -> None:
+        self._backend_factory = backend_factory
+        self.profile = profile
+        self._types = CuroboTypesAdapter() if types_adapter is None else types_adapter
+
+    def plan_cspace(
+        self, goal_state: NamedJointState, current_state: NamedJointState
+    ) -> JointTrajectory | PlanningFailure:
+        """Run one cuRobo ``plan_cspace`` call and return its finite trajectory."""
+
+        if goal_state.names != JOINT_NAMES or current_state.names != JOINT_NAMES:
+            raise ConfigurationError("relocation states must use cuRobo joint order")
+        backend = self._backend_factory()
+        try:
+            backend.reset_seed()
+            backend.warmup(
+                enable_graph=self.profile.enable_graph_warmup,
+                num_warmup_iterations=self.profile.warmup_iterations,
+            )
+            backend.reset_seed()
+            raw = backend.plan_cspace(
+                self._types.joint_state(goal_state), self._types.joint_state(current_state)
+            )
+        except (RuntimeError, ValueError) as exc:
+            return PlanningFailure("backend_error", str(exc), "exception")
+        status = str(getattr(raw, "status", "") or "")
+        if raw is None or not _bool_tensor(getattr(raw, "success", None)):
+            return PlanningFailure("planning_infeasible", "cuRobo relocation failed", status)
+        try:
+            trajectory_state = _select_successful_joint_state(
+                getattr(raw, "interpolated_trajectory", None),
+                getattr(raw, "success", None),
+                label="relocation",
+            )
+            last_tstep = getattr(raw, "interpolated_last_tstep", None)
+            if last_tstep is not None:
+                last_array = _numpy(last_tstep).reshape(-1)
+                success = np.asarray(_numpy(getattr(raw, "success", None))).reshape(-1)
+                if last_array.size == success.size and np.any(success):
+                    last_tstep = last_array[int(np.flatnonzero(success)[0])]
+            return extract_curobo_trajectory(
+                trajectory_state,
+                last_tstep,
+                expected_joint_names=JOINT_NAMES,
+                label="relocation",
+            )
+        except ConfigurationError as exc:
+            return PlanningFailure("invalid_planner_result", str(exc), status)
+
+
+def plan_joint_relocation(
+    planner: RelocationPlanner, goal_state: NamedJointState, current_state: NamedJointState
+) -> JointTrajectory | PlanningFailure:
+    """Convenience wrapper retaining a typed cuRobo-only relocation boundary."""
+
+    return planner.plan_cspace(goal_state, current_state)
+
+
 def create_curobo_planner(
     profile: PlannerProfile,
     *,
     robot_config_path: Path | str = Path("config/robots/mycobot_280_m5.yml"),
-    scene_config_path: Path | str | None = Path("config/scenes/empty.yml"),
+    scene_model: dict[str, Any] | Path | str | None = None,
+    scene_config_path: Path | str | None = None,
     warmup: bool = False,
 ) -> Any:
-    """Create one public cuRobo planner for exactly one ``plan_grasp`` call."""
+    """Create one public cuRobo planner for exactly one ``plan_grasp`` call.
+
+    ``scene_config_path`` remains the Phase 0–6 path alias; ``scene_model`` accepts
+    an in-memory mapping or path for Phase 7.1 per-episode cube worlds. Empty
+    scene mappings (``cuboid: {}`` etc.) stay equivalent to no world geometry.
+    """
 
     from curobo.motion_planner import MotionPlanner, MotionPlannerCfg
 
-    scene_model: dict[str, Any] | None = None
-    if scene_config_path is not None:
-        scene_payload = yaml.safe_load(Path(scene_config_path).read_text(encoding="utf-8"))
-        if any(bool(value) for value in scene_payload.values()):
-            scene_model = scene_payload
+    if scene_model is not None and scene_config_path is not None:
+        raise ConfigurationError("pass only one of scene_model or scene_config_path")
+    selected: dict[str, Any] | Path | str | None
+    if scene_model is not None:
+        selected = scene_model
+    elif scene_config_path is not None:
+        selected = scene_config_path
+    else:
+        selected = Path("config/scenes/empty.yml")
+
+    loaded_scene: dict[str, Any] | None = None
+    if isinstance(selected, dict):
+        loaded_scene = selected if any(bool(value) for value in selected.values()) else None
+    elif selected is not None:
+        scene_payload = yaml.safe_load(Path(selected).read_text(encoding="utf-8"))
+        if not isinstance(scene_payload, dict):
+            raise ConfigurationError("scene model YAML must contain a mapping")
+        loaded_scene = (
+            scene_payload if any(bool(value) for value in scene_payload.values()) else None
+        )
     config = MotionPlannerCfg.create(
         robot=load_curobo_robot_config(robot_config_path),
-        scene_model=scene_model,
+        scene_model=loaded_scene,
         self_collision_check=profile.self_collision_check,
         num_ik_seeds=profile.num_ik_seeds,
         num_trajopt_seeds=profile.num_trajopt_seeds,

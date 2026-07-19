@@ -18,6 +18,11 @@ if str(REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from isaac_sim.articulation_playback import articulation_position_targets  # noqa: E402
+from isaac_sim.scene_setup import (  # noqa: E402
+    DEFAULT_LIGHTING,
+    add_scene_lighting,
+    lighting_ready,
+)
 from isaac_sim.sim_metrics import orientation_error_rad, tip_position_error_m  # noqa: E402
 from isaac_sim.urdf_utils import default_prepared_urdf  # noqa: E402
 from mycobot_curobo.plan_io import load_playback_plan, require_executable_plan  # noqa: E402
@@ -97,6 +102,7 @@ def main(argv: list[str] | None = None) -> int:
         "tip_metrics_status": "not_evaluated",
         "tip_position_error_m": None,
         "tip_orientation_error_rad": None,
+        "lighting_ready": False,
     }
     try:
         import omni.usd
@@ -109,6 +115,10 @@ def main(argv: list[str] | None = None) -> int:
         for _ in range(10):
             app.update()
         stage = context.get_stage()
+        light_paths = add_scene_lighting(stage, DEFAULT_LIGHTING)
+        metrics["lighting_ready"] = lighting_ready(stage, light_paths)
+        if not metrics["lighting_ready"]:
+            raise RuntimeError("Phase 7 lighting prims were not created")
         articulation_path = _find_articulation_root(stage)
         world = World(stage_units_in_meters=1.0)
         robot = world.scene.add(

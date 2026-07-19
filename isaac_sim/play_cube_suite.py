@@ -1,0 +1,302 @@
+#!/usr/bin/env python3
+"""Play planned Phase 7.1 cube episodes in Isaac Sim without importing cuRobo.
+
+Planning must run in a separate process (``plan_cube_suite.py``). Importing
+cuRobo/Warp before ``SimulationApp`` breaks Kit extension startup.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import sys
+import traceback
+from pathlib import Path
+from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+for candidate in (REPO_ROOT, REPO_ROOT / "src"):
+    if str(candidate) not in sys.path:
+        sys.path.insert(0, str(candidate))
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--bundle", type=Path, required=True)
+    parser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
+    parser.add_argument("--usd", type=Path)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--headless", action="store_true", default=True)
+    mode.add_argument("--gui", action="store_true")
+    exit_mode = parser.add_mutually_exclusive_group()
+    exit_mode.add_argument("--auto-exit", action="store_true", default=True)
+    exit_mode.add_argument("--no-auto-exit", action="store_false", dest="auto_exit")
+    parser.add_argument("--output-report", type=Path, required=True)
+    parser.add_argument("--hold-s", type=float, default=0.5)
+    return parser.parse_args(argv)
+
+
+def _write_report(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _find_articulation_root(stage: Any) -> str:
+    from pxr import UsdPhysics
+
+    for prim in stage.Traverse():
+        if prim.HasAPI(UsdPhysics.ArticulationRootAPI):
+            return str(prim.GetPath())
+    raise RuntimeError("USD contains no articulation root")
+
+
+def _drive_targets(robot: Any, targets: Any) -> None:
+    setter = getattr(robot, "set_joint_position_targets", None)
+    if callable(setter):
+        setter(targets)
+        return
+    from isaacsim.core.utils.types import ArticulationAction
+
+    robot.apply_action(ArticulationAction(joint_positions=targets))
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    if args.hold_s < 0.0 or not math.isfinite(args.hold_s):
+        raise ValueError("--hold-s must be finite and non-negative")
+    if not args.bundle.is_file():
+        raise FileNotFoundError(f"Phase 7.1 plan bundle not found: {args.bundle}")
+
+    lighting_ok = False
+    payload: dict[str, Any] = {
+        "schema_version": 1,
+        "lighting_ready": False,
+        "joint_playback_completed": False,
+        "tip_metrics_status": "not_evaluated",
+        "tip_position_error_m": None,
+        "tip_orientation_error_rad": None,
+        "summary": {"total_episodes": 0, "successes": 0, "success_rate": 0.0},
+        "results": [],
+        "frozen_requests": [],
+        "error": None,
+    }
+    # Launch Kit before importing project modules that might pull CUDA/Warp helpers.
+    from isaacsim import SimulationApp
+
+    app = SimulationApp({"headless": not args.gui})
+    try:
+        import numpy as np
+        import omni.usd
+        from isaacsim.core.api import World
+        from isaacsim.core.prims import SingleArticulation
+
+        from isaac_sim.articulation_playback import articulation_position_targets
+        from isaac_sim.contact_monitor import ProhibitedContactMonitor
+        from isaac_sim.scene_setup import (
+            IsaacLightingConfig,
+            add_cube_prim,
+            add_scene_lighting,
+            lighting_ready,
+        )
+        from isaac_sim.urdf_utils import default_prepared_urdf
+        from mycobot_curobo.benchmark import FailureCategory
+        from mycobot_curobo.cube_suite import (
+            CubeEpisodeResult,
+            aggregate_cube_results,
+            deserialize_episode,
+            format_episode_console_row,
+            serialize_episode,
+        )
+        from mycobot_curobo.trajectory import JointTrajectory
+        from mycobot_curobo.validation import ValidationMetrics
+
+        print("phase7_1_playback: kit ready", flush=True)
+        bundle = json.loads(args.bundle.read_text(encoding="utf-8"))
+
+        def _load_result(item: dict[str, Any]) -> CubeEpisodeResult:
+            metrics = item.get("validation_metrics")
+            return CubeEpisodeResult(
+                episode=deserialize_episode(item["episode"]),
+                planning_succeeded=bool(item["planning_succeeded"]),
+                validation_passed=bool(item["validation_passed"]),
+                failure_category=(
+                    None
+                    if item.get("failure_category") is None
+                    else FailureCategory(item["failure_category"])
+                ),
+                failure_reason=item.get("failure_reason"),
+                planner_status=str(item.get("planner_status", "")),
+                validation_metrics=(None if metrics is None else ValidationMetrics(**metrics)),
+                isaac_prohibited_contacts=item.get("isaac_prohibited_contacts"),
+                final_joint_position_rad=(
+                    None
+                    if item.get("final_joint_position_rad") is None
+                    else tuple(item["final_joint_position_rad"])
+                ),
+            )
+
+        def _load_trajectory(item: dict[str, Any]) -> JointTrajectory:
+            return JointTrajectory(
+                joint_names=tuple(item["joint_names"]),
+                position_rad=np.asarray(item["position_rad"], dtype=float),
+                dt_s=float(item["dt_s"]),
+                velocity_rad_s=(
+                    None
+                    if item.get("velocity_rad_s") is None
+                    else np.asarray(item["velocity_rad_s"], dtype=float)
+                ),
+                acceleration_rad_s2=(
+                    None
+                    if item.get("acceleration_rad_s2") is None
+                    else np.asarray(item["acceleration_rad_s2"], dtype=float)
+                ),
+                jerk_rad_s3=(
+                    None
+                    if item.get("jerk_rad_s3") is None
+                    else np.asarray(item["jerk_rad_s3"], dtype=float)
+                ),
+            )
+
+        results = [_load_result(item) for item in bundle["results"]]
+        trajectories = {
+            request_id: _load_trajectory(item)
+            for request_id, item in bundle.get("trajectories", {}).items()
+        }
+        max_contacts = int(bundle["max_isaac_prohibited_contacts"])
+        lighting_config = IsaacLightingConfig.from_mapping(bundle["lighting"])
+        root_seed = int(bundle["root_seed"])
+
+        repo = args.repo_root.resolve()
+        default_usd = default_prepared_urdf(repo).with_suffix(".usd")
+        nested_usda = default_usd.with_suffix("") / default_usd.with_suffix(".usda").name
+        usd = (args.usd or (default_usd if default_usd.is_file() else nested_usda)).resolve()
+        if not usd.is_file():
+            raise FileNotFoundError(f"prepared robot USD not found: {usd}")
+
+        context = omni.usd.get_context()
+        if not context.open_stage(str(usd)):
+            raise RuntimeError(f"failed to open USD stage: {usd}")
+        for _ in range(10):
+            app.update()
+        stage = context.get_stage()
+        lighting_paths = add_scene_lighting(stage, lighting_config)
+        lighting_ok = lighting_ready(stage, lighting_paths)
+        if not lighting_ok:
+            raise RuntimeError("Phase 7.1 lighting prims were not created")
+        print("phase7_1_playback: lighting_ready", flush=True)
+        world = World(stage_units_in_meters=1.0)
+        robot_root = _find_articulation_root(stage)
+        robot = world.scene.add(SingleArticulation(prim_path=robot_root, name="mycobot_phase7_1"))
+        world.reset()
+        robot.initialize()
+        dof_names = tuple(str(name) for name in robot.dof_names)
+        for index, result in enumerate(results):
+            if not result.succeeded:
+                print(format_episode_console_row(result, count=len(results)), flush=True)
+                continue
+            episode = result.episode
+            cube_path = f"/World/Phase7_1/Cubes/{episode.cube_name}"
+            add_cube_prim(
+                stage,
+                prim_path=cube_path,
+                center_m=episode.cube_center_m,
+                edge_m=episode.cube_edge_m,
+            )
+            reset_targets = articulation_position_targets(
+                episode.start_position_rad, dof_names, robot.get_joint_positions()
+            )
+            print(
+                f"[{index + 1}/{len(results)}] simulator reset to {episode.start_label}",
+                flush=True,
+            )
+            robot.set_joint_positions(reset_targets)
+            world.step(render=args.gui)
+            monitor = ProhibitedContactMonitor()
+            monitor.start(stage, cube_path, robot_root)
+            current = reset_targets
+            try:
+                trajectory = trajectories[result.episode.request_id]
+                for waypoint in trajectory.position_rad:
+                    targets = articulation_position_targets(waypoint, dof_names, current)
+                    _drive_targets(robot, targets)
+                    current = targets
+                    for _ in range(
+                        max(1, int(math.ceil(trajectory.dt_s / world.get_physics_dt())))
+                    ):
+                        world.step(render=args.gui)
+                for _ in range(int(math.ceil(args.hold_s / world.get_physics_dt()))):
+                    world.step(render=args.gui)
+            finally:
+                monitor.stop()
+            contacts = int(monitor.poll())
+            failed_contact = contacts > max_contacts
+            from dataclasses import replace
+
+            results[index] = replace(
+                result,
+                isaac_prohibited_contacts=contacts,
+                failure_category=(
+                    FailureCategory.COLLISION_INFEASIBILITY
+                    if failed_contact
+                    else result.failure_category
+                ),
+                failure_reason=(
+                    f"prohibited Isaac contacts {contacts} exceed {max_contacts}"
+                    if failed_contact
+                    else result.failure_reason
+                ),
+                validation_passed=result.validation_passed and not failed_contact,
+            )
+            print(format_episode_console_row(results[index], count=len(results)), flush=True)
+        if not args.auto_exit:
+            while app.is_running():
+                world.step(render=True)
+        from dataclasses import asdict
+
+        summary = aggregate_cube_results(results, root_seed=root_seed)
+        executable = [
+            result for result in results if result.planning_succeeded and result.validation_passed
+        ]
+        payload = {
+            "schema_version": 1,
+            "lighting_ready": lighting_ok,
+            "joint_playback_completed": (
+                all(result.isaac_prohibited_contacts is not None for result in executable)
+                if executable
+                else True
+            ),
+            "tip_metrics_status": "not_evaluated",
+            "tip_position_error_m": None,
+            "tip_orientation_error_rad": None,
+            "summary": asdict(summary),
+            "results": [asdict(result) for result in results],
+            "frozen_requests": [serialize_episode(result.episode) for result in results],
+            "error": None,
+        }
+    except Exception as exc:
+        payload["error"] = f"{type(exc).__name__}: {exc}"
+        traceback.print_exc()
+    finally:
+        # Write evidence before close(): Kit shutdown can terminate the process
+        # before statements after close() run.
+        _write_report(args.output_report, payload)
+        print(
+            json.dumps({"summary": payload.get("summary"), "report": str(args.output_report)}),
+            flush=True,
+        )
+        try:
+            app.close()
+        except Exception as close_exc:  # noqa: BLE001
+            print(f"warning: SimulationApp.close failed: {close_exc}", flush=True)
+    if payload.get("error"):
+        return 2
+    summary = payload["summary"]
+    return 0 if summary.get("successes") == summary.get("total_episodes") and lighting_ok else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

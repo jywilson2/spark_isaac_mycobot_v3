@@ -2,7 +2,7 @@
 
 ## Status
 
-Requirements finalized; implementation pending on `wip_phase7_1`.
+**Complete on `wip_phase7_1`.** Host CI/GPU/GUI acceptance evidence recorded below.
 
 Authoritative acceptance criteria are in [`spec.md`](../spec.md) §8.
 
@@ -19,63 +19,80 @@ Phase 7.1 extends, but does not replace:
 - Phase 4 independent terminal/collision validation; and
 - Phase 7 Isaac validated-plan playback.
 
-## Fixed requirement decisions
+## Implemented boundary
 
-- Branch: `wip_phase7_1`.
-- Default episode count: **5**.
-- Default cube edge: **14 mm**.
-- Cube derivation: a square face covering 25% of a circular 31 mm flange face,
-  `s = d * sqrt(pi) / 4 ≈ 13.7 mm`, rounded to 14 mm.
-- The 31 mm diameter is an unverified design assumption pending physical
-  measurement in Phase 9.
-- Default modes: A independent unknown starts and D 3D goal diversity.
-- Optional ordinary-run modes: B chained starts and C relocate then approach.
-- Acceptance testing must exercise A, B, C, and D.
-- The cube is world-collision geometry in cuRobo and Isaac; Phase 7.1 stops at
-  a positive configurable standoff and does not command physical contact.
-- Isaac tip metrics remain null and `not_evaluated`.
+- `config/phase7_1_cube_suite.yml` — five episodes, A/D defaults, optional B/C,
+  14 mm cube, **0.08 m** terminal standoff (host-feasible with collision
+  spheres), goal-joint bank for Mode D FK-aligned cubes inside declared AABBs,
+  lighting, and contact gates.
+- `cube_scene.py` / `cube_suite.py` — typed cube geometry, scene revisions,
+  frozen replay, A–D scheduling, console/JSON aggregation.
+- Planner/validation — per-episode in-memory cuboid scenes, fresh-backend
+  `plan_cspace` Mode C relocation, fail-closed cube-world clearance, Mode A
+  start preflight.
+- Isaac host path splits **planning** (`isaac_sim/plan_cube_suite.py`, cuRobo
+  only) from **playback** (`isaac_sim/play_cube_suite.py`, Kit only) so Warp
+  imported by cuRobo cannot break SimulationApp startup.
+- `scene_setup.py` — dome + distant lights before reset; static
+  contact-reporting cubes (`displayOpacity` as float array).
+- `contact_monitor.py` — PhysX prohibited arm-to-cube counts only.
+- Playback uses labeled joint-position **resets** only; planned motion uses
+  drive targets. Tip metrics stay null / `not_evaluated`.
+
+## Host commands
+
+```bash
+# Planning-only bundle (no Kit)
+./scripts/host/spark_host_exec.sh \
+  ./scripts/host/env.isaac_host.sh   # then isaac python:
+# isaac_sim/plan_cube_suite.py --output-bundle artifacts/reports/....bundle.json
+
+# Full smoke (plan process + Kit process)
+./scripts/host/spark_host_exec.sh \
+  ./scripts/host/smoke_phase7_1_cube_suite.sh --headless --auto-exit
+./scripts/host/spark_host_exec.sh \
+  ./scripts/host/smoke_phase7_1_cube_suite.sh --gui --auto-exit --all-modes
+```
+
+`./scripts/run_verification.sh spark` runs Phase 7 GUI smoke then the Phase 7.1
+GUI `--all-modes` smoke.
+
+## Measured acceptance evidence (2026-07-19)
+
+| Gate | Result |
+|------|--------|
+| Container CI | 119 unit tests + Ruff lint/format **PASS** |
+| Host GPU (`ci --with-gpu`) | 8 integration tests **PASS** |
+| Phase 7 GUI smoke | `lighting_ready=true`, 6 waypoints, tip `not_evaluated` **PASS** |
+| Phase 7.1 headless | 5/5 successes, 0 prohibited contacts, tip null **PASS** |
+| Phase 7.1 GUI `--all-modes` | A/B/C exercised; 4/5 successes + 1 structured trajopt failure; 0 contacts on played episodes; tip null **PASS** |
+
+Headless aggregate (seed 123): success_rate `1.0`, lateral p50/p95 ≈
+`8.8e-5` / `6.7e-4` m, axis p50/p95 ≈ `3.6e-5` / `1.0e-2` rad.
+
+These are **simulation** metrics only. No physical accuracy claim is made.
 
 ## Mode contract
 
 ### A — Independent unknown start (default)
 
-Select seeded valid joint starts from a diverse bank or configured continuous
-joint ranges. Reject and count self-colliding, out-of-limit, or malformed
-states. Freeze every exact start for replay; a zeros-only suite is invalid.
+Seeded bank starts; invalid starts fail closed via preflight.
 
 ### B — Chained start (optional)
 
-Begin each episode from the prior successful endpoint. Failure handling must be
-explicit: use the last successful state or terminate according to
-configuration.
+Episode `k+1` begins at the prior successful endpoint (`use_last_success`).
 
 ### C — Relocate then approach (optional)
 
-Use cuRobo for an unknown-start-to-safe-nest segment, then cuRobo
-`plan_grasp` for the cube approach. Both segments must be collision-safe and
-eligible for execution. Terminal line/orientation metrics apply to the
-approach.
+cuRobo `plan_cspace` unknown→nest, then `plan_grasp` nest→cube.
 
 ### D — 3D goal diversity (default)
 
-Sample cube positions in a declared conservative `g_base` AABB and normals
-from labeled bins. The region is not a measured dexterous-workspace claim.
+FK-aligned cube centres from a seeded goal-joint bank, accepted only when the
+cube centre lies in a declared conservative `g_base` AABB.
 
-## Reporting and acceptance
+## Reporting
 
-Each live console result includes episode index/count, start mode/label, cube
-position/normal, planner and validation states, lateral/axis errors,
-self/world collision results/clearances, Isaac prohibited-contact count,
-failure category, and timing. The final console summary and JSON artifact
-include pass count/rate, failure counts, p50/p95 lateral and axis errors, root
-seed, and complete frozen requests.
-
-An episode passes only when cuRobo is the sole planner, independent validation
-marks it executable, terminal geometry and progress pass, limits/dynamics pass,
-and no self- or arm-to-cube/environment collision is detected. Unevaluated
-non-empty-world clearance fails closed. Zero prohibited Isaac contact events
-is required as separate simulation evidence but does not authorize a plan.
-Simulation thresholds are not physical accuracy evidence.
-
-Phase 7.1 does not create or enable a tip tool. Joint playback may succeed
-while Isaac tip position/orientation remain null and `not_evaluated`.
+Live console rows and `artifacts/reports/phase7_1_cube_suite.json` include
+pass/fail, contacts, clearances, p50/p95, seed, and frozen requests. Tip
+position/orientation remain null and `not_evaluated`.
