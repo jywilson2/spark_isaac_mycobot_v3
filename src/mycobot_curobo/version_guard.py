@@ -59,9 +59,7 @@ def curobo_source_revision() -> str:
         direct_url = json.loads(direct_url_text)
         vcs_info = direct_url.get("vcs_info", {})
         return str(
-            vcs_info.get("commit_id")
-            or vcs_info.get("requested_revision")
-            or "not_available"
+            vcs_info.get("commit_id") or vcs_info.get("requested_revision") or "not_available"
         )
     except (importlib.metadata.PackageNotFoundError, json.JSONDecodeError):
         return "not_available"
@@ -111,15 +109,12 @@ def validate_snapshot(snapshot: RuntimeSnapshot) -> tuple[str, ...]:
         errors.append(str(exc))
 
     if snapshot.curobo_version is None:
-        errors.append(
-            "nvidia-curobo is not installed; install the exact NVlabs/curobo v0.8.0 tag"
-        )
+        errors.append("nvidia-curobo is not installed; install the exact NVlabs/curobo v0.8.0 tag")
     else:
         try:
             if numeric_version_prefix(snapshot.curobo_version) != (0, 8, 0):
                 errors.append(
-                    f"cuRobo {REQUIRED_CUROBO_VERSION} required; "
-                    f"found {snapshot.curobo_version}"
+                    f"cuRobo {REQUIRED_CUROBO_VERSION} required; found {snapshot.curobo_version}"
                 )
         except ValueError as exc:
             errors.append(str(exc))
@@ -187,9 +182,7 @@ def collect_runtime_snapshot() -> RuntimeSnapshot:
             import torch
 
             torch_version = str(torch.__version__)
-            cuda_runtime_version = (
-                None if torch.version.cuda is None else str(torch.version.cuda)
-            )
+            cuda_runtime_version = None if torch.version.cuda is None else str(torch.version.cuda)
             cuda_available = bool(torch.cuda.is_available())
             if cuda_available:
                 gpu_name = str(torch.cuda.get_device_name(0))

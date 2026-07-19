@@ -6,6 +6,7 @@ Adapted from prior MyCobot Isaac work (v1 lessons / v2 host tooling):
 unless rewritten. Used by Phase 7+ scaffolding only — not a Phase 0–6
 runtime dependency of ``mycobot_curobo``.
 """
+
 from __future__ import annotations
 
 import re
@@ -18,9 +19,7 @@ _UUID_MATERIAL_ID = "a0000000-0000-0000-0000-000000000000"
 _UUID_MATERIAL_SYMBOL = f"material-{_UUID_MATERIAL_ID}"
 _UUID_EFFECT_ID = f"fx-{_UUID_MATERIAL_ID}"
 
-PACKAGE_URI_PATTERN = re.compile(
-    r'package://mycobot_description/urdf/mycobot_280_m5/([^"\']+)'
-)
+PACKAGE_URI_PATTERN = re.compile(r'package://mycobot_description/urdf/mycobot_280_m5/([^"\']+)')
 
 REVOLUTE_JOINT_NAMES: tuple[str, ...] = (
     "joint2_to_joint1",
@@ -87,13 +86,7 @@ def default_upstream_urdf(repo_root: Path) -> Path:
 
 def default_prepared_urdf(repo_root: Path) -> Path:
     """Isaac-ready URDF written under ``assets/mycobot_280_m5/prepared/``."""
-    return (
-        repo_root
-        / "assets"
-        / "mycobot_280_m5"
-        / "prepared"
-        / "mycobot_280_m5.urdf"
-    )
+    return repo_root / "assets" / "mycobot_280_m5" / "prepared" / "mycobot_280_m5.urdf"
 
 
 def _safe_material_basename(dae_path: Path) -> str:
@@ -140,8 +133,7 @@ def prepare_robot_assets(repo_root: Path, upstream_urdf: Path | None = None) -> 
     upstream = (upstream_urdf or default_upstream_urdf(repo_root)).resolve()
     if not upstream.is_file():
         raise FileNotFoundError(
-            f"Upstream URDF missing: {upstream}\n"
-            "Run: ./scripts/download_mycobot_ros2.sh"
+            f"Upstream URDF missing: {upstream}\nRun: ./scripts/download_mycobot_ros2.sh"
         )
     mesh_source_dir = upstream.parent
     prepared_urdf = default_prepared_urdf(repo_root)

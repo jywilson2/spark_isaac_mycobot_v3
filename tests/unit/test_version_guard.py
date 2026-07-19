@@ -101,4 +101,3 @@ def test_write_report_is_machine_readable(tmp_path) -> None:
     assert payload["valid"] is True
     assert payload["snapshot"]["curobo_version"] == "0.8.0"
     assert payload["snapshot"]["selected_device"] == "cuda:0"
-

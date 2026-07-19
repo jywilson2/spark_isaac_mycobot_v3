@@ -13,7 +13,7 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 ## Current phase
 
-**Phase 0 — repository bootstrap and environment verification.**
+**Phase 0 — repository bootstrap and environment verification: complete.**
 
 Full roadmap (Phases 0–10, including Isaac Sim, residual RL, and physical
 hardware): [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -37,7 +37,8 @@ Not implemented in Phase 0:
 - Isaac closed-loop player, residual RL training, hardware motion (Phases 7–10).
 
 See [`STATUS.md`](STATUS.md) for acceptance status and [`CHANGES.md`](CHANGES.md)
-for the change inventory.
+for the change inventory. The tested runtime evidence is in
+[`docs/phase0_environment.md`](docs/phase0_environment.md).
 
 ## Install
 
@@ -115,8 +116,11 @@ safety logic. Physical motion (Phases 9–10) is gated and dry-run by default.
 
 ## Branch policy
 
-Development begins on `wip_phase0`. The `main` branch is intentionally left
-without project commits until a release is ready.
+Each phase is developed and retained on `wip_phaseN`. After its acceptance
+gates pass, that branch is rebased onto the latest `main` (Phase 0 initializes
+`main`), pushed, and then `main` is fast-forwarded to the exact tested commit.
+The next phase branches from updated `main`. This preserves historical phase
+states while `main` represents the most current completed functionality.
 
 ## License
 

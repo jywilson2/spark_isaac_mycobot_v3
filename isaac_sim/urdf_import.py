@@ -3,6 +3,7 @@
 
 Must be executed with ``${ISAACSIM_PATH}/python.sh`` on the host.
 """
+
 from __future__ import annotations
 
 import time
@@ -32,9 +33,7 @@ def _wait_for_extension(extension_id: str, timeout_s: float = 30.0) -> None:
         if extension_manager.is_extension_enabled(extension_id):
             return
         time.sleep(0.1)
-    raise RuntimeError(
-        f"Timed out waiting for Isaac Sim extension {extension_id!r} to enable."
-    )
+    raise RuntimeError(f"Timed out waiting for Isaac Sim extension {extension_id!r} to enable.")
 
 
 def enable_urdf_importer_extensions(

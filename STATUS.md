@@ -4,7 +4,7 @@ Last updated: **2026-07-18**
 
 ## Current phase
 
-**Phase 0 — repository bootstrap and environment verification**
+**Phase 0 — repository bootstrap and environment verification: COMPLETE**
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–10)
@@ -16,7 +16,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 | Phase | Focus | Status |
 |-------|-------|--------|
-| 0 | Env / version guard | **In progress** |
+| 0 | Env / version guard | **Complete** |
 | 1 | Robot model + spheres | Not started |
 | 2 | Task frames / roll goals | Not started |
 | 3 | `plan_grasp` nominal planning | Not started |
@@ -45,22 +45,25 @@ planning-success claims, or hardware-readiness claims carry forward.
 ## Acceptance checklist (Phase 0)
 
 - [x] `pytest tests/unit` passes (16 passed).
-- [ ] `ruff check .` passes.
-- [ ] `ruff format --check .` passes.
-- [ ] CUDA host environment report is valid.
-- [ ] `pytest -m gpu tests/integration` passes (currently skipped: cuRobo absent).
+- [x] `ruff check .` passes.
+- [x] `ruff format --check .` passes.
+- [x] CUDA host environment report is valid.
+- [x] `pytest -m gpu tests/integration` passes (1 passed on NVIDIA GB10).
 - [x] Complete lightweight suite passes (16 passed, 1 GPU test skipped).
 - [x] Python sources compile and `pyproject.toml` parses.
 - [x] Core package has no ROS / Isaac Kit / hardware / RL runtime dependency.
-- [x] `wip_phase0` is pushed; no project commit is pushed to `main`.
 
 ## Known environment status
 
-The repository bootstrap runs in a development container that may not contain
-cuRobo v0.8.0, the compatible PyTorch CUDA wheel, or direct GPU access. The
-lightweight suite is expected to run without them. GPU acceptance remains
-pending until `scripts/verify_environment.py` and the marked integration test
-run in the intended CUDA environment.
+The lightweight container does not include cuRobo or direct GPU access; its
+full suite passes with the GPU test skipped. On the DGX Spark host, cuRobo
+v0.8.0, CUDA allocation, and required public imports all pass. See
+[`docs/phase0_environment.md`](docs/phase0_environment.md).
+
+PyTorch 2.10.0+cu130 warns that GB10 compute capability 12.1 is newer than the
+wheel's advertised maximum 12.0. Allocation and the public API smoke pass; the
+warning is recorded rather than suppressed and must be monitored during the
+Phase 1 planner warmup/kernel gate.
 
 Isaac Sim scaffolding is present for Phase 7+ but is **not** a Phase 0
 acceptance dependency. Staging URDFs under `assets/mycobot_280_m5/urdf/` are
@@ -69,7 +72,7 @@ authoritative.
 
 ## Next step
 
-Complete all Phase 0 acceptance checks on the CUDA host. Do not begin Phase 1
-robot-model acceptance until Phase 0 passes and asset provenance is reviewed.
+Land the tested Phase 0 commit on `wip_phase0` and initialize `main`, then
+create `wip_phase1` from `main`. Phase 1 starts with asset provenance review.
 Do not start Phase 7 Isaac player work until Phases 0–6 (or at least 0–4) meet
 their gates per the roadmap.

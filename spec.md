@@ -1,4 +1,4 @@
-# MyCobot 280 M5 Constrained Approach Planner
+   # MyCobot 280 M5 Constrained Approach Planner
 
 ## Cursor Implementation Specification
 
@@ -1053,15 +1053,38 @@ Cursor shall implement one phase at a time.
 For each phase:
 
 1. Read this specification and applicable `.cursor/rules/*.mdc` files.
-2. Create or update a phase checklist in the pull request or working notes.
-3. Inspect the exact cuRobo v0.8.0 source or official documentation before using an unfamiliar API.
-4. Add tests before or alongside implementation.
-5. Run the narrow tests for the modified module.
-6. Run the complete unit suite.
-7. Run GPU integration tests when the environment supports them.
-8. Update README usage only after tested behavior exists.
-9. Do not begin the next phase while acceptance criteria for the current phase are failing.
-10. Do not hide incomplete behavior behind a successful exit code.
+2. Create or continue the phase branch named exactly `wip_phaseN`.
+3. Create or update a phase checklist in the pull request or working notes.
+4. Inspect the exact cuRobo v0.8.0 source or official documentation before using an unfamiliar API.
+5. Add tests before or alongside implementation.
+6. Run the narrow tests for the modified module.
+7. Run the complete unit suite.
+8. Run GPU integration tests when the environment supports them.
+9. Update all project documentation and the phase report after tested behavior exists.
+10. Do not begin the next phase while acceptance criteria for the current phase are failing.
+11. Do not hide incomplete behavior behind a successful exit code.
+
+### 13.1 Phase branch and `main` landing policy
+
+Each completed phase must remain available as a historical repository state:
+
+1. Develop Phase N only on `wip_phaseN`.
+2. After all applicable acceptance gates pass, commit and push `wip_phaseN`.
+3. Fetch the latest remote refs and rebase `wip_phaseN` onto `origin/main`.
+   For Phase 0, which initializes `main`, this step is not applicable until
+   `main` exists.
+4. If rebase changes the commit, re-run affected gates and update
+   `wip_phaseN` with a normal push when fast-forwardable. Rewriting a published
+   phase branch requires explicit user authorization.
+5. Fast-forward `main` to the exact tested phase commit and push `main`.
+6. Create `wip_phaseN+1` from the updated `main`; never merge `main` into a
+   phase branch.
+7. Preserve every completed `wip_phaseN` branch. `main` represents the most
+   current completed functionality.
+
+The phase landing documentation set is: `spec.md`, `README.md`,
+`REFERENCES.md`, `STATUS.md`, `CHANGES.md`, `docs/last_prompt.md`, and the
+applicable `docs/phaseN_*.md` report.
 
 When cuRobo behavior differs from this document, record the discrepancy and prefer the pinned v0.8.0 source code as the technical authority. Do not silently substitute a v0.7.x example.
 

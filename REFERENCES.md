@@ -30,6 +30,11 @@ implementation authority for this project.
 - **Ruff configuration**  
   <https://docs.astral.sh/ruff/configuration/>
 
+Tested Phase 0 host baseline (2026-07-18): Isaac Sim Python 3.12.13,
+`nvidia-curobo==0.8.0`, PyTorch 2.10.0+cu130, CUDA runtime 13.0, NVIDIA GB10.
+See [`docs/phase0_environment.md`](docs/phase0_environment.md). The observed
+compute-capability warning is retained in that report and is not suppressed.
+
 ## Phase 1 asset sources
 
 - **Elephant Robotics `mycobot_ros2`**  

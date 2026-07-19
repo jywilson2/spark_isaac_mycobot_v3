@@ -16,3 +16,14 @@ alwaysApply: true
 - Do not issue commands to physical hardware in this project phase.
 - Add tests for every behavior change. Keep random tests reproducible with explicit seeds.
 - Do not suppress errors, weaken thresholds, or skip tests merely to obtain a passing run.
+- Develop each numbered phase on `wip_phaseN`. Do not add Phase N+1 work to
+  `wip_phaseN`.
+- After a phase passes all applicable gates, commit and push `wip_phaseN`,
+  rebase it onto the latest `origin/main`, re-run affected gates, and update
+  the published phase branch if needed. Then fast-forward `main` to the same
+  tested commit and push `main`; do not merge `main` into a phase branch.
+- Preserve completed `wip_phaseN` branches as historical phase snapshots.
+- Update `spec.md`, `README.md`, `REFERENCES.md`, `STATUS.md`, `CHANGES.md`,
+  `docs/last_prompt.md`, and the applicable phase report before landing each
+  phase. Do not edit those landing documents again after the final phase push
+  in the same phase.

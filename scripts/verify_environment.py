@@ -7,6 +7,5 @@ import sys
 
 from mycobot_curobo.version_guard import main
 
-
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))

@@ -1,5 +1,32 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-18 — Phase 0 completion
+
+### Enumerated changes
+
+1. Completed the DGX Spark environment gate with cuRobo v0.8.0, public
+   cuRoboV2 imports, CUDA allocation on NVIDIA GB10, and a machine-readable
+   valid report.
+2. Replaced the host's stale `nvidia-curobo 0.0.0` editable installation with
+   the exact v0.8.0 tag using `scripts/host/install_curobo.sh`.
+3. Formatted all Python sources and fixed the environment CLI import block;
+   `ruff check` and `ruff format --check` now pass.
+4. Added [`docs/phase0_environment.md`](docs/phase0_environment.md) with
+   runtime versions, test evidence, the recorded GB10/PyTorch warning, and the
+   Phase 0 boundary.
+5. Added the persistent phase-branch / rebase / fast-forward-main policy to
+   `spec.md` §13.1 and `.cursor/rules/00-project-core.mdc`.
+6. Updated `README.md`, `STATUS.md`, `REFERENCES.md`, and prompt history for
+   the completed phase.
+
+### Review recommended
+
+- **Review in Phase 1:** PyTorch 2.10.0+cu130 advertises compute capability
+  through 12.0 while the GB10 reports 12.1. CUDA allocation succeeds, but
+  planner kernel execution must be verified before Phase 1 acceptance.
+
+---
+
 ## 2026-07-18 — Phase roadmap + Isaac Sim scaffolding
 
 ### Enumerated changes

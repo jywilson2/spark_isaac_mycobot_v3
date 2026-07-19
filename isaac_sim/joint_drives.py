@@ -5,6 +5,7 @@ Elephant Robotics does not publish stiffness/damping. Values are derived from
 published payload, reach, and positioning accuracy — see the YAML header.
 Used by Phase 7+ Isaac import scaffolding only.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

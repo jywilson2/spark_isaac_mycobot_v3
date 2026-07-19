@@ -2,9 +2,10 @@
 # Copyright 2026 spark_isaac_mycobot_v3 contributors
 """Convert MyCobot URDF → USD using host Isaac Sim (no IK animation).
 
-    ${ISAACSIM_PATH}/python.sh isaac_sim/convert_urdf_to_usd.py
-    ./scripts/convert_urdf_to_usd.sh
+${ISAACSIM_PATH}/python.sh isaac_sim/convert_urdf_to_usd.py
+./scripts/convert_urdf_to_usd.sh
 """
+
 from __future__ import annotations
 
 import argparse
@@ -55,8 +56,7 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except ImportError as exc:
         print(
-            "Run with Isaac Sim python.sh on the host.\n"
-            f"ImportError: {exc}",
+            f"Run with Isaac Sim python.sh on the host.\nImportError: {exc}",
             file=sys.stderr,
         )
         raise SystemExit(1) from exc
