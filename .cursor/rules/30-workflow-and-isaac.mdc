@@ -1,0 +1,43 @@
+---
+alwaysApply: true
+---
+
+# Workflow, documentation, and Isaac host rules
+
+- At the start of every user turn, prepend the exact prompt to
+  `docs/last_prompt.md` using `## BEGIN: YYYY-MM-DD HH:MM ±HHMM` and `## END`.
+  Move the prior current block under `# Old prompts:` without deleting history.
+  Backfill omitted prompts from the same conversation when fixing the log.
+- When changing behavior, configs, training, or verification, update in the
+  same change set: `spec.md`, `README.md`, `REFERENCES.md`, `STATUS.md`,
+  `CHANGES.md`, `docs/last_prompt.md`, and the applicable `docs/phaseN_*.md`.
+- Summarize all changes in `CHANGES.md` and in the reply. Highlight items that
+  need further review.
+- Every new module or script gets a matching test under `tests/` (or
+  `launch_testing` for ROS nodes). Python tests use `pytest`.
+- Prefer host execution for Isaac Sim / Isaac Lab
+  (`scripts/host/launch_isaac_sim.sh`, `scripts/host/spark_host_exec.sh`).
+  The Isaac ROS / Cursor container typically has no GPU Kit binaries.
+- Override host repo path with `SPARK_HOST_REPO_ROOT` / user with
+  `SPARK_HOST_USER` when needed. Opt into container Isaac with
+  `SPARK_ALLOW_CONTAINER_ISAAC=1` only when Kit is actually mounted.
+- Do not suppress warnings to make tests look green. Resolve Isaac / URDF /
+  Python warnings at the source.
+- Before each monitored Isaac or long pytest cycle, kill leftover background
+  log streamers (`tail -F` of `/tmp/*smoke*`, `/tmp/gui_*`, `/tmp/headless_*`,
+  `assets/logs/isaac_host/latest*.log`, and agent DEC/RESULT streamers).
+- Until Phase 7 GUI smoke exists, use `./scripts/run_verification.sh ci` for
+  remote-equivalent gates and the same script's `spark` mode for host unit/GPU
+  gates. After Phase 7 acceptance, never push Isaac-path changes until GUI
+  smoke exits 0; do not bypass with `SPARK_RUN_ISAAC_GUI_SMOKE=0`.
+- If Ruff is missing in the Isaac ROS / Cursor container, run
+  `./scripts/ensure_container_dev_tools.sh` (or let `run_verification.sh`
+  bootstrap it). Install only lightweight `dev` tools there; never install
+  cuRobo/CUDA/Isaac Kit just for lint.
+- Never claim sub-millimeter real-world accuracy without hardware evidence.
+  Simulation thresholds are sim metrics only.
+- Hardware motion requires `ENABLE_MYCOBOT_HARDWARE_TESTS=1`. Default tests and
+  launches are dry-run only.
+- After primary code pushes, finish `STATUS.md`, `CHANGES.md`, and
+  `docs/last_prompt.md`, then run `./scripts/git_secondary_docs_push.sh` and
+  stop editing those three files in that turn.

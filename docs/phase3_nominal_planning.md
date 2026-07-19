@@ -8,6 +8,11 @@ authorize execution: every `NominalPlan` is created with
 `validation_status="not_evaluated"` and `executable=False`. Phase 4 owns
 independent waypoint validation.
 
+cuRobo is the exclusive global and local motion planner. No retry, fallback,
+learned policy, simulator, integration, or execution adapter may generate a
+replacement path. The documented two-call fallback may vary the pinned cuRobo
+API sequence, but both calls remain cuRobo-owned.
+
 ## Public API path
 
 The adapter uses cuRobo v0.8.0 public APIs:

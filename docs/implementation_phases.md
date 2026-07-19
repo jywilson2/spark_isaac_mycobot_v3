@@ -3,7 +3,9 @@
 Authoritative acceptance criteria remain in [`spec.md`](../spec.md) §8.
 This document is the operational roadmap: what each phase delivers, what it
 must not do, and how later Isaac / residual-RL / hardware work attaches without
-weakening the cuRobo-owned planner.
+weakening cuRobo's exclusive ownership of global and local motion planning.
+No phase may introduce another path-generating planner, including as a retry,
+fallback, learned policy, simulator feature, or integration.
 
 ## Phase map
 
@@ -81,7 +83,9 @@ lifecycle: fresh backend → seed reset → configured public warmup → seed re
 backend. Reuse may return only after a future pinned version passes the GPU
 repeated-call and endpoint regressions.
 
-**Must not:** Legacy `MotionGen`, moving collision spheres for path shaping, distance-only planner switching.
+**Must not:** Legacy `MotionGen`, moving collision spheres for path shaping, or
+any non-cuRobo planner switching. A documented fallback may use a different
+pinned cuRobo API sequence but may not invoke another planner.
 
 ---
 
@@ -107,7 +111,16 @@ empty-world results are not physical accuracy evidence.
 
 **Deliverables:** `ZeroResidualCorrector`, `SafetyProjector`, execution interface that always re-validates after correction.
 
-**Why residual (not e2e IK/RL):** The deployed path remains `nominal_plan` then optional clamped residual. Learning must not map target pose → full 6-DOF joints as primary behavior (see `spec.md` §4.6 / §6.5).
+**Implemented:** Typed residual observations, explicit SI safety profiles,
+deterministic replay state, per-waypoint freshness/joint/corridor projection,
+and an in-memory-only command adapter. Phase 5 rejects projected non-zero
+residuals until a later phase accepts a bounded local Cartesian-to-joint
+mapping.
+
+**Why residual (not e2e IK/RL):** The deployed path remains `nominal_plan` then
+an optional bounded local execution correction. Learning must not generate a
+replacement path or map target pose → full 6-DOF joint solutions in any
+execution path (see `spec.md` §4.6 / §6.5).
 
 ---
 
@@ -136,7 +149,7 @@ empty-world results are not physical accuracy evidence.
 
 **Must not:**
 
-- Move the authoritative planner into Isaac;
+- Move planning authority into Isaac or use an Isaac-provided planner;
 - Claim physical accuracy from sim thresholds;
 - Require Kit inside the Isaac ROS container (prefer DGX Spark host).
 
@@ -146,7 +159,10 @@ empty-world results are not physical accuracy evidence.
 
 ## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
 
-**Objective:** Train a residual policy that outputs a **bounded Cartesian correction** (and/or small joint residual mapped through the Phase 5 seam), improving sim approach metrics under model mismatch — without replacing cuRobo planning.
+**Objective:** Train a residual policy that outputs a **bounded Cartesian
+correction** (and/or small joint residual mapped through the Phase 5 seam),
+improving sim approach metrics under model mismatch while cuRobo remains the
+exclusive motion planner.
 
 **Why Residual RL makes sense here:**
 
@@ -165,7 +181,8 @@ empty-world results are not physical accuracy evidence.
 
 - Command the physical MyCobot during training;
 - Bypass `SafetyProjector` or Phase 4 validation;
-- Ship a primary policy that outputs full joint solutions.
+- Generate a replacement trajectory, invoke another planner, or ship a policy
+  that maps a target pose to full joint solutions.
 
 **Entry criteria:** Phase 7 smokes pass; Phase 5 seam stable; Phase 6 baseline metrics recorded for comparison.
 

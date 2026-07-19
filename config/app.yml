@@ -13,6 +13,7 @@ min_pre_approach_m: 0.01
 max_pre_approach_m: 0.15
 planner_profile_name: development_fast
 validation_profile_name: simulation_initial
+residual_safety_profile_name: simulation_zero_residual
 output_path: artifacts
 project_random_seed: 123
 logging_level: INFO

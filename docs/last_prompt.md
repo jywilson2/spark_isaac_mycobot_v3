@@ -1,10 +1,42 @@
 # The last prompt executed in the Cursor Agent window:
 
-## BEGIN: 2026-07-19 05:50 -0700
-Perform any necessary follow-up actions in response to the subagent completion above. If no follow-up work is needed, no further action is required. If you mention an agent or subagent in your response, link it with the `[Name](id)` Don't use generic label such as `[agent]`, `[worker]`, or `[subagent]`. For cloud subagents, when the agent has edited code, link to `[Review](bc-id#changes)`, or, if you know the exact added and deleted line counts, `[Review +A −D](bc-id#changes)`, replacing A and D with those counts. Never write A or D literally. Use `[Try Live](bc-id#desktop)` only when the agent used computer use. Don't repeat the same confirmation every time.
+## BEGIN: 2026-07-19 06:34 -0700
+Let's continue development work from where we left off. Continue until phase 7, creating separate branches as needed and pushing to github.
 ## END
 
 # Old prompts:
+
+## BEGIN: 2026-07-19 06:20 -0700
+Can you make the changes needed to allow the command "isaac-sim activate" to run with credentials from my user account "jywilson"?
+## END
+
+## BEGIN: 2026-07-19 06:14 -0700
+Can you add a cursor rule that allows Ruff to be automatically installed for use by the container? Would it make sense to perform this installation within the cotnainer?
+## END
+
+## BEGIN: 2026-07-19 06:09 -0700
+Make the recommended change and close the wording loop holes.
+## END
+
+## BEGIN: 2026-07-19 06:02 -0700
+Is there anything in the current @spec.md that conflicts with the intended design objective to use the cuRobo planner exclusively?
+## END
+
+## BEGIN: 2026-07-19 05:56 -0700
+Reopen the V3-only workspace.
+## END
+
+## BEGIN: 2026-07-19 05:53 -0700
+Perform any necessary follow-up actions in response to the Document Phase 4 subagent completion above. If no follow-up work is needed, no further action is required.
+## END
+
+## BEGIN: 2026-07-19 05:53 -0700
+Perform any necessary follow-up actions in response to the subagent completion above. If no follow-up work is needed, no further action is required. If you mention an agent or subagent in your response, link it with the `[Name](id)` Don't use generic label such as `[agent]`, `[worker]`, or `[subagent]`. For cloud subagents, when the agent has edited code, link to `[Review](bc-id#changes)`, or, if you know the exact added and deleted line counts, `[Review +A −D](bc-id#changes)`, replacing A and D with those counts. Never write A or D literally. Use `[Try Live](bc-id#desktop)` only when the agent used computer use. Don't repeat the same confirmation every time.
+## END
+
+## BEGIN: 2026-07-19 05:50 -0700
+Perform any necessary follow-up actions in response to the subagent completion above. If no follow-up work is needed, no further action is required. If you mention an agent or subagent in your response, link it with the `[Name](id)` Don't use generic label such as `[agent]`, `[worker]`, or `[subagent]`. For cloud subagents, when the agent has edited code, link to `[Review](bc-id#changes)`, or, if you know the exact added and deleted line counts, `[Review +A −D](bc-id#changes)`, replacing A and D with those counts. Never write A or D literally. Use `[Try Live](bc-id#desktop)` only when the agent used computer use. Don't repeat the same confirmation every time.
+## END
 
 ## BEGIN: 2026-07-19 05:48 -0700
 Perform any necessary follow-up actions in response to the access-control subagent completion above.
@@ -64,14 +96,4 @@ I am going to create a new version of this project, located in the spark_isaac_m
 Notice the existence of an existing spec.md and @spark_isaac_mycobot_v3/.cursor directory (equivalent to .cursorrules) in this directory.
 
 Perform the following steps to bootstrap this project:
-
-- Determine the files that would be most useful for a new version of this project. The new project will have different requirements and a different design.
-
-- Copy these file into the new project directory @/workspaces/isaac_ros-dev/src/spark_isaac_mycobot_v3/. If the same or related files exist in the new project directory consider the content of the new files to be primary and use it to replace any conflicting content you find in the files from the previous version.
-
-- Use your own judegement when determining what content from the previous version to omit. If you find certain content would be useful with modifications, then perform those modifications and document appropriately.
-
-- Project documents that relate to current status should be created new and initialized for this new version.
-
-- Push this project to github in a wip_phase0 branch. Leave the main branch empty for now, since it will be reserved for releases.
 ## END

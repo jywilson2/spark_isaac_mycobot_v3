@@ -33,6 +33,7 @@ class AppConfig:
     max_pre_approach_m: float
     planner_profile_name: str
     validation_profile_name: str
+    residual_safety_profile_name: str
     output_path: Path
     project_random_seed: int
     logging_level: str
@@ -90,6 +91,7 @@ def load_app_config(path: Path | str = Path("config/app.yml")) -> AppConfig:
         max_pre_approach_m=maximum,
         planner_profile_name=str(payload["planner_profile_name"]),
         validation_profile_name=str(payload["validation_profile_name"]),
+        residual_safety_profile_name=str(payload["residual_safety_profile_name"]),
         output_path=(project_root / str(payload["output_path"])).resolve(),
         project_random_seed=seed,
         logging_level=str(payload["logging_level"]),

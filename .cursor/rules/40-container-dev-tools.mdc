@@ -1,0 +1,26 @@
+---
+description: Bootstrap lightweight container lint/test tools (Ruff, pytest)
+alwaysApply: true
+---
+
+# Container development tools
+
+- Yes: install Ruff (and pytest) inside the Isaac ROS / Cursor container.
+  They are CPU-only CI tools and belong with `./scripts/run_verification.sh ci`.
+- Do **not** install cuRobo, CUDA PyTorch, Isaac Kit, or Isaac Lab into the
+  lightweight container just to obtain Ruff.
+- Prefer the project-local `.venv` over system `pip install`. If the workspace
+  is not writable, the bootstrap script falls back to a cache or `/tmp` venv
+  (`SPARK_DEV_VENV` overrides the location). That venv is Ruff-only; keep unit
+  tests on the container/system Python that already has NumPy/PyYAML.
+- Before CI verification, if `python3 -m ruff` fails, run:
+
+```bash
+./scripts/ensure_container_dev_tools.sh
+```
+
+- Prefer `./scripts/run_verification.sh ci` afterward; it auto-bootstraps the
+  same tools when Ruff is missing.
+- Do not skip Ruff with `--skip-ruff` merely because it is absent; install it.
+- Host GPU / Isaac gates remain on the DGX Spark host via
+  `scripts/host/spark_host_exec.sh` and are separate from this bootstrap.

@@ -17,12 +17,21 @@ globs: "src/**/*.py,tests/**/*.py,config/**/*.yml,config/**/*.yaml,pyproject.tom
   - `MotionGenPlanConfig`
   - `PoseCostMetric`
   - `curobo.wrap.reacher`
-- Prefer `MotionPlanner.plan_grasp` for target-goal-set selection, pre-approach planning, and linear terminal approach.
+- cuRobo is the exclusive global and local motion planner. No fallback,
+  learned policy, simulator, ROS/hardware adapter, external package, or
+  runtime condition may generate a replacement path with another planner.
+- Use `MotionPlanner.plan_grasp` as the required high-level primitive for target-goal-set selection, pre-approach planning, and linear terminal approach.
 - For approach-only planning, set `plan_approach_to_grasp=True` and `plan_grasp_to_lift=False`.
 - Pass `disable_collision_links=[]` unless an explicitly specified contact task requires narrowly scoped collision disabling.
 - The approach-axis name and signed offset come from validated configuration. Never copy a sign from another robot example.
-- Warm up the planner before benchmark timing and reuse it while robot and scene configuration remain unchanged.
+- For the pinned cuRobo v0.8.0 runtime, construct a fresh `MotionPlanner` for
+  every `plan_grasp` call and retry. Do not reuse a warmed instance merely
+  because robot/scene config is unchanged; GPU regression showed unsafe
+  optimizer/tool-criteria mutation on reuse. Revisit only after a future pinned
+  version passes the same repeated-call regression.
 - Respect result success tensors, segment presence, finite-value checks, and valid-last-timestep metadata.
 - A cuRobo success result is not sufficient; run the FK-based validator on the interpolated terminal trajectory.
 - Collision spheres represent static robot geometry and configured buffers. Do not animate or reposition them to shape a trajectory.
-- Do not switch IK or planning algorithms based solely on distance to the target.
+- Do not switch to another planner or path-generating IK method for any target,
+  phase, failure mode, configuration, retry, or runtime condition. A documented
+  fallback may vary pinned cuRobo APIs but must remain cuRobo-owned.

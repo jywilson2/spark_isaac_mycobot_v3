@@ -4,7 +4,7 @@ Last updated: **2026-07-19**
 
 ## Current phase
 
-**Phase 4 — independent trajectory validation: COMPLETE**
+**Phase 5 — execution abstraction and zero-residual seam: COMPLETE**
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–10)
@@ -21,7 +21,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 2 | Task frames / roll goals | **Complete** |
 | 3 | `plan_grasp` nominal planning | **Complete** |
 | 4 | Independent validation | **Complete** |
-| 5 | Execution + zero residual seam | Not started |
+| 5 | Execution + zero residual seam | **Complete** |
 | 6 | Randomized benchmark | Not started |
 | 7 | Isaac Sim closed-loop viz/validation | Scaffolding staged; not started |
 | 8 | Bounded residual RL (sim only) | Planned |
@@ -56,9 +56,25 @@ planning-success claims, or hardware-readiness claims carry forward.
   and a fresh planner backend for every v0.8.0 call and retry.
 - Phase 3 lifecycle corrected to require fresh backend → reset seed →
   configured public warmup → reset seed → exactly one `plan_grasp`.
+- Specification and roadmap now make cuRobo the exclusive global and local
+  motion planner. CPU fallback is prohibited unless supplied by pinned cuRobo
+  and validated; residuals and integrations may not generate replacement
+  trajectories.
+- Documentation-only exclusivity update: 76 unit tests pass; diff whitespace
+  and IDE diagnostics are clean. The local unified CI wrapper remains
+  incomplete because Ruff is not installed, and pytest reports existing
+  `.pytest_cache` permission warnings.
+- Container Ruff bootstrap: Cursor rule `40-container-dev-tools.mdc` plus
+  `scripts/ensure_container_dev_tools.sh`; `./scripts/run_verification.sh ci`
+  now installs Ruff when missing and passes (79 unit tests + Ruff).
 - Phase 4 independent validator with typed reports, simulation/hardware
   profiles, synthetic fail-closed coverage, and GPU FK/self-collision checks
   on an explicitly empty world.
+- Phase 5 typed residual observations, exact zero-output correction,
+  deterministic safety projection, replay state provider, timestamp/watchdog
+  handling, and in-memory-only trajectory execution.
+- Root-squashed container verification uses explicit writable pytest and Ruff
+  cache paths; the cumulative 90-test CI gate is warning-free.
 
 ## Acceptance checklist (Phase 0)
 
@@ -144,8 +160,28 @@ tracked with provenance; vendor meshes remain obtained into gitignored
       lifecycle; the known PyTorch CUDA-capability warning remains recorded.
 - [x] No physical robot command is issued.
 
+## Acceptance checklist (Phase 5)
+
+- [x] `ZeroResidualCorrector` reproduces the nominal joint command stream
+      exactly.
+- [x] Oversized synthetic translation and rotation corrections are explicitly
+      clipped.
+- [x] Corrections outside the terminal target-normal corridor are rejected.
+- [x] Invalid plans, stale state, watchdog expiry, and joint-envelope
+      violations stop before command emission.
+- [x] Non-zero residuals cannot generate replacement joint trajectories in
+      Phase 5.
+- [x] The only output adapter is an in-memory dry-run log.
+- [x] Core Phase 5 modules have no physical driver, ROS, Isaac, or RL
+      dependency.
+- [x] Cumulative unit suite passes (90 tests); Ruff lint and format pass.
+- [x] Existing host GPU integration suite passes (5 tests); the recorded GB10
+      PyTorch capability warning remains visible.
+- [x] No physical robot command is issued.
+
 ## Next step
 
-Land the tested Phase 4 commit on `wip_phase4`, rebase/fast-forward `main`, then
-create `wip_phase5` from updated `main`. Phase 5 adds the execution abstraction
-and zero-residual correction seam without coupling to hardware drivers.
+Land the tested Phase 5 commit on `wip_phase5`, rebase/fast-forward `main`, then
+create `wip_phase6` from updated `main`. Phase 6 adds deterministic randomized
+workspace benchmark cases, replay records, failure taxonomy, and JSON/Markdown
+reports without suppressing planning or validation failures.

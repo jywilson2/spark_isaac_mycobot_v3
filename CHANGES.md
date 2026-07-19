@@ -1,5 +1,108 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-19 — Phase 5 execution and zero-residual seam
+
+### Enumerated changes
+
+1. Added typed `CartesianResidual`, `ResidualObservation`, and
+   `ZeroResidualCorrector` contracts without introducing a learned policy,
+   hardware driver, or alternate planner.
+2. Added configured `ResidualSafetyProfile` loading and deterministic
+   `SafetyProjector` decisions for residual magnitude, terminal corridor,
+   joint feasibility, state freshness, and watchdog expiry.
+3. Added `TrajectorySource`, deterministic replay state, independent TCP pose
+   evaluation, structured execution results, and an in-memory-only command
+   adapter.
+4. Kept Phase 5 execution fail closed: only valid executable plans enter the
+   seam, every waypoint is rechecked, and projected non-zero residuals are
+   rejected before they can become joint commands.
+5. Added negative and identity tests covering unsafe corrections, stale state,
+   invalid plans, replacement-path prevention, and forbidden runtime
+   dependencies.
+6. Added `config/residual_safety.yml`, the Phase 5 report, public exports, and
+   synchronized specification, roadmap, README, references, and status.
+7. Updated verification caches for root-squashed workspaces without suppressing
+   warnings. The CI gate passes 90 unit tests plus Ruff lint/format; all five
+   host GPU integrations also pass with the recorded GB10 warning visible.
+8. Corrected container-to-host GPU verification to delegate a repository shell
+   script instead of incorrectly asking the script-only host wrapper to execute
+   the Python binary through `bash`; native host GPU tests now use Isaac Sim's
+   `python.sh`, where the pinned cuRobo/CUDA stack is installed, with unrelated
+   ROS pytest entry-point plugins disabled to avoid undeclared plugin imports.
+
+### Review recommended
+
+- **Future non-zero mapping:** Phase 8 must specify a bounded local
+  Cartesian-to-joint correction and independently validate it. The current
+  executor intentionally rejects all non-zero residuals.
+- **Hardware timing:** Phase 5 timestamps are deterministic replay values.
+  Phase 9 must validate real clock source, stale-state, and watchdog behavior
+  before any gated hardware adapter can emit motion.
+
+---
+
+## 2026-07-19 — Container Ruff bootstrap
+
+### Enumerated changes
+
+1. Added always-on Cursor rule `.cursor/rules/40-container-dev-tools.mdc`
+   directing agents to install Ruff in the Isaac ROS / Cursor container for CI
+   gates without installing cuRobo, CUDA PyTorch, or Isaac Kit.
+2. Added `scripts/ensure_container_dev_tools.sh` to create a Ruff-only venv
+   (project `.venv`, cache, or `/tmp` fallback) when the workspace is not
+   writable by the container UID.
+3. Updated `scripts/run_verification.sh` to auto-bootstrap Ruff, run lint via
+   the Ruff interpreter, and keep unit tests on the system/container Python
+   that already provides NumPy/PyYAML. Pytest cache output defaults to a
+   writable `/tmp` path, with `SPARK_PYTEST_CACHE_DIR` available for explicit
+   overrides, so root-squashed workspace ownership does not emit cache-write
+   warnings. Ruff uses the equivalent writable cache policy through
+   `SPARK_RUFF_CACHE_DIR`.
+4. Added unit coverage for the bootstrap/verification policy and synchronized
+   workflow rule, README, status, and references.
+
+### Review recommended
+
+- **Workspace ownership:** prefer fixing bind-mount UID/GID so project `.venv`
+  is writable; `/tmp` fallback works but is session-local.
+- **Full host install:** on DGX Spark, continue using `pip install -e '.[dev,cuda*]'`
+  when a complete planning environment is required.
+
+---
+
+## 2026-07-19 — cuRobo-exclusive planning policy
+
+### Enumerated changes
+
+1. Made cuRobo v0.8.0 the explicit exclusive global and local motion planner,
+   rather than merely the primary planning dependency.
+2. Prohibited non-cuRobo planning through retries, fallbacks, learned policies,
+   simulators, ROS/hardware adapters, external packages, and any runtime or
+   configuration switch.
+3. Limited any future CPU planning to a capability supplied by the pinned
+   cuRobo implementation and covered by explicit project validation.
+4. Clarified that independent validation and bounded residual execution
+   corrections are not planners: they may reject or locally correct a cuRobo
+   plan but may not generate replacement trajectories or full pose-to-joint
+   solutions.
+5. Synchronized the cuRobo Cursor rule, specification, README, references,
+   status, implementation roadmap, and Phase 3–4 reports.
+6. Verified 76 unit tests pass, documentation diffs have no whitespace errors,
+   and edited files have no IDE lint diagnostics. The unified CI wrapper could
+   not run Ruff initially because the module was unavailable in this container;
+   pytest also retained its existing cache-directory permission warnings.
+   Follow-up: container Ruff bootstrap now lands in a later change set.
+
+### Review recommended
+
+- **Phase 5/8 enforcement:** when those phases are implemented, add tests that
+  reject residual or adapter outputs representing replacement trajectories or
+  target-pose-to-full-joint solutions.
+- **Future cuRobo upgrades:** retain planner exclusivity and revalidate any CPU
+  execution capability before enabling it.
+
+---
+
 ## 2026-07-19 — Prior-project retirement / V3 isolation
 
 ### Enumerated changes

@@ -4,7 +4,7 @@
 
 **Document status:** Initial implementation specification  
 **Primary robot:** Elephant Robotics MyCobot 280 M5  
-**Primary motion-planning dependency:** NVIDIA cuRobo **v0.8.0 (cuRoboV2)**  
+**Exclusive motion planner and motion-planning dependency:** NVIDIA cuRobo **v0.8.0 (cuRoboV2)**\
 **Scope:** Deterministic, collision-aware motion planning with a controlled surface-normal approach. The architecture must expose safe extension points for residual reinforcement learning and hardware integration. Phases 0–6 implement the initial planner; Phases 7–10 cover Isaac Sim validation, bounded residual RL, and physical MyCobot 280 M5 testing (see §8 and `docs/implementation_phases.md`).
 
 ---
@@ -100,7 +100,9 @@ The project shall:
 - use an NVIDIA CUDA-capable environment;
 - select a PyTorch build compatible with the installed CUDA runtime and GPU;
 - fail fast with an actionable diagnostic if CUDA, PyTorch, or cuRobo is unavailable;
-- avoid CPU fallback for planning unless a later phase explicitly adds and validates it.
+- do not fall back to CPU or to another motion planner. A later phase may add
+  CPU planning only if the pinned cuRobo implementation itself supports it and
+  the project explicitly validates it; no phase may add a non-cuRobo planner.
 
 ### 3.4 Dependency policy
 
@@ -119,7 +121,7 @@ Do not add a package merely for convenience. Use the Python standard library whe
 
 ## 4. Design principles
 
-### 4.1 cuRobo owns global motion planning
+### 4.1 cuRobo exclusively owns motion planning
 
 cuRobo is responsible for:
 
@@ -131,7 +133,13 @@ cuRobo is responsible for:
 - velocity, acceleration, and jerk-aware smoothing;
 - selecting among candidate target roll orientations.
 
-Application code must not implement a competing global IK or path planner.
+No application code, learned policy, simulator, ROS integration, hardware
+adapter, external package, or fallback may generate a motion path with a
+planner or planning algorithm other than cuRobo. This prohibition applies to
+both global and local motion planning. IK used to generate a motion path must
+also be cuRobo-owned; independent FK, validation, control, and bounded residual
+execution correction are not motion planning and remain permitted only within
+their explicit contracts below.
 
 ### 4.2 The target is a full task frame, not only a position
 
@@ -153,13 +161,21 @@ A cuRobo success result is necessary but not sufficient. Every returned terminal
 
 Collision spheres describe robot geometry and safety margins. They must not be moved dynamically to force a desired approach path.
 
-### 4.5 No planner switching based only on target distance
+### 4.5 No planner switching
 
-The same deterministic planning pipeline must work across randomized valid targets. A phase change may alter constraints or controller authority, but must not silently replace one IK method with another.
+The same deterministic cuRobo planning pipeline must work across randomized
+valid targets. No target, phase, failure mode, runtime condition, or explicit
+configuration may switch to another motion planner or path-generating IK
+method. Profiles, constraints, seeds, and supported cuRobo APIs may vary, but
+cuRobo remains the exclusive motion planner.
 
 ### 4.6 Future RL is residual and bounded
 
-The future learning policy will correct execution error around a verified nominal path. It will not replace cuRobo planning and will not directly bypass deterministic safety checks.
+The future learning policy will correct execution error around a verified
+nominal path. A residual is a bounded local execution correction, not a
+replacement trajectory or planning fallback. It must not generate a motion
+path, solve target pose to full joint configurations, replace cuRobo planning,
+or bypass deterministic safety checks.
 
 ---
 
@@ -524,9 +540,10 @@ For every generated candidate:
 
 Plan a free-space segment to a pre-approach pose and a constrained linear terminal segment to the target.
 
-### Preferred cuRobo v0.8.0 method
+### Required cuRobo v0.8.0 method
 
-Use `MotionPlanner.plan_grasp(...)` as the primary high-level primitive, configured as an approach-only operation:
+Use `MotionPlanner.plan_grasp(...)` as the required high-level primitive,
+configured as an approach-only operation:
 
 ```python
 result = planner.plan_grasp(
@@ -608,14 +625,17 @@ A planning operation is not successful unless:
 
 Do not concatenate padded or invalid trailing samples. Respect any valid-last-timestep metadata returned by cuRobo.
 
-### Fallback method
+### cuRobo-only fallback method
 
-Implement a two-call fallback only if `plan_grasp` cannot satisfy a documented robot-specific case:
+Implement a two-call fallback only if `plan_grasp` cannot satisfy a documented
+robot-specific case. Both calls must remain inside the pinned cuRobo API:
 
 1. `plan_pose()` to the pre-approach pose;
 2. a narrowly scoped terminal plan using cuRoboV2 tool-pose criteria.
 
-Do not reintroduce legacy `PoseCostMetric` APIs. The fallback must pass the same validator and be tagged in the output as a fallback plan.
+Do not reintroduce legacy `PoseCostMetric` APIs or invoke a non-cuRobo planner.
+The fallback must pass the same validator and be tagged in the output as a
+fallback plan.
 
 ### Acceptance criteria
 
@@ -766,6 +786,13 @@ Projects or rejects residual corrections so that they remain inside a configured
 
 Consumes a verified plan and produces commands through an injected output adapter. Initial adapter writes commands to an in-memory log only.
 
+The Phase 5 executor supports only `ZeroResidualCorrector`. `SafetyProjector`
+can explicitly clip or reject synthetic Cartesian residuals for contract
+testing, but any non-zero residual that survives projection is rejected before
+command emission because no bounded Cartesian-to-joint mapping is accepted in
+this phase. A later phase must specify and independently validate such a
+mapping; it may not become an IK solver or replacement path generator.
+
 ### Hard constraints for future RL
 
 The future residual policy shall not:
@@ -883,7 +910,8 @@ Visualize and closed-loop-validate Phase 3–6 plans in Isaac Sim on the DGX Spa
 
 ### Objective
 
-Train and evaluate a residual policy that improves approach metrics under model mismatch while preserving cuRobo as the primary planner.
+Train and evaluate a residual policy that improves approach metrics under
+model mismatch while preserving cuRobo as the exclusive motion planner.
 
 Residual RL is in scope because this architecture already separates nominal planning from a bounded correction seam (Phase 5 / §4.6 / §6.5). End-to-end learned IK is not an acceptable substitute.
 
@@ -897,8 +925,14 @@ Residual RL is in scope because this architecture already separates nominal plan
 
 ### Hard constraints
 
-- Deployed path remains: nominal cuRobo plan → optional clamped residual → independent validation.
-- No policy may map target pose → full 6-DOF joints as the primary hardware or sim control path.
+- Deployed path remains: nominal cuRobo plan → optional bounded local execution
+  correction → independent validation.
+- A residual may not generate a replacement trajectory, invoke a planner, or
+  map target pose → full 6-DOF joint solutions in any hardware or simulation
+  path.
+- No failure or rejection may trigger a non-cuRobo planner; the only permitted
+  outcomes are a validated cuRobo nominal plan with an optional accepted
+  residual correction, the validated nominal plan alone, or no motion.
 - Checkpoints are advisory; deterministic validation has final authority.
 
 ### Acceptance criteria

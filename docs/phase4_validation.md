@@ -6,6 +6,8 @@ Phase 4 treats every Phase 3 planner result as untrusted until a separate
 validator recomputes its safety and task metrics. A valid report grants
 execution eligibility; any violation or unevaluated required metric fails
 closed. Simulation thresholds are not physical MyCobot accuracy claims.
+Validation may accept or reject a cuRobo path but never generate, repair, or
+replace one; cuRobo remains the exclusive global and local motion planner.
 
 ## Public contracts
 

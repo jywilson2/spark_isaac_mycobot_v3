@@ -2,6 +2,9 @@
 
 Deterministic, collision-aware surface-normal approach planning for the
 Elephant Robotics MyCobot 280 M5 using NVIDIA cuRobo **v0.8.0 (cuRoboV2)**.
+cuRobo is the exclusive global and local motion planner: no fallback, learned
+policy, simulator, ROS integration, hardware adapter, or external package may
+generate a replacement motion path.
 
 This repository is a new design. It is not an in-place continuation of
 `spark_isaac_mycobot_v2`: v2's Isaac visualization, ROS integration, learned
@@ -13,7 +16,7 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 ## Current phase
 
-**Phase 4 — independent trajectory validation: complete.**
+**Phase 5 — execution abstraction and zero-residual seam: complete.**
 
 Full roadmap (Phases 0–10, including Isaac Sim, residual RL, and physical
 hardware): [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -37,12 +40,14 @@ Implemented now:
 - typed fail-closed validation reports covering terminal geometry, limits,
   dynamics, continuity, and available collision clearance;
 - real cuRobo FK and self-collision validation in an explicitly empty world;
+- typed zero-residual execution with deterministic safety projection,
+  timestamp/watchdog checks, joint feasibility, and an in-memory adapter;
 - Phase 7 Isaac Sim **scaffolding** (host scripts, URDF helpers, vendor obtain).
 
-Not implemented through Phase 4:
+Not implemented through Phase 5:
 
 - non-empty-world collision-clearance evaluation (fails closed);
-- residual seam, benchmarks (Phases 5–6);
+- non-zero residual correction or randomized benchmarks (Phases 6 and 8);
 - Isaac closed-loop player, residual RL training, hardware motion (Phases 7–10).
 
 See [`STATUS.md`](STATUS.md) for acceptance status and [`CHANGES.md`](CHANGES.md)
@@ -63,9 +68,19 @@ python -m pip install -e '.[dev,cuda13]'  # DGX Spark / CUDA 13
 # or: python -m pip install -e '.[dev,cuda12]'
 ```
 
+In the Isaac ROS / Cursor container, install only the lightweight lint tool
+when needed (do not pull cuRobo/CUDA into that bootstrap):
+
+```bash
+./scripts/ensure_container_dev_tools.sh   # Ruff-only venv
+./scripts/run_verification.sh ci          # auto-bootstraps Ruff if missing
+```
+
 PyTorch must match the installed NVIDIA driver/CUDA environment. If the default
 resolver selects an incompatible wheel, install the correct PyTorch CUDA wheel
-first, then repeat the editable install. Do not use CPU fallback for planning.
+first, then repeat the editable install. Do not use CPU planning or another
+planner as a fallback. Future CPU planning is permitted only if the pinned
+cuRobo implementation supports it and project validation covers it.
 
 On the Isaac Sim host, use `scripts/host/install_curobo.sh`; it deliberately
 installs cuRobo's `cu13` runtime extra without a Torch extra so Isaac Sim's
@@ -206,6 +221,21 @@ it is reported as unevaluated and fails closed. See
 | PyYAML | named validation threshold profiles |
 | pytest | synthetic violation coverage and GPU acceptance |
 
+## Replay a Phase 5 validated plan
+
+`TrajectoryExecutor` accepts only a valid executable `ValidatedPlan`. It samples
+the unchanged nominal trajectory, uses `ReplayRobotStateProvider` for the
+initial measured-state contract, invokes `ZeroResidualCorrector`, and passes
+every waypoint through `SafetyProjector` before `InMemoryCommandAdapter` can
+record it.
+
+Bounds in `config/residual_safety.yml` cover residual magnitude, the terminal
+corridor, joint margin, state age, and watchdog timeout. Oversized residuals
+are visibly clipped; unsafe residuals are rejected. Phase 5 deliberately
+rejects every non-zero residual at execution because no bounded
+Cartesian-to-joint mapping has been accepted. See
+[`docs/phase5_execution_residual.md`](docs/phase5_execution_residual.md).
+
 ## Isaac Sim scaffolding (Phase 7+)
 
 Optional host tooling adapted from v2. Not required for Phase 0 unit tests.
@@ -229,10 +259,12 @@ Python env when ready:
 
 ## Safety boundary
 
-This project currently plans and validates only; it does not command a robot.
-Plans are not executable until independent waypoint-by-waypoint validation
-passes. Residual RL (Phase 8) remains bounded and subordinate to deterministic
-safety logic. Physical motion (Phases 9–10) is gated and dry-run by default.
+This project plans, validates, and dry-run replays only; it does not command a
+robot. Plans are not executable until independent waypoint-by-waypoint
+validation passes. Residual RL (Phase 8) remains bounded and subordinate to
+deterministic safety logic. Residuals may apply local execution corrections
+but may not generate replacement trajectories or full pose-to-joint solutions.
+Physical motion (Phases 9–10) is gated and dry-run by default.
 
 ## Branch policy
 

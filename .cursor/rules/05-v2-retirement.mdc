@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+
+# V2 retirement and V3 isolation
+
+- Treat this V3 repository as self-contained.
+- Do not read, search, edit, or otherwise access the retired sibling
+  `spark_isaac_mycobot_v2` source tree.
+- If a required resource is missing from V3, report it instead of consulting
+  or copying from V2.
+- Historical notes live under `docs/legacy/` and are non-authoritative. Prefer
+  `spec.md`, `STATUS.md`, and phase reports for current behavior.
+- Open only `spark_isaac_mycobot_v3.code-workspace` for agent sessions.

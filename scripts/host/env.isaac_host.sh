@@ -24,7 +24,7 @@ spark_host_require_native_shell() {
     echo "WARNING: /.dockerenv detected — run Isaac Sim scripts on the HOST terminal," >&2
     echo "not inside the Isaac ROS/Cursor container." >&2
     echo "  isaac-ros activate   # host" >&2
-    echo "  ./scripts/host/iter_build_isaac_scene.sh   # host" >&2
+    echo "  ./scripts/host/launch_isaac_sim.sh         # host" >&2
     return 1
   fi
   return 0

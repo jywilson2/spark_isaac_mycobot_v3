@@ -4,6 +4,10 @@ References are pinned to the v3 specification's cuRoboV2 baseline. Older
 `curobo.org` examples commonly use v0.7.x `MotionGen` APIs and are not
 implementation authority for this project.
 
+cuRobo v0.8.0 is the project's exclusive global and local motion planner.
+References for simulators, learned residuals, ROS, hardware adapters, or
+validation do not authorize those components to generate replacement paths.
+
 ## Phase 0 implementation libraries
 
 - **NVIDIA cuRobo v0.8.0 tag**  
@@ -29,7 +33,12 @@ implementation authority for this project.
   <https://docs.pytest.org/en/stable/example/markers.html>
 - **Ruff configuration**  
   <https://docs.astral.sh/ruff/configuration/>
-
+- **Container Ruff bootstrap**
+  `scripts/ensure_container_dev_tools.sh` and Cursor rule
+  `.cursor/rules/40-container-dev-tools.mdc`. Installs a Ruff-only venv in the
+  Isaac ROS / Cursor container without pulling cuRobo/CUDA/Isaac Kit.
+  `scripts/run_verification.sh` auto-bootstraps and keeps pytest on the
+  system/container Python.
 Tested Phase 0 host baseline (2026-07-18): Isaac Sim Python 3.12.13,
 `nvidia-curobo==0.8.0`, PyTorch 2.10.0+cu130, CUDA runtime 13.0, NVIDIA GB10.
 See [`docs/phase0_environment.md`](docs/phase0_environment.md). The observed
@@ -104,6 +113,24 @@ compute-capability warning is retained in that report and is not suppressed.
   <https://pyyaml.org/wiki/PyYAMLDocumentation>
   Named validation-profile loading from `config/validation_profiles.yml`.
 
+## Phase 5 execution and residual-safety contracts
+
+- **Python typing protocols**
+  <https://docs.python.org/3/library/typing.html#typing.Protocol>
+  Structural interfaces for state providers, residual correctors, pose
+  evaluators, and command adapters.
+- **Project Phase 5 execution report**
+  [`docs/phase5_execution_residual.md`](docs/phase5_execution_residual.md)
+  Documents the zero-output implementation, deterministic projector,
+  fail-closed stop behavior, and no-hardware boundary.
+- **NumPy**
+  <https://numpy.org/doc/stable/>
+  Deterministic residual norm projection, corridor geometry, and command-stream
+  identity checks.
+- **PyYAML**
+  <https://pyyaml.org/wiki/PyYAMLDocumentation>
+  Named residual safety profiles in `config/residual_safety.yml`.
+
 ## Phase 7 Isaac Sim libraries / host tooling
 
 - **Isaac Sim host `python.sh` resolution** — `scripts/isaac_sim_env.sh`
@@ -115,7 +142,8 @@ compute-capability warning is retained in that report and is not suppressed.
 
 - Training only in Isaac Lab / Isaac Sim; residual must use Phase 5
   `ResidualCorrector` + `SafetyProjector` contracts in `spec.md` §4.6 / §6.5.
-- No e2e pose→joints primary policy.
+- Residuals are bounded local execution corrections, not planners; no
+  replacement trajectory or end-to-end pose→joints policy is permitted.
 
 ## Phases 9–10 hardware (planned)
 
