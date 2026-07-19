@@ -131,6 +131,25 @@ compute-capability warning is retained in that report and is not suppressed.
   <https://pyyaml.org/wiki/PyYAMLDocumentation>
   Named residual safety profiles in `config/residual_safety.yml`.
 
+## Phase 6 benchmark contracts
+
+- **NumPy random generator**
+  <https://numpy.org/doc/stable/reference/random/generator.html>
+  Root-seeded deterministic target, normal-cone, start-state, roll-policy, and
+  pre-approach sampling.
+- **Python dataclasses**
+  <https://docs.python.org/3/library/dataclasses.html>
+  Immutable benchmark contracts and `dataclasses.replace` for the per-case
+  planner seed required by the request/profile invariant.
+- **JSON**
+  <https://www.rfc-editor.org/rfc/rfc8259>
+  Machine-readable reports, frozen compact parameters, and exact failed-case
+  replay requests.
+- **Project Phase 6 benchmark report**
+  [`docs/phase6_benchmark.md`](docs/phase6_benchmark.md)
+  Declared unmeasured candidate workspace, stable taxonomy, report semantics,
+  replay command, and verification boundary.
+
 ## Phase 7 Isaac Sim libraries / host tooling
 
 - **Isaac Sim host `python.sh` resolution** — `scripts/isaac_sim_env.sh`

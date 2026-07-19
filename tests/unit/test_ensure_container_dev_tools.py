@@ -42,6 +42,8 @@ def test_run_verification_auto_bootstraps_ruff_separately_from_pytest() -> None:
     assert 'source "${ROOT}/scripts/host/env.isaac_host.sh"' in text
     assert '"${ISAACSIM_PYTHON_EXE}" -m pytest -m gpu' in text
     assert "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1" in text
+    assert "SPARK_PYTEST_BASETEMP" in text
+    assert "--basetemp=" in text
     assert "python3 -m ruff check ." not in text
     assert "-m ruff check ." in text
     assert "-m ruff format --check ." in text

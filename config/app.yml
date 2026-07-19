@@ -2,6 +2,7 @@
 # modules do not silently infer frames, signs, units, or roll density.
 robot_config_path: config/robots/mycobot_280_m5.yml
 scene_config_path: config/scenes/empty.yml
+benchmark_config_path: config/benchmark_workspace.yml
 tool_frame: tcp_link
 tool_approach_axis: z
 tool_approach_sign: -1

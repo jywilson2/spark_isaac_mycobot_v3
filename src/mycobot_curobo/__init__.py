@@ -8,8 +8,24 @@ every ``plan_grasp`` call. Phase 4 independently validates terminal geometry,
 limits, dynamics, and collision clearance before granting execution
 eligibility. Phase 5 adds a dry-run execution seam with zero residual output
 and deterministic safety projection; it has no hardware-driver dependency.
+Phase 6 adds reproducible randomized cases, replay records, taxonomy, and
+JSON/Markdown reports.
 """
 
+from mycobot_curobo.benchmark import (
+    BenchmarkCase,
+    BenchmarkConfig,
+    BenchmarkResult,
+    BenchmarkRunner,
+    BenchmarkSummary,
+    FailureCategory,
+    aggregate_results,
+    deserialize_request,
+    load_benchmark_config,
+    sample_benchmark_cases,
+    serialize_request,
+    write_benchmark_reports,
+)
 from mycobot_curobo.errors import (
     ConfigurationError,
     EnvironmentVerificationError,
@@ -96,6 +112,12 @@ __all__ = [
     "CpuTcpPoseEvaluator",
     "CartesianResidual",
     "BASE_LINK",
+    "BenchmarkCase",
+    "BenchmarkConfig",
+    "BenchmarkResult",
+    "BenchmarkRunner",
+    "BenchmarkSummary",
+    "FailureCategory",
     "FLANGE_LINK",
     "JOINT_NAMES",
     "JointLimits",
@@ -135,16 +157,22 @@ __all__ = [
     "ValidationViolation",
     "build_surface_goal_set",
     "build_task_frame_candidates",
+    "aggregate_results",
     "create_curobo_planner",
+    "deserialize_request",
     "forward_kinematics",
     "load_curobo_robot_config",
+    "load_benchmark_config",
     "load_planner_profile",
     "load_robot_model_spec",
     "load_residual_safety_profile",
     "load_validation_profile",
     "reorder_joint_state",
+    "sample_benchmark_cases",
+    "serialize_request",
     "verify_environment",
     "validate_nominal_plan",
+    "write_benchmark_reports",
     "ZeroResidualCorrector",
     "InMemoryCommandAdapter",
 ]

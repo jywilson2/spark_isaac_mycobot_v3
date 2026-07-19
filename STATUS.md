@@ -4,7 +4,7 @@ Last updated: **2026-07-19**
 
 ## Current phase
 
-**Phase 5 — execution abstraction and zero-residual seam: COMPLETE**
+**Phase 6 — randomized workspace benchmark: COMPLETE**
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–10)
@@ -22,7 +22,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 3 | `plan_grasp` nominal planning | **Complete** |
 | 4 | Independent validation | **Complete** |
 | 5 | Execution + zero residual seam | **Complete** |
-| 6 | Randomized benchmark | Not started |
+| 6 | Randomized benchmark | **Complete** |
 | 7 | Isaac Sim closed-loop viz/validation | Scaffolding staged; not started |
 | 8 | Bounded residual RL (sim only) | Planned |
 | 9 | Hardware interface + dry-run | Planned |
@@ -75,6 +75,9 @@ planning-success claims, or hardware-readiness claims carry forward.
   handling, and in-memory-only trajectory execution.
 - Root-squashed container verification uses explicit writable pytest and Ruff
   cache paths; the cumulative 90-test CI gate is warning-free.
+- Phase 6 typed benchmark configuration/cases/results/summaries, deterministic
+  root-seed sampling, 20/100 frozen parameter fixtures, seven-category failure
+  taxonomy, exact failed-request replay, and JSON/Markdown reporting.
 
 ## Acceptance checklist (Phase 0)
 
@@ -179,9 +182,25 @@ tracked with provenance; vendor meshes remain obtained into gitignored
       PyTorch capability warning remains visible.
 - [x] No physical robot command is issued.
 
+## Acceptance checklist (Phase 6)
+
+- [x] Cases reproduce exactly from a root seed and validated YAML contract.
+- [x] Every failed case carries a complete serialized planning request.
+- [x] Matching JSON and Markdown reports default to `artifacts/benchmarks/`.
+- [x] Aggregation includes every case and cannot suppress failures.
+- [x] Smoke/regression fixtures contain 20/100 compact parameter-only cases.
+- [x] Planner seed sweeps copy the profile seed and construct fresh planners.
+- [x] Optional execution rejection remains separate from planning taxonomy.
+- [x] Cumulative CI gate passes (97 unit tests plus Ruff lint/format).
+- [x] Host GPU dual-run smoke subset passes with zero disagreement
+      (2 frozen smoke cases × configured repeats; full 20-case stage remains
+      available via `scripts/benchmark_random_targets.py`).
+- [x] Cumulative host GPU suite passes (6 tests); GB10 PyTorch capability
+      warning remains visible.
+- [x] No physical robot command is issued.
+
 ## Next step
 
-Land the tested Phase 5 commit on `wip_phase5`, rebase/fast-forward `main`, then
-create `wip_phase6` from updated `main`. Phase 6 adds deterministic randomized
-workspace benchmark cases, replay records, failure taxonomy, and JSON/Markdown
-reports without suppressing planning or validation failures.
+Land the tested Phase 6 commit on `wip_phase6`, rebase/fast-forward `main`,
+then create `wip_phase7` from updated `main`. Phase 7 implements the
+Isaac Sim validated-plan player and host headless/GUI smoke gates.

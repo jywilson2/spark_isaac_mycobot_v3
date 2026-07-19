@@ -1,0 +1,41 @@
+# Phase 6 sampling contract. This is a conservative candidate AABB near the
+# Phase 3/4 reachable interior; it is not a measured dexterous workspace.
+frame: g_base
+workspace_declaration: unmeasured_conservative_candidate_region
+regions:
+  - label: interior_lower
+    minimum_m: [0.14, -0.025, 0.10]
+    maximum_m: [0.18, 0.025, 0.12]
+  - label: interior_upper
+    minimum_m: [0.14, -0.025, 0.12]
+    maximum_m: [0.18, 0.025, 0.14]
+normal_bins:
+  - label: toward_base
+    direction_base: [-1.0, 0.0, 0.0]
+    cone_half_angle_deg: 15.0
+  - label: upward
+    direction_base: [0.0, 0.0, 1.0]
+    cone_half_angle_deg: 15.0
+  - label: downward
+    direction_base: [0.0, 0.0, -1.0]
+    cone_half_angle_deg: 15.0
+start_joint_bank:
+  - label: zeros
+    position_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  - label: interior
+    position_rad: [0.3, -0.1, 0.1, 0.0, 0.0, 0.0]
+pre_approach_range_m: [0.01, 0.03]
+planner_seed_sweep: [123, 124, 125, 126]
+roll_policy:
+  fixed_probability: 0.25
+  fixed_candidates_deg: [0, 90, 180, 270]
+  candidate_set_deg: [0, 45, 90, 135, 180, 225, 270, 315]
+stage_sizes:
+  smoke: 20
+  regression: 100
+  exploratory: 1000
+scene_revision: empty-v1
+planner_profile: benchmark_reproducible
+validation_profile: simulation_initial
+residual_safety_profile: simulation_zero_residual
+repeat_count: 2

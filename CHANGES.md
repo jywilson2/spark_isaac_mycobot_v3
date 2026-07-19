@@ -1,5 +1,48 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-19 — Phase 6 randomized workspace benchmark
+
+### Enumerated changes
+
+1. Added a validated benchmark YAML declaring conservative, unmeasured `g_base`
+   candidate AABBs, labeled normal bins, explicit start states, roll and
+   pre-approach policies, planner seed sweep, repeat count, and minimum
+   20/100/1000 stage sizes.
+2. Added immutable benchmark cases/results/summaries, deterministic root-seed
+   sampling, complete request serialization/deserialization, seven-category
+   planning/validation failure mapping, raw planner-status retention, and
+   all-case aggregation.
+3. Added plan → independent validation orchestration with injected planner and
+   validator boundaries. Optional Phase 5 zero-residual execution replay is
+   post-validation and its rejection is never counted as a planning failure.
+4. Preserved the Phase 3 request/profile seed invariant by copying
+   `PlannerProfile` with each sweep seed and constructing fresh planners.
+5. Added JSON and Markdown writers under `artifacts/benchmarks/`, the benchmark
+   and single-request replay scripts, and the app benchmark-config path.
+6. Added frozen 20-case smoke and 100-case regression parameter fixtures,
+   deterministic unit coverage, and a GPU-marked dual-run smoke integration.
+7. Added the Phase 6 report and synchronized specification, roadmap, README,
+   references, status, and prompt history.
+8. Passed container CI with 97 unit tests plus Ruff lint/format. Host GPU
+   verification passes all six integrations, including a two-case dual-run
+   Phase 6 smoke subset with zero disagreement. Host pytest now uses an
+   ownership-safe basetemp, and the Phase 6 GPU test creates its own report
+   directory. Full 20-case smoke and exploratory 1,000-case stages are
+   available via CLI and are not claimed as executed here.
+
+### Review recommended
+
+- **Workspace evidence:** configured AABBs are deliberately labeled unmeasured
+  candidate regions. Review host smoke outcomes before changing their bounds;
+  do not relabel them as a measured dexterous workspace.
+- **Exploratory evidence:** the implementation supports 1,000 cases, but this
+  change does not claim that exploratory stage was executed.
+- **Full smoke stage:** the GPU gate intentionally uses a short dual-run
+  subset under the fresh-backend/warmup lifecycle; run the 20-case CLI stage
+  when recording a baseline metrics report.
+
+---
+
 ## 2026-07-19 — Phase 5 execution and zero-residual seam
 
 ### Enumerated changes

@@ -1,0 +1,3959 @@
+[
+  {
+    "case_id": "phase6-regression-60100-00000",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.16058639885559006,
+      -0.006977090944046922,
+      0.13763609298256213
+    ],
+    "pre_approach_distance_m": 0.017450806446442355,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 0,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.14069058384592725,
+      -0.05726887804261368,
+      0.9883958899271245
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00001",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.14858752500012595,
+      -0.018739953416092376,
+      0.13517980151779518
+    ],
+    "pre_approach_distance_m": 0.01784980375119742,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 1,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.1563811251911882,
+      -0.04143389212556422,
+      -0.9868273284963611
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00002",
+    "fixed_roll_rad": 3.141592653589793,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.14627334232840797,
+      0.001545509597534439,
+      0.1099358974085603
+    ],
+    "pre_approach_distance_m": 0.019074077139085988,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 2,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9924078092356429,
+      0.03479262748639419,
+      0.11796700064299716
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00003",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.15682688874995063,
+      -0.0009251452741675555,
+      0.13221837427046837
+    ],
+    "pre_approach_distance_m": 0.020360140337879445,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 3,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9977556836339627,
+      0.0427663531387369,
+      0.05152314834456956
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00004",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.16637101609061988,
+      0.019616554007116933,
+      0.13666970047544683
+    ],
+    "pre_approach_distance_m": 0.02160344692978415,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 4,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.979428170404147,
+      -0.1967242323743603,
+      -0.04494480409907102
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00005",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.1744568837356297,
+      0.005117325708203373,
+      0.10406886200888486
+    ],
+    "pre_approach_distance_m": 0.01305036150016016,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 5,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9696017888655373,
+      0.24433901173525382,
+      -0.013069750303261055
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00006",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.16986665592127573,
+      -0.016875513129011775,
+      0.13605356971782506
+    ],
+    "pre_approach_distance_m": 0.028830512088685735,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 6,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.1263358328363522,
+      -0.02182099652483847,
+      0.991747498838393
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00007",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.14498877021806483,
+      -0.005542599981542058,
+      0.11719304511938082
+    ],
+    "pre_approach_distance_m": 0.016362522488736687,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 7,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.11061478739625308,
+      -0.0693720648582642,
+      -0.9914392999203645
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00008",
+    "fixed_roll_rad": 0.0,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.15589614915113403,
+      0.0038292572746951477,
+      0.1222631996310196
+    ],
+    "pre_approach_distance_m": 0.019433039810459306,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 8,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.05484138272012272,
+      0.21129359337527145,
+      0.9758829028832867
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00009",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.14802145055322133,
+      0.009565367882375095,
+      0.11877941257894416
+    ],
+    "pre_approach_distance_m": 0.02803297068336765,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 9,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9945114293895284,
+      0.036270682250766344,
+      0.09813997362268315
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00010",
+    "fixed_roll_rad": 3.141592653589793,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.1616300782006379,
+      -0.02075013206289052,
+      0.11197274306184177
+    ],
+    "pre_approach_distance_m": 0.02978050460877231,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 10,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.11840394067452252,
+      -0.02901292554828985,
+      0.9925415643608451
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00011",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.1678555120258379,
+      -0.018510891607586722,
+      0.10904854660506169
+    ],
+    "pre_approach_distance_m": 0.025915266223723844,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 11,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.0005771014137296454,
+      0.21160113491761848,
+      -0.9773559365223777
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00012",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.14242892261395335,
+      0.0035874100688335422,
+      0.13663043815195228
+    ],
+    "pre_approach_distance_m": 0.02668517382363144,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 12,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9682479629299094,
+      0.24296888826171914,
+      -0.058838776490890275
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00013",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.16001905853106194,
+      0.013360595725627464,
+      0.13004360300987194
+    ],
+    "pre_approach_distance_m": 0.01669623235882915,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 13,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.10583808121878642,
+      -0.08939217609561712,
+      0.9903571776974284
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00014",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.17069202212999743,
+      0.005055633631957872,
+      0.137553213192542
+    ],
+    "pre_approach_distance_m": 0.02335613668506297,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 14,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9996310335030555,
+      -0.02527999528935409,
+      0.009935728246250478
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00015",
+    "fixed_roll_rad": 0.0,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.176014936920879,
+      -0.00725834919149242,
+      0.13478847882109593
+    ],
+    "pre_approach_distance_m": 0.022027528099301405,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 15,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.975695158258621,
+      -0.1801112465183312,
+      0.12481545188115736
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00016",
+    "fixed_roll_rad": 0.0,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.15288327382744896,
+      -0.0002780789867279747,
+      0.1127831596098349
+    ],
+    "pre_approach_distance_m": 0.025556608500948638,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 16,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.0662938863943277,
+      -0.22225465574527467,
+      -0.9727322286355508
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00017",
+    "fixed_roll_rad": 1.5707963267948966,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.1767384287333165,
+      0.006338115199318484,
+      0.13726692085525094
+    ],
+    "pre_approach_distance_m": 0.01896402632122244,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 17,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.20793192219557788,
+      0.03094053066040594,
+      0.9776538238530572
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00018",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.1464889167210365,
+      0.011986674352982597,
+      0.11480161692806805
+    ],
+    "pre_approach_distance_m": 0.012480108125622943,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 18,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.15107363541684132,
+      -0.19132887599027024,
+      0.9698298912150723
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00019",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.14621889054658066,
+      0.018684506841599155,
+      0.11390118835909623
+    ],
+    "pre_approach_distance_m": 0.028645096700831096,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 19,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.07449386520114591,
+      -0.0844410901700334,
+      -0.993639958102677
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00020",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.15547658044401866,
+      -0.013466731399955995,
+      0.102683208080194
+    ],
+    "pre_approach_distance_m": 0.011742204529380192,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 20,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.11111746678180826,
+      -0.09670316931154295,
+      0.9890912018722524
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00021",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.1448774628883426,
+      0.009820550405414151,
+      0.10089147243712597
+    ],
+    "pre_approach_distance_m": 0.01992537779293706,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 21,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9970111996149441,
+      -0.020928633233904127,
+      0.07436840830171618
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00022",
+    "fixed_roll_rad": 3.141592653589793,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.14758009151716928,
+      -0.0023755077752194986,
+      0.12123866150382093
+    ],
+    "pre_approach_distance_m": 0.025592095231418033,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 22,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.13715361907754015,
+      0.10231947766759496,
+      -0.9852510387021998
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00023",
+    "fixed_roll_rad": 4.71238898038469,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.1716923728824174,
+      -0.014335544855863048,
+      0.10581389882894615
+    ],
+    "pre_approach_distance_m": 0.022311812006025927,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 23,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9961667923062185,
+      0.07273701659025765,
+      0.04859061971088577
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00024",
+    "fixed_roll_rad": 1.5707963267948966,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.1450884483034999,
+      0.013721268184346179,
+      0.11088417320244391
+    ],
+    "pre_approach_distance_m": 0.011931938757140501,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 24,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.09145172351644897,
+      -0.16411334858001494,
+      -0.982193153653458
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00025",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.16520261798399577,
+      -0.004327106047211947,
+      0.1295506161489849
+    ],
+    "pre_approach_distance_m": 0.013596477702170179,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 25,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.015540890158586555,
+      -0.1364467859673966,
+      -0.9905254945392603
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00026",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.15660987064239293,
+      -0.02129204134348424,
+      0.1106797390606829
+    ],
+    "pre_approach_distance_m": 0.02671730024102765,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 26,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.2448497887405386,
+      -0.057914239672446494,
+      0.9678298000148973
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00027",
+    "fixed_roll_rad": 0.0,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.1658545984338421,
+      0.0030593858787935357,
+      0.13503995990923212
+    ],
+    "pre_approach_distance_m": 0.02268688281799896,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 27,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.02793055998344596,
+      0.15846866518570002,
+      0.9869688779152429
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00028",
+    "fixed_roll_rad": 1.5707963267948966,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.15985234923234706,
+      0.008320630909181115,
+      0.13541924155733953
+    ],
+    "pre_approach_distance_m": 0.016821448242819635,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 28,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.21440842362482712,
+      -0.019561944146697187,
+      0.9765481853036839
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00029",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.14223176106869656,
+      0.011931202099611196,
+      0.11662423465772115
+    ],
+    "pre_approach_distance_m": 0.015770385902999322,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 29,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9726717504435352,
+      0.19185398588422742,
+      -0.13077352174444165
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00030",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.158749397638346,
+      0.017068292469623964,
+      0.135925580713572
+    ],
+    "pre_approach_distance_m": 0.022987346349892784,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 30,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9863846472297072,
+      0.12471287633901279,
+      -0.10720086839562525
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00031",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.154985829028095,
+      -0.023435014103084708,
+      0.13740099900121733
+    ],
+    "pre_approach_distance_m": 0.01982435047295296,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 31,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.15886451965801304,
+      -0.09921624899758934,
+      -0.9823024994006058
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00032",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.1713957377112802,
+      -0.02055750118616035,
+      0.1051367842380866
+    ],
+    "pre_approach_distance_m": 0.014574788200325428,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 32,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.1692342002560187,
+      -0.16077532751189919,
+      0.9723739401727852
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00033",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.1794075580472272,
+      -0.006445241739291396,
+      0.12895091620432902
+    ],
+    "pre_approach_distance_m": 0.01916133025371889,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 33,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.05789277710751627,
+      -0.006826212094365586,
+      -0.9982994686902433
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00034",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.16047585822244587,
+      0.014208156856921915,
+      0.1336956221116553
+    ],
+    "pre_approach_distance_m": 0.02593240552794894,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 34,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.016373046102369643,
+      0.038338071360649,
+      -0.9991306799641754
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00035",
+    "fixed_roll_rad": 0.0,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.14205806082232633,
+      -0.01806327135829878,
+      0.1226835325162513
+    ],
+    "pre_approach_distance_m": 0.015490521572184206,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 35,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.15048929984563417,
+      -0.1957748703586168,
+      0.9690331112856968
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00036",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.14586015798443286,
+      -0.01864698536720773,
+      0.1289373476967922
+    ],
+    "pre_approach_distance_m": 0.015163784785320059,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 36,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.008259001954380856,
+      -0.08402546935092531,
+      0.9964293800300522
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00037",
+    "fixed_roll_rad": 4.71238898038469,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.1445414977138578,
+      -0.013417597840033664,
+      0.10365420592805519
+    ],
+    "pre_approach_distance_m": 0.02721523201259444,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 37,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.07912811689221123,
+      -0.06595873089857081,
+      0.9946799419588909
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00038",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.17544366594402128,
+      -0.011980220392089859,
+      0.11595440018293877
+    ],
+    "pre_approach_distance_m": 0.01584636975936958,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 38,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.17058593234361463,
+      0.04244078633238537,
+      0.9844283718696595
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00039",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.17401422320476523,
+      0.018378457395277485,
+      0.10437977516247839
+    ],
+    "pre_approach_distance_m": 0.010226515771011482,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 39,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.04225861478169429,
+      -0.10997036982458627,
+      -0.993036115776952
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00040",
+    "fixed_roll_rad": 0.0,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.14111609453473947,
+      -0.020274814259156938,
+      0.1332398957461309
+    ],
+    "pre_approach_distance_m": 0.020440876821445207,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 40,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.17137180064784163,
+      0.16346390272181885,
+      -0.9715509551483484
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00041",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.17669385233954332,
+      0.0025846131413139253,
+      0.13234296907961465
+    ],
+    "pre_approach_distance_m": 0.013594055879363243,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 41,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.19508250766955962,
+      0.11768655109022405,
+      0.9737005139640444
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00042",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.15434791231328876,
+      -0.012742422503655766,
+      0.11066106958679067
+    ],
+    "pre_approach_distance_m": 0.0181973276245958,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 42,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.19829002314963795,
+      -0.0879479668352021,
+      0.9761896444077197
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00043",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.14087498936337475,
+      0.010427047577295775,
+      0.1395613393810226
+    ],
+    "pre_approach_distance_m": 0.021924708067441706,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 43,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9805941563722583,
+      0.12759756381461576,
+      0.148842071327814
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00044",
+    "fixed_roll_rad": 4.71238898038469,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.15122624868047027,
+      0.015457692824974702,
+      0.10569015724103425
+    ],
+    "pre_approach_distance_m": 0.01279719037796817,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 44,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.14234398770674603,
+      0.11309324828030609,
+      -0.9833351953210822
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00045",
+    "fixed_roll_rad": 3.141592653589793,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.14407246626782946,
+      0.002314181525742809,
+      0.12999373025058314
+    ],
+    "pre_approach_distance_m": 0.01476359868594095,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 45,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.17500626947602377,
+      -0.10820792710003847,
+      0.9786030094766713
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00046",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.15280575739013874,
+      -0.019739126369429663,
+      0.10392509311139012
+    ],
+    "pre_approach_distance_m": 0.017957770817766127,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 46,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.12440369069942088,
+      0.12033467486455682,
+      0.984907755967839
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00047",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.17901073134534756,
+      0.024120521679429574,
+      0.1326074470064435
+    ],
+    "pre_approach_distance_m": 0.01624500515454357,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 47,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.16449201962800078,
+      0.06156189142674351,
+      0.9844554377942474
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00048",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.17337787457228548,
+      0.0009774012813751794,
+      0.12488210848325111
+    ],
+    "pre_approach_distance_m": 0.010962608598197275,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 48,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.17951930045178707,
+      -0.015115944217676678,
+      -0.9836383120820931
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00049",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.167286064304761,
+      -0.0009822648448773348,
+      0.11247690265958242
+    ],
+    "pre_approach_distance_m": 0.02021224443172666,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 49,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.15088779469458366,
+      0.168918528118543,
+      0.9740120144384617
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00050",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.1481344081369724,
+      0.0017957724328407157,
+      0.1303028580510905
+    ],
+    "pre_approach_distance_m": 0.021727740356378325,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 50,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.043488944987553936,
+      0.12818956029331458,
+      0.9907957147140253
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00051",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.1727761866031406,
+      0.0009705612438358213,
+      0.13428955317609428
+    ],
+    "pre_approach_distance_m": 0.021525361232095818,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 51,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.1400943367067557,
+      0.14586526000533176,
+      -0.9793349287890589
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00052",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.17114733788569797,
+      -0.007542685423345862,
+      0.10062076171987702
+    ],
+    "pre_approach_distance_m": 0.01228867450648409,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 52,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9945304236102438,
+      -0.10440989257279472,
+      0.002794789181054395
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00053",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.1676695381111243,
+      -0.016368496975679592,
+      0.12247624938305517
+    ],
+    "pre_approach_distance_m": 0.021751326217934682,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 53,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.1274063011386849,
+      -0.03193286584177243,
+      -0.9913364345716796
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00054",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.1796325080488803,
+      0.010157205125002997,
+      0.10213562722411228
+    ],
+    "pre_approach_distance_m": 0.014501514296294631,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 54,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.1166471787307611,
+      0.022854787568866837,
+      0.992910416089657
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00055",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.15076148234464873,
+      0.004777617942008389,
+      0.12313178171257318
+    ],
+    "pre_approach_distance_m": 0.025124228767722887,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 55,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.013527249638827225,
+      0.13281263252748302,
+      0.9910488475137482
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00056",
+    "fixed_roll_rad": 0.0,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.1415213115462868,
+      0.005173568990199839,
+      0.13749996960154748
+    ],
+    "pre_approach_distance_m": 0.022090619225083676,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 56,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.15467570222507296,
+      -0.18116336805135966,
+      0.9712132933694164
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00057",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.14057868677169066,
+      -0.010512330662327686,
+      0.1332754103662509
+    ],
+    "pre_approach_distance_m": 0.011892205931693987,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 57,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.166432440319321,
+      0.1421751441103308,
+      0.9757491845789892
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00058",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.14111000302938506,
+      -0.006482586266983694,
+      0.11347423587992517
+    ],
+    "pre_approach_distance_m": 0.019792227015919827,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 58,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.97903195836238,
+      -0.10697485752305881,
+      0.17335744680585344
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00059",
+    "fixed_roll_rad": 1.5707963267948966,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.1685648468048689,
+      0.020970989064845666,
+      0.12280577150788116
+    ],
+    "pre_approach_distance_m": 0.012129136518715231,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 59,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9923607550655853,
+      -0.04351844655214861,
+      0.11543949330861246
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00060",
+    "fixed_roll_rad": 1.5707963267948966,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.17759344572079902,
+      0.02483997630290031,
+      0.12722695602219228
+    ],
+    "pre_approach_distance_m": 0.019558509079345466,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 60,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.19685904579647764,
+      0.028373543140850162,
+      -0.9800211518828227
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00061",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.1602287683925989,
+      -0.010079956381824906,
+      0.10709607284173842
+    ],
+    "pre_approach_distance_m": 0.018798019889878864,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 61,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.15682230315624474,
+      0.16174221011493706,
+      0.9742926781516458
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00062",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.15494360089198517,
+      0.0207220750136958,
+      0.11743933281531763
+    ],
+    "pre_approach_distance_m": 0.021256480460641006,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 62,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.24064149229062706,
+      -0.048676066536039016,
+      0.969392754632878
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00063",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.17641901780530328,
+      -0.013342959817021632,
+      0.11931568675826418
+    ],
+    "pre_approach_distance_m": 0.025914122537745526,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 63,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.07700116643426064,
+      -0.043413186740499,
+      -0.9960853957291
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00064",
+    "fixed_roll_rad": 3.141592653589793,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.16739173537067925,
+      0.008338179129247232,
+      0.1338652444950146
+    ],
+    "pre_approach_distance_m": 0.021596405310825954,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 64,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.20337415003691806,
+      0.13795383807176684,
+      0.9693336338217249
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00065",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.1418673568956761,
+      0.020962790376489536,
+      0.11843831999522134
+    ],
+    "pre_approach_distance_m": 0.029526952705745936,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 65,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.1903151968413623,
+      -0.09992610888583384,
+      -0.9766242361390434
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00066",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.1733324244186988,
+      -0.003383381526931191,
+      0.13369578640747817
+    ],
+    "pre_approach_distance_m": 0.02634541678791641,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 66,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9953885689459069,
+      -0.007360133087994656,
+      -0.09564217298214496
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00067",
+    "fixed_roll_rad": 4.71238898038469,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.1732003618163156,
+      0.012659281630647688,
+      0.11592134991805979
+    ],
+    "pre_approach_distance_m": 0.027291955924178844,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 67,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.06406313178325654,
+      0.10627146614672019,
+      -0.992271278748482
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00068",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.16877141855702402,
+      -0.012818404836171483,
+      0.11354364982916068
+    ],
+    "pre_approach_distance_m": 0.02385639494334892,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 68,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.24251150880593336,
+      -0.038518282251929006,
+      0.9693835721885483
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00069",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.16290675122172285,
+      -0.0020840366619620417,
+      0.1204850581458823
+    ],
+    "pre_approach_distance_m": 0.02472024323402414,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 69,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9787315005971855,
+      -0.19507383737687792,
+      0.06348895738505117
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00070",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.17203423835796333,
+      -0.014051218908980829,
+      0.11250522595810732
+    ],
+    "pre_approach_distance_m": 0.02553553707428253,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 70,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.18433548160806595,
+      -0.13967384566915192,
+      -0.9728883014284385
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00071",
+    "fixed_roll_rad": 1.5707963267948966,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.1545448734559275,
+      0.020532257020219394,
+      0.12804164220516537
+    ],
+    "pre_approach_distance_m": 0.01424466243423166,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 71,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9705973682097451,
+      -0.23899028767706407,
+      0.028712213783522598
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00072",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.14682021114883526,
+      0.0027839444075113337,
+      0.12092168894647386
+    ],
+    "pre_approach_distance_m": 0.02717534294517976,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 72,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.14507456256735846,
+      0.02906128539899014,
+      -0.9889938387001448
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00073",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.16444126630010716,
+      -0.009185715873803114,
+      0.12060237964988552
+    ],
+    "pre_approach_distance_m": 0.02162423199612962,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 73,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.97640126943579,
+      -0.008451533387968726,
+      0.21579882443509732
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00074",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.1741487357233542,
+      0.0050609640009098185,
+      0.10066961771340453
+    ],
+    "pre_approach_distance_m": 0.010284542114036286,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 74,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.15243419627928606,
+      0.10621110970659073,
+      -0.9825899531236734
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00075",
+    "fixed_roll_rad": 1.5707963267948966,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.1431250001501048,
+      0.022076346715405495,
+      0.13998796420623755
+    ],
+    "pre_approach_distance_m": 0.023558518994316067,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 75,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.047486406096380995,
+      -0.2154128847540845,
+      -0.9753677923316789
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00076",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.15882839288649914,
+      -0.024598521368571487,
+      0.11154831859222336
+    ],
+    "pre_approach_distance_m": 0.02584994262777259,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 76,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9700655994849894,
+      0.22647043664789968,
+      0.08765770941758526
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00077",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.17396822051671904,
+      0.018820482279445182,
+      0.11687307164178407
+    ],
+    "pre_approach_distance_m": 0.022755594357841046,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 77,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.018710416111186314,
+      0.10438750694018774,
+      0.9943606834161126
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00078",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.14056137126173854,
+      0.0029101003801667094,
+      0.11562893492993832
+    ],
+    "pre_approach_distance_m": 0.02275497538258247,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 78,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.1114346284327597,
+      0.07001634567929692,
+      0.9913021915257577
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00079",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.16052052428348762,
+      -0.018238097963190505,
+      0.11285458035667982
+    ],
+    "pre_approach_distance_m": 0.02225668886814021,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 79,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.051595018071640616,
+      0.08511999002101377,
+      -0.9950339398276873
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00080",
+    "fixed_roll_rad": 3.141592653589793,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.16440485190602622,
+      -0.024204999828788123,
+      0.11297785579545426
+    ],
+    "pre_approach_distance_m": 0.02192473637126914,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 80,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9720275637017131,
+      -0.20323429054494513,
+      0.11772102000409686
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00081",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.16350263577495536,
+      0.016975543814775597,
+      0.11066085568269887
+    ],
+    "pre_approach_distance_m": 0.01959886715559714,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 81,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.22378495568406057,
+      -0.06062286415740136,
+      -0.972751336134182
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00082",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.17758974591209625,
+      -0.02447064665572629,
+      0.11375944686104492
+    ],
+    "pre_approach_distance_m": 0.011576844182591054,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 82,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9713454300247633,
+      0.007223835376169258,
+      -0.23756235344108254
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00083",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.1567338262806925,
+      -0.0004388919686122081,
+      0.12268987277370007
+    ],
+    "pre_approach_distance_m": 0.028035146238001366,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 83,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9918892246644687,
+      0.02454657333190578,
+      -0.12471259652569358
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00084",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.1572904802120691,
+      -0.015911037396600616,
+      0.10849214343806754
+    ],
+    "pre_approach_distance_m": 0.02274719845029429,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 84,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9661098990481226,
+      0.24608087839237552,
+      0.07794783031530295
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00085",
+    "fixed_roll_rad": 1.5707963267948966,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.17498297212065222,
+      -0.024986644263654118,
+      0.12772215879553991
+    ],
+    "pre_approach_distance_m": 0.016839903995951276,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 85,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9998510083554555,
+      0.015385257828821747,
+      0.007826553016467092
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00086",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.16056510114541223,
+      -0.021640727414083655,
+      0.11216103578966197
+    ],
+    "pre_approach_distance_m": 0.013312986288807999,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 86,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9714989360965305,
+      -0.22464070646137163,
+      -0.07567278350797778
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00087",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.16225883416334141,
+      0.007221269227808309,
+      0.1035416893574327
+    ],
+    "pre_approach_distance_m": 0.024512469632872753,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 87,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.02792473701582751,
+      0.06813116270222373,
+      0.9972854925904818
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00088",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.1461931663891674,
+      -0.005237564775428388,
+      0.10522744868445776
+    ],
+    "pre_approach_distance_m": 0.0219013289375144,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 88,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.06160254170120435,
+      -0.15083880881498474,
+      -0.9866371068489305
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00089",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.1412854070664971,
+      -0.012481934637808306,
+      0.11704946295548424
+    ],
+    "pre_approach_distance_m": 0.02819743257348141,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 89,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.14072561102710524,
+      0.10164989155890876,
+      -0.9848165321252025
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00090",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.1527446760787096,
+      0.015332810592597647,
+      0.10177922270560014
+    ],
+    "pre_approach_distance_m": 0.012664588403354743,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 90,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.19799014087472655,
+      -0.10495297498451675,
+      -0.9745690212387758
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00091",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.17670959053026467,
+      -0.01612860348821281,
+      0.13037054648450314
+    ],
+    "pre_approach_distance_m": 0.01967631040676947,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 91,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.005027417784924162,
+      -0.17631225067649492,
+      -0.984321449188122
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00092",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.1402608991184695,
+      -0.021391344717017254,
+      0.13174321121976124
+    ],
+    "pre_approach_distance_m": 0.019381242138538,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 92,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9662728149382197,
+      -0.16554413245596047,
+      0.19726121595684337
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00093",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.17062407181579342,
+      0.021087969807456523,
+      0.12699255979962937
+    ],
+    "pre_approach_distance_m": 0.027277434971734613,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 93,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.015460687353553102,
+      0.017038829663781258,
+      -0.9997352876788157
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00094",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.15573361675723585,
+      -0.018742285971700308,
+      0.11119291114396361
+    ],
+    "pre_approach_distance_m": 0.022557128707740508,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 94,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.19038690436539346,
+      -0.04775390203656707,
+      -0.9805469858637292
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00095",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "upward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.1668064950746122,
+      0.023143586630102277,
+      0.10219759281778902
+    ],
+    "pre_approach_distance_m": 0.017654612427062892,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 95,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.031305740015903895,
+      0.06716735186843358,
+      0.9972504687815588
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00096",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 123,
+    "position_base_m": [
+      0.1716099587471338,
+      -0.016416511733519146,
+      0.11163493437462738
+    ],
+    "pre_approach_distance_m": 0.02577535553360325,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 96,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "interior",
+    "start_joint_position_rad": [
+      0.3,
+      -0.1,
+      0.1,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.9706819367735365,
+      -0.07679260541086805,
+      -0.22777065960256335
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00097",
+    "fixed_roll_rad": 0.0,
+    "normal_bin_label": "toward_base",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 124,
+    "position_base_m": [
+      0.1464830350114813,
+      -0.013969905824971613,
+      0.13193822501946495
+    ],
+    "pre_approach_distance_m": 0.01358564607552016,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 97,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.978159083247838,
+      -0.05016804377766958,
+      -0.20171260556363615
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00098",
+    "fixed_roll_rad": 1.5707963267948966,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 125,
+    "position_base_m": [
+      0.1427682083565815,
+      0.008805267231566341,
+      0.10374332863784953
+    ],
+    "pre_approach_distance_m": 0.024909774303305605,
+    "region_label": "interior_lower",
+    "roll_candidates_rad": [],
+    "root_seed": 60100,
+    "sample_index": 98,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      0.05566692214653995,
+      -0.13510251909838747,
+      -0.9892666491457199
+    ],
+    "tangent_hint_base": null
+  },
+  {
+    "case_id": "phase6-regression-60100-00099",
+    "fixed_roll_rad": null,
+    "normal_bin_label": "downward",
+    "planner_profile": "benchmark_reproducible",
+    "planner_seed": 126,
+    "position_base_m": [
+      0.16992020548988548,
+      -0.02247559347153932,
+      0.1209050732969634
+    ],
+    "pre_approach_distance_m": 0.025130472280578655,
+    "region_label": "interior_upper",
+    "roll_candidates_rad": [
+      0.0,
+      0.7853981633974483,
+      1.5707963267948966,
+      2.356194490192345,
+      3.141592653589793,
+      3.9269908169872414,
+      4.71238898038469,
+      5.497787143782138
+    ],
+    "root_seed": 60100,
+    "sample_index": 99,
+    "scene_revision": "empty-v1",
+    "start_joint_label": "zeros",
+    "start_joint_position_rad": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "surface_normal_base": [
+      -0.01599617663821468,
+      0.16070033686465787,
+      -0.9868736109880254
+    ],
+    "tangent_hint_base": null
+  }
+]

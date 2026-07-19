@@ -130,6 +130,12 @@ execution path (see `spec.md` §4.6 / §6.5).
 
 **Deliverables:** Benchmark CLI, JSON + Markdown reports under `artifacts/benchmarks/`.
 
+**Implemented:** Typed deterministic sampling from a root seed, 20/100 frozen
+parameter fixtures, a declared unmeasured conservative candidate workspace,
+seven-category failure mapping with raw planner status, exact failed-request
+replay, all-case aggregation, optional separately reported zero-residual
+execution replay, and a GPU-marked dual-run smoke gate.
+
 **Initial-project exit:** When Phase 6 acceptance passes, the core planner is “done” without Isaac/RL/hardware.
 
 ---

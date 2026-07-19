@@ -827,6 +827,12 @@ Measure whether the planning method works consistently when targets are randomiz
 
 Define a configurable target-sampling region that excludes clearly unreachable or unsafe geometry. Do not label the entire geometric reach envelope as dexterous workspace without measurement.
 
+The Phase 6 implementation uses immutable `BenchmarkConfig`, `BenchmarkCase`,
+`BenchmarkResult`, and `BenchmarkSummary` domain objects. The declared `g_base`
+AABBs are labeled unmeasured conservative candidate regions. Every case stores
+all request parameters, and every failed result embeds a complete serialized
+`PlanningRequest` for exact replay.
+
 Randomize:
 
 - target position;
@@ -874,6 +880,11 @@ Distinguish:
 - Every failed case can be replayed from a serialized request.
 - Reports are written in JSON and Markdown.
 - The benchmark never suppresses failures to inflate success rate.
+
+Planner seed sweeps preserve the Phase 3 request/profile seed invariant by
+constructing a fresh `PlannerProfile` copy with the case seed and a fresh
+planner. Optional zero-residual execution replay occurs only after validation;
+its rejection is reported separately and does not alter planning taxonomy.
 
 ---
 

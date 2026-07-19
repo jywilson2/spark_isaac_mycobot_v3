@@ -25,6 +25,7 @@ class AppConfig:
     source_path: Path
     robot_config_path: Path
     scene_config_path: Path
+    benchmark_config_path: Path
     tool_frame: str
     task_frame: TaskFrameConfig
     default_roll_candidates_rad: tuple[float, ...]
@@ -78,6 +79,7 @@ def load_app_config(path: Path | str = Path("config/app.yml")) -> AppConfig:
         source_path=source,
         robot_config_path=(project_root / str(payload["robot_config_path"])).resolve(),
         scene_config_path=(project_root / str(payload["scene_config_path"])).resolve(),
+        benchmark_config_path=(project_root / str(payload["benchmark_config_path"])).resolve(),
         tool_frame=tool_frame,
         task_frame=TaskFrameConfig(
             tool_approach_axis=str(payload["tool_approach_axis"]),

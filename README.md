@@ -16,7 +16,8 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 ## Current phase
 
-**Phase 5 — execution abstraction and zero-residual seam: complete.**
+**Phase 6 — randomized workspace benchmark: implemented; container CI complete,
+host GPU smoke pending.**
 
 Full roadmap (Phases 0–10, including Isaac Sim, residual RL, and physical
 hardware): [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -42,12 +43,15 @@ Implemented now:
 - real cuRobo FK and self-collision validation in an explicitly empty world;
 - typed zero-residual execution with deterministic safety projection,
   timestamp/watchdog checks, joint feasibility, and an in-memory adapter;
+- deterministic randomized workspace cases, frozen smoke/regression fixtures,
+  exact failed-request replay, stable failure taxonomy, and JSON/Markdown
+  reports;
 - Phase 7 Isaac Sim **scaffolding** (host scripts, URDF helpers, vendor obtain).
 
-Not implemented through Phase 5:
+Not implemented through Phase 6:
 
 - non-empty-world collision-clearance evaluation (fails closed);
-- non-zero residual correction or randomized benchmarks (Phases 6 and 8);
+- non-zero residual correction (Phase 8);
 - Isaac closed-loop player, residual RL training, hardware motion (Phases 7–10).
 
 See [`STATUS.md`](STATUS.md) for acceptance status and [`CHANGES.md`](CHANGES.md)
@@ -235,6 +239,24 @@ are visibly clipped; unsafe residuals are rejected. Phase 5 deliberately
 rejects every non-zero residual at execution because no bounded
 Cartesian-to-joint mapping has been accepted. See
 [`docs/phase5_execution_residual.md`](docs/phase5_execution_residual.md).
+
+## Run the Phase 6 workspace benchmark
+
+The declared `g_base` regions in `config/benchmark_workspace.yml` are
+conservative unmeasured candidate regions, not a measured dexterous envelope.
+Run the frozen smoke stage and replay a failed serialized request with:
+
+```bash
+python3 scripts/benchmark_random_targets.py --stage smoke --root-seed 6006
+python3 scripts/plan_single_target.py \
+  artifacts/benchmarks/phase6_smoke_seed_6006.json --failed-index 0
+```
+
+Reports default to `artifacts/benchmarks/` in matching JSON and Markdown.
+Every attempt contributes to the rates; failures are never dropped. Planner
+seed sweeps create a fresh copied profile with the requested seed. Optional
+zero-residual execution rejection is reported separately from planning
+failures. See [`docs/phase6_benchmark.md`](docs/phase6_benchmark.md).
 
 ## Isaac Sim scaffolding (Phase 7+)
 

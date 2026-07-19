@@ -156,7 +156,8 @@ run_gpu_integration() {
     source "${ROOT}/scripts/host/env.isaac_host.sh"
     spark_host_apply_env
     PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
-      "${ISAACSIM_PYTHON_EXE}" -m pytest -m gpu tests/integration -q
+      "${ISAACSIM_PYTHON_EXE}" -m pytest -m gpu tests/integration -q \
+      --basetemp="${SPARK_PYTEST_BASETEMP:-/tmp/spark_isaac_mycobot_v3-pytest-basetemp-${UID:-0}}"
   fi
 }
 
