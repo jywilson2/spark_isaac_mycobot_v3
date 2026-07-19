@@ -16,11 +16,13 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 ## Current phase
 
-**Phase 7 — Isaac Sim validated-plan playback: implemented; final host smoke
-evidence is recorded in [`docs/phase7_isaac_sim.md`](docs/phase7_isaac_sim.md).**
+**Phase 7 — Isaac Sim validated-plan playback: complete. Phase 7.1
+unknown-start normal-approach cube visualization requirements are finalized
+for implementation on `wip_phase7_1`.** See
+[`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md).
 
-Full roadmap (Phases 0–10, including Isaac Sim, residual RL, and physical
-hardware): [`docs/implementation_phases.md`](docs/implementation_phases.md).
+Full roadmap (Phases 0–11, including decimal Phases 7.1 and 9.1):
+[`docs/implementation_phases.md`](docs/implementation_phases.md).
 
 Implemented now:
 
@@ -49,11 +51,13 @@ Implemented now:
 - versioned validated-plan playback JSON, exact articulation DOF mapping,
   NumPy pose metrics, and an Isaac Sim 6.x headless/GUI player.
 
-Not implemented through Phase 6:
+Not implemented:
 
 - non-empty-world collision-clearance evaluation (fails closed);
 - non-zero residual correction (Phase 8);
-- residual RL training and hardware motion (Phases 8–10).
+- Phase 7.1 cube-suite runtime;
+- Phase 9/9.1 fabricated contact tool and evaluation;
+- residual RL training and hardware motion (Phases 8–11).
 
 See [`STATUS.md`](STATUS.md) for acceptance status and [`CHANGES.md`](CHANGES.md)
 for the change inventory. The tested runtime evidence is in
@@ -282,6 +286,37 @@ not fabricate results: joint playback may complete while tip metrics are null
 and marked unevaluated. See
 [`docs/phase7_isaac_sim.md`](docs/phase7_isaac_sim.md).
 
+## Planned Phase 7.1 cube approach suite
+
+Phase 7.1 will run **5 episodes by default** with independent unknown starts
+(Mode A) and diverse 3D cube goals/normals (Mode D). Chained starts (B) and
+relocate-then-approach (C) are optional runtime modes, but acceptance testing
+must exercise all A–D modes.
+
+The default cube edge is **14 mm**, derived as approximately 25% of the area of
+an assumed 31 mm circular flange face. Phase 9 must measure that assumption.
+Live console output and matching JSON will report lateral/axis errors,
+self/world-collision status/clearance, prohibited Isaac contact events,
+failures, timing, p50/p95, seed, and replay inputs. The cube is collision
+geometry and the Phase 7.1 endpoint uses a positive configurable standoff;
+unevaluated non-empty-world clearance fails closed. Isaac tip metrics remain
+null/`not_evaluated`; see
+[`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md).
+
+## Planned Phase 9/9.1 contact tool
+
+Phase 9 will measure the flange and create a short, stiff contact tool as
+parameterized OpenSCAD source plus a matching manifold/watertight printable
+STL. The optional tool profile will include explicit TCP, visual, and collision
+geometry while leaving the bare-flange profile as default. See
+[`docs/phase9_contact_tool.md`](docs/phase9_contact_tool.md).
+
+Phase 9.1 will characterize dimensional accuracy, calibration uncertainty,
+remounting repeatability, FK, collision behavior, and seeded tool-profile cube
+episodes without powered arm motion. Only this calibrated profile may enable
+evaluated tool-tip metrics; Phase 7.1 remains `not_evaluated`. See
+[`docs/phase9_1_tool_evaluation.md`](docs/phase9_1_tool_evaluation.md).
+
 ## Safety boundary
 
 This project plans, validates, and dry-run replays only; it does not command a
@@ -289,15 +324,16 @@ robot. Plans are not executable until independent waypoint-by-waypoint
 validation passes. Residual RL (Phase 8) remains bounded and subordinate to
 deterministic safety logic. Residuals may apply local execution corrections
 but may not generate replacement trajectories or full pose-to-joint solutions.
-Physical motion (Phases 9–10) is gated and dry-run by default.
+Physical motion (Phases 10–11) is gated and dry-run by default.
 
 ## Branch policy
 
-Each phase is developed and retained on `wip_phaseN`. After its acceptance
-gates pass, that branch is rebased onto the latest `main` (Phase 0 initializes
+Each phase is developed and retained on `wip_phaseN`; decimal phase names use
+an underscore (`wip_phase7_1`, `wip_phase9_1`). After its acceptance gates
+pass, that branch is rebased onto the latest `main` (Phase 0 initializes
 `main`), pushed, and then `main` is fast-forwarded to the exact tested commit.
-The next phase branches from updated `main`. This preserves historical phase
-states while `main` represents the most current completed functionality.
+The next roadmap phase branches from updated `main`. This preserves historical
+phase states while `main` represents the most current completed functionality.
 
 ## License
 

@@ -7,7 +7,9 @@ alwaysApply: true
 - Read `@spec.md` before changing architecture, planning behavior, frame conventions, configuration, or safety logic.
 - Implement one specification phase at a time and satisfy its acceptance criteria before starting the next phase.
 - Keep the core `mycobot_curobo` package independent of ROS 2, Isaac Sim, Isaac Lab, physical MyCobot drivers, sensors, and RL frameworks. Host-side Isaac scaffolding under `isaac_sim/` and `scripts/host/` is allowed for Phase 7+ but must not become a Phase 0–6 runtime dependency.
-- Follow `docs/implementation_phases.md` for the Phase 0–10 roadmap (Isaac Sim, residual RL, hardware).
+- Follow `docs/implementation_phases.md` for the Phase 0–11 roadmap (Isaac Sim,
+  unknown-start visualization, residual RL, contact-tool development and
+  evaluation, and hardware).
 - Use typed domain objects instead of unstructured dictionaries across core module boundaries.
 - Keep units explicit: meters, radians, seconds, and scalar-first `wxyz` quaternions.
 - Never infer frame names, joint order, units, or TCP calibration silently.
@@ -16,8 +18,9 @@ alwaysApply: true
 - Do not issue commands to physical hardware in this project phase.
 - Add tests for every behavior change. Keep random tests reproducible with explicit seeds.
 - Do not suppress errors, weaken thresholds, or skip tests merely to obtain a passing run.
-- Develop each numbered phase on `wip_phaseN`. Do not add Phase N+1 work to
-  `wip_phaseN`.
+- Develop each phase on `wip_phaseN`; decimal phases replace the decimal point
+  with an underscore (`wip_phase7_1`, `wip_phase9_1`). Do not add work from the
+  next roadmap phase to the current branch.
 - After a phase passes all applicable gates, commit and push `wip_phaseN`,
   rebase it onto the latest `origin/main`, re-run affected gates, and update
   the published phase branch if needed. Then fast-forward `main` to the same

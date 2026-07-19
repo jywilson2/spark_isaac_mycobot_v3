@@ -19,12 +19,15 @@ fallback, learned policy, simulator feature, or integration.
 | **5** | Execution abstraction & residual-correction seam | `ZeroResidualCorrector` + `SafetyProjector` |
 | **6** | Randomized workspace benchmark | JSON/Markdown metrics, failure taxonomy |
 | **7** | Isaac Sim closed-loop visualization & sim validation | GUI/headless smoke of validated plans |
+| **7.1** | Unknown-start normal-approach cube visualization | Five-episode default; all A–D modes validated |
 | **8** | Bounded residual RL (Isaac Lab / Isaac Sim only) | Residual improves sim metrics; never replaces planner |
-| **9** | Hardware interface & dry-run execution | Adapter tested with motion disabled |
-| **10** | Physical MyCobot 280 M5 validation | Gated hardware runs; no sim accuracy claims |
+| **9** | Fabricated contact test tool | OpenSCAD/STL, fit, optional TCP/collision profile |
+| **9.1** | Contact test tool evaluation | Calibration and remounting repeatability characterized |
+| **10** | Hardware interface & dry-run execution | Adapter tested with motion disabled |
+| **11** | Physical MyCobot 280 M5 validation | Gated hardware runs; no sim accuracy claims |
 
 Phases **0–6** are the **initial project** (definition of done in `spec.md` §14).
-Phases **7–10** are explicitly planned extensions. Scaffolding for Phase 7
+Phases **7–11** are explicitly planned extensions. Scaffolding for Phase 7
 (Isaac host scripts, URDF helpers, vendor obtain script) may land early, but
 must not become a Phase 0–6 runtime dependency of `mycobot_curobo`.
 
@@ -37,10 +40,13 @@ flowchart LR
   P4 --> P5[Phase 5 residual seam]
   P5 --> P6[Phase 6 benchmark]
   P6 --> P7[Phase 7 Isaac Sim]
-  P7 --> P8[Phase 8 Residual RL]
-  P6 --> P9[Phase 9 HW dry-run]
-  P9 --> P10[Phase 10 physical arm]
-  P8 -.->|optional residual on HW| P10
+  P7 --> P71[Phase 7.1 cube suite]
+  P71 --> P8[Phase 8 Residual RL]
+  P8 --> P9[Phase 9 contact tool]
+  P9 --> P91[Phase 9.1 tool evaluation]
+  P91 --> P10[Phase 10 HW dry-run]
+  P10 --> P11[Phase 11 physical arm]
+  P8 -.->|optional residual on HW| P11
 ```
 
 ---
@@ -165,6 +171,43 @@ execution replay, and a GPU-marked dual-run smoke gate.
 
 ---
 
+## Phase 7.1 — Unknown-start normal-approach cube visualization
+
+**Branch:** `wip_phase7_1`
+
+**Objective:** Stream a configurable suite of cuRobo-planned approaches in
+which the circular bare-flange face approaches a small cube along the
+configured tool axis and cube-face normal from diverse starts and 3D goals.
+
+**Planned deliverables:**
+
+- Positive configurable episode count, default **5**;
+- Default **14 mm** cube edge, derived from 25% of an assumed 31 mm circular
+  flange-face area; the assumption remains explicit until Phase 9 measures it;
+- Mode A independent unknown starts and Mode D 3D goal diversity enabled by
+  default;
+- Optional Mode B chained starts and Mode C relocate-then-approach;
+- Acceptance coverage for all A–D modes, with exact seeded replay;
+- Live per-episode console rows and aggregate pass/failure, p50/p95, timing,
+  and JSON output;
+- Cube collision geometry in cuRobo/Isaac, a positive configurable standoff,
+  and independent lateral/axis/terminal/self/world-collision validation for
+  every PASS;
+- Zero prohibited Isaac arm-to-cube/environment contact events, reported
+  separately from planner/validator authority.
+
+**Metric boundary:** Line-lateral error and signed TCP-axis angular error are
+the primary hardware-transferable geometry metrics. Isaac tip metrics remain
+null/`not_evaluated`; the optional contact-tool profile is prohibited in this
+phase and deferred to Phase 9.
+
+**Must not:** Teleport silently, omit failed/invalid starts, use another
+planner, command hardware, or claim physical accuracy from simulation.
+
+**Entry criteria:** Phase 7 headless and GUI smokes pass.
+
+---
+
 ## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
 
 **Objective:** Train a residual policy that outputs a **bounded Cartesian
@@ -192,11 +235,69 @@ exclusive motion planner.
 - Generate a replacement trajectory, invoke another planner, or ship a policy
   that maps a target pose to full joint solutions.
 
-**Entry criteria:** Phase 7 smokes pass; Phase 5 seam stable; Phase 6 baseline metrics recorded for comparison.
+**Entry criteria:** Phase 7.1 acceptance passes; Phase 5 seam stable; Phase 6 baseline metrics recorded for comparison.
 
 ---
 
-## Phase 9 — Hardware interface and dry-run execution
+## Phase 9 — Fabricated contact test tool
+
+**Branch:** `wip_phase9`
+
+**Objective:** Create a short, stiff, flange-mounted contact tool with a
+circular coaxial face and measurable TCP for later simulation and physical
+evaluation.
+
+**Planned deliverables:**
+
+- Measured flange dimensions/mounting pattern and dimensioned tool design;
+- Parameterized millimetre-based OpenSCAD source and matching generated,
+  manifold/watertight printable STL committed together;
+- Documented parameters, fasteners, clearances, wall thickness, material,
+  print orientation/supports, and deterministic STL regeneration command;
+- Fit-check and as-built dimensional inspection;
+- Optional explicit flange-to-TCP profile plus matching URDF/Isaac visual and
+  cuRobo collision geometry;
+- Fabrication, mounting, and calibration instructions.
+
+**Must not:** Change the default bare-flange identity TCP, bury calibration in
+target coordinates, omit tool collision geometry, move the powered arm, or
+retroactively evaluate Phase 7.1 tip metrics.
+
+**Entry criteria:** Phase 8 is complete; physical flange is available for safe,
+unpowered measurement.
+
+---
+
+## Phase 9.1 — Contact test tool evaluation
+
+**Branch:** `wip_phase9_1`
+
+**Objective:** Characterize the fabricated tool's calibration, dimensional
+accuracy, remounting repeatability, modeled FK, and collision-aware
+normal-approach behavior before it can support hardware testing.
+
+**Planned deliverables:**
+
+- Multi-trial remove/reinstall study with TCP position and axis-angle
+  repeatability;
+- Calibrated flange-to-TCP transform with method, equipment, date, and
+  uncertainty;
+- CAD-to-measured and independent-FK residuals;
+- Tool-profile Isaac/curobo visual, FK, collision, and seeded cube-approach
+  evaluation;
+- Evidence-based threshold proposal for explicit review (no invented hardware
+  limits).
+
+**Metric boundary:** Tool-enabled Isaac tip metrics may be evaluated only from
+the calibrated modeled frame. Phase 7.1 remains `not_evaluated`, and static
+physical checks involve no powered arm motion.
+
+**Entry criteria:** A Phase 9 fabricated tool and optional model/profile pass
+their design acceptance checks.
+
+---
+
+## Phase 10 — Hardware interface and dry-run execution
 
 **Objective:** Adapter from validated plans to MyCobot 280 M5 command API with motion **disabled by default**.
 
@@ -209,11 +310,11 @@ exclusive motion planner.
 
 **Must not:** Import hardware stacks into `planner.py` / `validation.py`.
 
-**Entry criteria:** Phase 5 execution abstraction complete; Phase 6 taxonomy stable.
+**Entry criteria:** Phase 9.1 tool evaluation complete; Phase 5 execution abstraction complete; Phase 6 taxonomy stable.
 
 ---
 
-## Phase 10 — Physical MyCobot 280 M5 validation
+## Phase 11 — Physical MyCobot 280 M5 validation
 
 **Objective:** Gated on-robot tests of approach success, repeatability, and safe failure modes.
 
@@ -230,7 +331,7 @@ exclusive motion planner.
 - Run unsupervised RL updates on the physical arm;
 - Disable independent validation for “demo” convenience.
 
-**Entry criteria:** Phase 9 dry-run green; operator present; robot-side limits verified.
+**Entry criteria:** Phase 10 dry-run green; operator present; robot-side limits verified.
 
 ---
 

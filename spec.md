@@ -5,7 +5,7 @@
 **Document status:** Initial implementation specification  
 **Primary robot:** Elephant Robotics MyCobot 280 M5  
 **Exclusive motion planner and motion-planning dependency:** NVIDIA cuRobo **v0.8.0 (cuRoboV2)**\
-**Scope:** Deterministic, collision-aware motion planning with a controlled surface-normal approach. The architecture must expose safe extension points for residual reinforcement learning and hardware integration. Phases 0–6 implement the initial planner; Phases 7–10 cover Isaac Sim validation, bounded residual RL, and physical MyCobot 280 M5 testing (see §8 and `docs/implementation_phases.md`).
+**Scope:** Deterministic, collision-aware motion planning with a controlled surface-normal approach. The architecture must expose safe extension points for residual reinforcement learning and hardware integration. Phases 0–6 implement the initial planner; Phases 7–11 cover Isaac Sim validation, unknown-start approach visualization, bounded residual RL, contact-tool development/evaluation, and physical MyCobot 280 M5 testing (see §8 and `docs/implementation_phases.md`).
 
 ---
 
@@ -39,7 +39,9 @@ Do **not** implement the following inside the core `mycobot_curobo` planner path
 - Dynamic obstacle tracking
 - Contact-rich manipulation
 
-Phases 7–10 explicitly schedule Isaac Sim, residual RL, hardware dry-run, and physical validation.
+Phases 7–11 explicitly schedule Isaac Sim, unknown-start visualization,
+residual RL, contact-tool development/evaluation, hardware dry-run, and
+physical validation.
 - A graphical user interface
 - A general task planner
 
@@ -732,7 +734,7 @@ boundary_position_tolerance_rad: 1.0e-6
 Empty worlds may report infinite world clearance. Unsupported non-empty world
 distance evaluation must remain unevaluated and fail closed. These are starting
 values. Do not claim physical MyCobot accuracy from simulation thresholds. The
-`hardware_placeholder` profile is a named stub only until Phase 9/10 measures
+`hardware_placeholder` profile is a named stub only until Phase 10/11 measures
 hardware-specific thresholds.
 
 ### Fail-closed behavior
@@ -922,6 +924,122 @@ Visualize and closed-loop-validate Phase 3–6 plans in Isaac Sim on the DGX Spa
 
 ---
 
+## Phase 7.1 — Unknown-start normal-approach cube visualization
+
+### Objective
+
+Visually and numerically exercise cuRobo-planned motion that brings the
+circular bare-flange contact face toward a small cube along the cube-face
+surface normal and configured TCP approach axis. Run a configurable number of
+episodes from diverse starting joint states and 3D goals while streaming
+well-formatted results to the console in real time.
+
+Phase 7.1 uses branch `wip_phase7_1`. It reuses the Phase 3–7 planning,
+validation, benchmark/replay, and Isaac playback contracts; it does not replace
+the Phase 6 randomized benchmark or Phase 7 smoke.
+
+### Configuration and scene
+
+- `episode_count` is a positive configurable integer with default `5`.
+- The default cube edge is `0.014 m`. This is the rounded result of
+  `s = d * sqrt(pi) / 4`, where a square cube face covers 25% of an assumed
+  circular flange face with diameter `d = 0.031 m`.
+- The 31 mm flange diameter is an explicit unverified design assumption.
+  Phase 9 shall measure the flange and revise the tool/cube basis if needed.
+- Cube positions are sampled in a declared conservative reachable AABB in
+  `g_base`; the declaration is not a dexterous-workspace claim.
+- The cube is represented consistently as world-collision geometry in cuRobo
+  and Isaac. The contact-ready endpoint uses a positive configurable standoff
+  from the cube face in Phase 7.1; physical contact is not commanded.
+- Cube-face normals are sampled from labeled bins. The desired terminal motion
+  is opposite the outward face normal and aligned to the configured signed TCP
+  approach axis.
+- Motion remains free-space to pre-approach followed by the constrained linear
+  terminal segment produced by cuRobo `plan_grasp`.
+
+### Start and goal modes
+
+All modes are required in Phase 7.1 validation testing:
+
+- **Mode A — independent unknown start (default):** sample a seeded continuous
+  joint state within configured limits or select from an expanded start-state
+  bank. Reject and report invalid, out-of-limit, or self-colliding starts.
+  Record the exact state for replay. A zeros-only suite is prohibited.
+- **Mode B — chained start (optional runtime mode):** episode `k+1` begins at
+  episode `k`'s successful final joint state. A failed episode uses the last
+  successful state or terminates according to explicit configuration.
+- **Mode C — relocate then approach (optional runtime mode):** use cuRobo to
+  plan from the unknown start to a configured safe nest, then use
+  `plan_grasp` from the nest to the cube. Both segments must pass collision and
+  execution eligibility checks; terminal geometry metrics apply to the
+  approach segment.
+- **Mode D — 3D goal diversity (default):** sample cube positions across the
+  configured AABB and normals across the configured labeled bins.
+
+Modes A and D are enabled by default. Modes B and C are opt-in for ordinary
+runs, but the Phase 7.1 acceptance gate must exercise A, B, C, and D.
+Teleporting is permitted only as an explicitly labeled simulator-reset mode
+and cannot satisfy a planned-motion acceptance result.
+
+### Per-episode acceptance and metrics
+
+An episode passes only when:
+
+1. cuRobo `plan_grasp` is the sole approach planner and returns the required
+   segments;
+2. independent validation marks the plan executable;
+3. terminal `max_lateral_error_m` and
+   `max_approach_axis_error_rad` satisfy the active simulation profile;
+4. terminal position/orientation, progress, limits, dynamics, and available
+   collision-clearance checks pass;
+5. no arm self-collision or arm-to-cube/environment collision is detected,
+   and the configured minimum self/world clearances are met;
+6. every required metric is finite and evaluated, except the explicitly
+   excluded Isaac tip metrics below.
+
+Phase 7.1 must provide supported collision evaluation for its cube scene.
+Unsupported or unevaluated non-empty-world clearance fails the episode closed.
+Isaac collision/contact events are reported separately as simulation evidence;
+zero prohibited events is required but does not replace cuRobo planning or
+independent validation.
+
+Line-lateral error and approach-axis angular error are the primary
+hardware-transferable geometric metrics. Simulation thresholds remain
+simulation-only and cannot establish physical accuracy.
+
+### Isaac tip-metric boundary
+
+Phase 7.1 shall keep Isaac tip position and orientation metrics null and
+`not_evaluated`, even when joint playback succeeds. It shall not invent a tip
+pose, add a pointer prim, or enable the future optional tool profile. The
+contact test tool is deferred to Phase 9 and evaluated separately in
+Phase 9.1.
+
+### Live console and artifacts
+
+- Print a concise live result as each episode completes: index/count, start
+  mode/label, cube position and normal bin, planning/validation status,
+  lateral error, approach-axis error, self/world collision results and
+  clearances, Isaac prohibited-contact count, failure category, and timing.
+- Print running and final summaries with pass count/rate, failure-category
+  counts, and lateral/axis p50 and p95.
+- Write a matching machine-readable JSON report containing the root seed and a
+  complete frozen request for every episode. Expected infeasibility remains a
+  structured result and all failures count in aggregation.
+
+### Acceptance criteria
+
+- Default execution runs five episodes with Modes A and D enabled.
+- Dedicated validation runs exercise all four modes A–D, including chained and
+  relocate-then-approach behavior.
+- Results stream during execution and the final console/JSON aggregates agree.
+- Every case, including invalid starts and failures, is exactly replayable.
+- Isaac tip metrics remain null/`not_evaluated`.
+- No physical hardware command, alternate planner, or simulation-derived
+  physical-accuracy claim is introduced.
+
+---
+
 ## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
 
 ### Objective
@@ -960,7 +1078,114 @@ Residual RL is in scope because this architecture already separates nominal plan
 
 ---
 
-## Phase 9 — Hardware interface and dry-run execution
+## Phase 9 — Fabricated contact test tool
+
+### Objective
+
+Design, document, and fabricate an optional, repeatable contact-test tool that
+mounts rigidly to `joint6_flange`, provides a circular contact face coaxial
+with the configured approach axis, and defines a measurable TCP for later
+simulation and physical evaluation.
+
+### Tasks
+
+1. Measure and document the physical flange outside diameter, mounting pattern,
+   fasteners, available clearances, and coordinate convention. Reconcile the
+   Phase 7.1 31 mm assumption and 14 mm cube default without silently changing
+   historical reports.
+2. Define a short, stiff tool with a circular contact face and an optional
+   coaxial pointer/datum of documented length. Avoid a flexible needle-like
+   design.
+3. Create parameterized OpenSCAD source in millimetres and generate a matching
+   manifold, watertight STL suitable for 3D printing. Store both source and
+   generated STL under version control.
+4. Document every model parameter, mounting clearance, fastener feature,
+   minimum wall thickness, print orientation, material assumption, support
+   requirement, and the exact command/tool version used to regenerate the STL.
+5. Validate STL manifoldness/watertightness, critical dimensions, wall
+   thickness, and mounting fit. A fit-check coupon may be used before printing
+   the complete tool.
+6. Publish dimensioned drawings or equivalent model documentation, fabrication
+   instructions, mounting procedure, and calibration procedure.
+7. Add an optional robot/TCP profile with an explicit measured
+   `joint6_flange` to `tcp_link` fixed transform in metres and scalar-first
+   `wxyz`. The bare-flange identity TCP remains the default.
+8. Add corresponding URDF/Isaac visual geometry and cuRobo collision geometry.
+   The tool must participate in collision checking; any narrowly scoped
+   collision exception must be explicit and independently tested.
+
+### Acceptance criteria
+
+- OpenSCAD source regenerates the committed STL deterministically within
+  documented tool/version constraints.
+- The STL passes automated or documented manifold, dimensional, and minimum
+  wall-thickness checks and satisfies the mounting/contact/TCP requirements.
+- A fabricated example fits the measured flange without forcing, uncontrolled
+  play, or interference, and its as-built dimensions are recorded.
+- The optional profile loads without changing the default bare-flange model.
+- TCP calibration is explicit and never buried in target coordinates.
+- Tool visual and collision models share the documented physical dimensions.
+- This phase performs no powered physical-arm motion and does not retroactively
+  evaluate Phase 7.1 Isaac tip metrics.
+
+---
+
+## Phase 9.1 — Contact test tool evaluation
+
+### Objective
+
+Establish whether the fabricated Phase 9 tool and optional model provide
+repeatable, measurable, collision-aware TCP behavior suitable for later
+hardware testing. Phase 9.1 uses branch `wip_phase9_1`.
+
+### Tasks
+
+1. Inspect and record contact-face diameter, tool length, mounting features,
+   offsets, tolerances, and measurement uncertainty.
+2. Remove and reinstall the tool for a configured multi-trial study; measure
+   TCP position displacement and approach-axis angular variation after every
+   installation.
+3. Calibrate the `joint6_flange` to `tcp_link` transform and record method,
+   date, equipment, uncertainty, position in metres, and scalar-first `wxyz`.
+4. Verify independent FK against the calibrated transform and confirm that the
+   tool visual and collision models are correctly placed in Isaac/curobo.
+5. Run seeded normal-approach cube episodes with the optional tool profile,
+   preserving the Phase 7.1 console, replay, failure-counting, and geometric
+   metric contracts.
+6. Compare the unpowered mounted tool against fixed reference points and
+   verify compatibility with the Phase 10 dry-run interface without issuing
+   commands.
+
+### Metrics
+
+Report at least:
+
+- TCP positional repeatability after remounting, in metres and millimetres;
+- approach-axis angular repeatability, in radians and degrees;
+- TCP calibration residual and measurement uncertainty;
+- CAD-to-measured critical-dimensional error;
+- simulated FK-to-expected-TCP position/orientation error;
+- minimum tool/arm self-collision clearance; and
+- normal-approach lateral and angular errors under the optional profile.
+
+Do not invent acceptance thresholds before collecting measurement evidence.
+Phase 9.1 shall report observed distributions and propose justified thresholds
+for explicit review before those thresholds become hardware gates.
+
+### Acceptance criteria
+
+- Fabrication inspection, calibration provenance, uncertainty, and remounting
+  repeatability results are complete and reproducible.
+- The optional tool profile passes FK, visual alignment, and collision-model
+  tests without changing bare-flange behavior.
+- Tool-enabled Isaac episodes may report evaluated TCP metrics only from the
+  calibrated modeled frame; Phase 7.1 reports remain `not_evaluated`.
+- Every failed episode retains exact replay data.
+- No powered physical-arm motion occurs.
+
+---
+
+## Phase 10 — Hardware interface and dry-run execution
 
 ### Objective
 
@@ -982,7 +1207,7 @@ Expose a MyCobot 280 M5 state/command adapter that consumes validated plans with
 
 ---
 
-## Phase 10 — Physical MyCobot 280 M5 validation
+## Phase 11 — Physical MyCobot 280 M5 validation
 
 ### Objective
 
@@ -1048,6 +1273,26 @@ Each profile records cuRobo seed counts, tolerances, graph settings, CUDA graph 
 
 Do not hard-code planner tolerances in application logic.
 
+### Phase 7.1 suite configuration
+
+Use a validated named YAML configuration for:
+
+- episode count (default `5`);
+- root seed and start-state sampling/bank;
+- Modes A–D and explicit chained-failure behavior;
+- cube edge (default `0.014 m`), world pose AABB, and normal bins;
+- positive terminal standoff;
+- planner/validation/scene profiles;
+- console refresh/report fields and artifact path; and
+- required self/world collision and Isaac prohibited-contact gates.
+
+### Phase 9 optional tool profile
+
+Keep measured flange/TCP transform, tool dimensions, model paths, collision
+geometry, calibration provenance, and profile name together. Enabling the
+profile must be explicit; absence of the profile selects the bare-flange
+identity TCP.
+
 ---
 
 ## 10. Error handling and observability
@@ -1088,7 +1333,9 @@ Cover:
 - configuration validation;
 - lateral and orientation metrics;
 - progress monotonicity;
-- residual safety projection.
+- residual safety projection;
+- Phase 7.1 mode/default/config validation and deterministic replay; and
+- Phase 9 OpenSCAD/STL parameter and model-manifest validation.
 
 ### Integration tests
 
@@ -1102,7 +1349,10 @@ Cover:
 - obstacle-scene planning;
 - goal-set planning;
 - `plan_grasp` approach-only planning;
-- interpolated trajectory validation.
+- interpolated trajectory validation;
+- Phase 7.1 A–D mode runs with cube-world and Isaac prohibited-contact checks;
+  and
+- Phase 9.1 optional-tool FK/collision/cube-suite evaluation.
 
 Mark GPU tests explicitly so lightweight unit tests can run separately.
 
@@ -1147,7 +1397,9 @@ Cursor shall implement one phase at a time.
 For each phase:
 
 1. Read this specification and applicable `.cursor/rules/*.mdc` files.
-2. Create or continue the phase branch named exactly `wip_phaseN`.
+2. Create or continue the phase branch named exactly `wip_phaseN`. Decimal
+   phases replace the decimal point with an underscore: Phase 7.1 uses
+   `wip_phase7_1` and Phase 9.1 uses `wip_phase9_1`.
 3. Create or update a phase checklist in the pull request or working notes.
 4. Inspect the exact cuRobo v0.8.0 source or official documentation before using an unfamiliar API.
 5. Add tests before or alongside implementation.
@@ -1171,8 +1423,9 @@ Each completed phase must remain available as a historical repository state:
    `wip_phaseN` with a normal push when fast-forwardable. Rewriting a published
    phase branch requires explicit user authorization.
 5. Fast-forward `main` to the exact tested phase commit and push `main`.
-6. Create `wip_phaseN+1` from the updated `main`; never merge `main` into a
-   phase branch.
+6. Create the next roadmap phase branch from the updated `main`; never merge
+   `main` into a phase branch. Follow the explicit roadmap order, including
+   decimal phases.
 7. Preserve every completed `wip_phaseN` branch. `main` represents the most
    current completed functionality.
 
@@ -1200,7 +1453,9 @@ The **initial project** (Phases 0–6) is complete when:
 - the core `mycobot_curobo` package has no ROS, Isaac Kit, hardware-control, or RL runtime dependency;
 - all unit tests, required GPU tests, linting, and formatting checks pass.
 
-Phases 7–10 are complete only when their own acceptance criteria in §8 are met. Host-side Isaac scaffolding may exist earlier without counting as Phase 7 completion.
+Phases 7–11 are complete only when their own acceptance criteria in §8 are
+met. Host-side Isaac scaffolding may exist earlier without counting as Phase 7
+completion.
 
 ---
 

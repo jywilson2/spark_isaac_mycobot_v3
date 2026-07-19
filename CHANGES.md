@@ -1,5 +1,48 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-19 — Phase 7.1 and contact-tool requirements
+
+### Enumerated changes
+
+1. Inserted Phase 7.1 on `wip_phase7_1`: a configurable normal-approach cube
+   visualization suite with a default of five episodes, 14 mm cube, live
+   console/JSON reporting, and exact replay.
+2. Defined Mode A independent unknown starts and Mode D diverse 3D goals as
+   defaults; Mode B chained starts and Mode C relocate-then-approach are
+   optional at runtime but all A–D modes are required for acceptance.
+3. Required the cube as cuRobo/Isaac collision geometry, a positive
+   configurable standoff, fail-closed non-empty-world clearance, zero
+   prohibited Isaac arm/cube/environment contact events, independent
+   lateral/axis/terminal/collision validation, and null/`not_evaluated` Isaac
+   tip position/orientation throughout Phase 7.1.
+4. Inserted Phase 9 for a fabricated flange contact tool, including physical
+   flange measurement, parameterized millimetre OpenSCAD source, matching
+   manifold/watertight printable STL, deterministic regeneration, print/fit
+   documentation, and optional explicit TCP/visual/collision profiles.
+5. Inserted Phase 9.1 for unpowered tool evaluation: dimensional inspection,
+   calibration uncertainty, remounting repeatability, independent FK,
+   collision-model checks, and seeded tool-profile cube episodes.
+6. Renumbered hardware dry-run and physical validation to Phases 10 and 11,
+   and documented decimal branch names `wip_phase7_1` / `wip_phase9_1`.
+7. Added dedicated Phase 7.1, 9, and 9.1 requirement reports and synchronized
+   `spec.md`, roadmap, README, references, status, project rule, and prompt
+   history.
+8. Passed the existing container CI gate: 108 unit tests, Ruff lint, and Ruff
+   format. GPU/Isaac implementation gates are deferred until Phase 7.1 code
+   exists.
+
+### Review recommended
+
+- **Flange dimension:** the 31 mm diameter used to derive the 14 mm cube is an
+  explicit unverified assumption. Phase 9 must measure and record the physical
+  flange before finalizing the tool.
+- **Thresholds:** Phase 9.1 must collect repeatability/calibration evidence
+  before proposing hardware gates; no measurement threshold is invented here.
+- **Implementation status:** these changes finalize requirements only. The
+  Phase 7.1 acceptance checklist remains pending.
+
+---
+
 ## 2026-07-19 — Phase 7 Isaac Sim validated-plan playback
 
 ### Enumerated changes

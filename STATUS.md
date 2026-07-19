@@ -4,10 +4,11 @@ Last updated: **2026-07-19**
 
 ## Current phase
 
-**Phase 7 — Isaac Sim validated-plan playback: COMPLETE**
+**Phase 7.1 — Unknown-start normal-approach cube visualization:
+REQUIREMENTS FINALIZED; IMPLEMENTATION PENDING**
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
-Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–10)
+Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–11)
 
 This status is initialized for v3. No v2 completion metrics, GUI results,
 planning-success claims, or hardware-readiness claims carry forward.
@@ -24,9 +25,12 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 5 | Execution + zero residual seam | **Complete** |
 | 6 | Randomized benchmark | **Complete** |
 | 7 | Isaac Sim closed-loop viz/validation | **Complete** |
+| 7.1 | Unknown-start cube approach visualization | Requirements finalized |
 | 8 | Bounded residual RL (sim only) | Planned |
-| 9 | Hardware interface + dry-run | Planned |
-| 10 | Physical MyCobot 280 M5 validation | Planned |
+| 9 | Fabricated contact test tool | Requirements finalized |
+| 9.1 | Contact test tool evaluation | Requirements finalized |
+| 10 | Hardware interface + dry-run | Planned |
+| 11 | Physical MyCobot 280 M5 validation | Planned |
 
 ## Implemented
 
@@ -37,7 +41,8 @@ planning-success claims, or hardware-readiness claims carry forward.
 - Lightweight deterministic unit tests.
 - pytest and ruff configuration.
 - Fresh README, change inventory, references, and Apache-2.0 license.
-- Phase 0–10 roadmap in `docs/implementation_phases.md` and `spec.md` §8.
+- Phase 0–11 roadmap, including decimal Phases 7.1 and 9.1, in
+  `docs/implementation_phases.md` and `spec.md` §8.
 - Phase 7 Isaac Sim scaffolding (host scripts, URDF helpers, vendor obtain
   script, staging URDFs) plus retirement isolation so V3 no longer depends on
   the prior-project tree. Vendor package obtained locally via
@@ -81,6 +86,12 @@ planning-success claims, or hardware-readiness claims carry forward.
 - Phase 7 typed playback JSON, executable-plan fail-closed gate, NumPy pose
   metrics, exact Isaac articulation DOF mapping, simulator player, and host
   headless/mandatory-GUI smoke orchestration.
+- Phase 7.1 requirements: five-episode default, 14 mm cube, default unknown
+  starts/3D goals, required A–D mode validation, live console/JSON reporting,
+  and deliberately unevaluated Isaac tip metrics.
+- Phase 9/9.1 requirements: measured flange, parameterized OpenSCAD plus
+  printable STL, optional calibrated TCP/collision profile, and unpowered
+  dimensional/remounting/FK/collision evaluation.
 
 ## Acceptance checklist (Phase 0)
 
@@ -216,8 +227,24 @@ tracked with provenance; vendor meshes remain obtained into gitignored
 - [x] Host GUI smoke exits zero, plays 6 waypoints, and auto-exits.
 - [x] No physical robot command is issued.
 
+## Acceptance checklist (Phase 7.1)
+
+- [ ] Default run executes five episodes with Modes A and D.
+- [ ] Validation runs exercise all Modes A–D.
+- [ ] Unknown starts and 3D goals are seeded and exactly replayable.
+- [ ] Every PASS satisfies independent geometry, limits/dynamics, and
+      self/world-collision validation; unevaluated cube-scene clearance fails.
+- [ ] Isaac reports zero prohibited arm-to-cube/environment contact events.
+- [ ] Per-episode results stream live; final console and JSON aggregates agree.
+- [ ] Lateral/axis p50 and p95 plus all failure counts are reported.
+- [ ] Isaac tip metrics remain null/`not_evaluated`.
+- [ ] Container CI and mandatory Phase 7 GUI smoke pass after implementation.
+- [ ] No physical command, alternate planner, or physical-accuracy claim is
+      introduced.
+
 ## Next step
 
-Phase 7 is landed on `wip_phase7` and fast-forwarded to `main`. Next planned
-work is Phase 8 bounded residual RL in Isaac Lab / Isaac Sim only, behind the
-Phase 5 seam and without replacing cuRobo planning.
+Implement Phase 7.1 on `wip_phase7_1`. The default run uses five episodes with
+Modes A and D; validation must also exercise optional Modes B and C. Preserve
+Isaac tip metrics as null/`not_evaluated`. Phase 9/9.1 tool work remains
+deferred to its dedicated future branches.

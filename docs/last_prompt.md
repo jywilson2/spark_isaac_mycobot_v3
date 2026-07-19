@@ -1,10 +1,75 @@
 # The last prompt executed in the Cursor Agent window:
 
-## BEGIN: 2026-07-19 06:34 -0700
-Let's continue development work from where we left off. Continue until phase 7, creating separate branches as needed and pushing to github.
+## BEGIN: 2026-07-19 12:11 -0700
+Commit and push to the remote repo and update the main branch.
 ## END
 
 # Old prompts:
+
+## BEGIN: 2026-07-19 12:05 -0700
+Okay, it looks good!
+
+Please finalize all spec changes and copy the content to other documents as needed.
+## END
+## BEGIN: 2026-07-19 12:03 -0700
+In Phase 9, add the creation of a 3D printable STL (or Open SCAD source) file that statisfies the stated requirements.
+## END
+
+## BEGIN: 2026-07-19 11:46 -0700
+1: looks good.
+
+2: Add another Phase 9.1 for TIp Tool evaluation.
+
+3: Good
+
+4: Good
+
+Let me read again before finalizing.
+## END
+
+## BEGIN: 2026-07-19 11:37 -0700
+Keep the Isaac tip metrics not_evaluated. Create a new Phase 9 (inserted before the existing Phase 9, and renumber) and focus this Phase on the creation of a contact test tool that will be fabricated to fit on the EE flange.
+
+The branch name looks  good.
+
+Yes make A, D the default and B, C optional, but all required for validation testing.
+
+The Tip Tool will be an optional profile, deferred to Phase 9 (see above).
+
+Select the cube size to cover around 25 percent of the surface area of the EE flange.
+
+The episode default number is 5.
+
+Let me confirm the spec changes before finalizing.
+## END
+
+## BEGIN: 2026-07-19 11:19 -0700
+Make this a Phase 7.1 requirement with a dedicated repo branch using the current naming convention.
+
+Add the additional requirements from "Simulating 'uknown start pose..."
+
+Regarding tip metrics, what would you recommend? Should a structure be added to the EE flange that approximates a pointer from which the tip location can be represented? This structure would be used for testing in simulation and could be fabricated on a 3D printer for the physical robot.
+
+Let me review before adding to the spcification.
+## END
+## BEGIN: 2026-07-19 11:02 -0700
+I need to formulate a new requirement for the visualization of the movements driven by cuRobot planning. I would like to see a configurable number of episodes where the circular contact face of the arm's EE approaches a small cube from a trajectory that is normal to the surface of the EE. No collisions with the arm should be detected. Results should be well formatted and displayed in real-time within the console window.
+
+Can you assist with formulating this requirement using a testing metric that is most likely to translate to physical hardware? Let me read the requirements before you add it to the project.
+
+The physical arm is likely to be in an unknown position and it will need to move to various loations in 3D space. What would you suggest for simulating this contraint?
+## END
+## BEGIN: 2026-07-19 10:47 -0700
+Explain this in detail?
+## END
+
+## BEGIN: 2026-07-19 10:45 -0700
+Run Phase 7 verifivation with visualization so that I may see the result.
+## END
+
+## BEGIN: 2026-07-19 06:34 -0700
+Let's continue development work from where we left off. Continue until phase 7, creating separate branches as needed and pushing to github.
+## END
 
 ## BEGIN: 2026-07-19 09:58 -0700
 Is Phase 5 commited and checked in?

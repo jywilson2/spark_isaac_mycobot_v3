@@ -168,6 +168,17 @@ compute-capability warning is retained in that report and is not suppressed.
 - **Project Phase 7 report** —
   [`docs/phase7_isaac_sim.md`](docs/phase7_isaac_sim.md)
 
+## Phase 7.1 cube-suite contracts (planned)
+
+- **Project Phase 7.1 requirement report** —
+  [`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md)
+- Reuses Phase 4 geometric/collision metrics, Phase 6 deterministic sampling
+  and replay, and Phase 7 playback. Isaac tip metrics deliberately remain
+  null/`not_evaluated`.
+- The 31 mm flange diameter used to derive the default 14 mm cube is an
+  unverified design assumption, not a vendor-backed dimensional reference.
+  Phase 9 must replace or confirm it with a recorded physical measurement.
+
 ## Phase 8 residual RL (planned)
 
 - Training only in Isaac Lab / Isaac Sim; residual must use Phase 5
@@ -175,7 +186,20 @@ compute-capability warning is retained in that report and is not suppressed.
 - Residuals are bounded local execution corrections, not planners; no
   replacement trajectory or end-to-end pose→joints policy is permitted.
 
-## Phases 9–10 hardware (planned)
+## Phase 9/9.1 contact-tool sources (planned)
+
+- **OpenSCAD documentation**
+  <https://openscad.org/documentation.html>
+  Authority for the parameterized source and reproducible STL export workflow.
+- **Project Phase 9 requirement report** —
+  [`docs/phase9_contact_tool.md`](docs/phase9_contact_tool.md)
+- **Project Phase 9.1 requirement report** —
+  [`docs/phase9_1_tool_evaluation.md`](docs/phase9_1_tool_evaluation.md)
+- Physical flange measurements, fabrication settings, calibration equipment,
+  and uncertainty records must be added when those phases are implemented;
+  the present documentation does not claim a verified flange dimension.
+
+## Phases 10–11 hardware (planned)
 
 - Physical MyCobot 280 M5 via gated adapter; default dry-run; enable flag required
   for live motion. Do not claim hardware accuracy from sim metrics.
