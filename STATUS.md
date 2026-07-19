@@ -4,7 +4,7 @@ Last updated: **2026-07-19**
 
 ## Current phase
 
-**Phase 6 — randomized workspace benchmark: COMPLETE**
+**Phase 7 — Isaac Sim validated-plan playback: COMPLETE**
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–10)
@@ -23,7 +23,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 4 | Independent validation | **Complete** |
 | 5 | Execution + zero residual seam | **Complete** |
 | 6 | Randomized benchmark | **Complete** |
-| 7 | Isaac Sim closed-loop viz/validation | Scaffolding staged; not started |
+| 7 | Isaac Sim closed-loop viz/validation | **Complete** |
 | 8 | Bounded residual RL (sim only) | Planned |
 | 9 | Hardware interface + dry-run | Planned |
 | 10 | Physical MyCobot 280 M5 validation | Planned |
@@ -78,6 +78,9 @@ planning-success claims, or hardware-readiness claims carry forward.
 - Phase 6 typed benchmark configuration/cases/results/summaries, deterministic
   root-seed sampling, 20/100 frozen parameter fixtures, seven-category failure
   taxonomy, exact failed-request replay, and JSON/Markdown reporting.
+- Phase 7 typed playback JSON, executable-plan fail-closed gate, NumPy pose
+  metrics, exact Isaac articulation DOF mapping, simulator player, and host
+  headless/mandatory-GUI smoke orchestration.
 
 ## Acceptance checklist (Phase 0)
 
@@ -199,8 +202,21 @@ tracked with provenance; vendor meshes remain obtained into gitignored
       warning remains visible.
 - [x] No physical robot command is issued.
 
+## Acceptance checklist (Phase 7)
+
+- [x] Playback JSON uses exact names, SI units, `wxyz`, and explicit validation
+      and executable status.
+- [x] Non-executable plans are rejected before importing Isaac Kit.
+- [x] Joint playback and tip-pose results are reported separately from cuRobo
+      metrics; unavailable tip pose remains null/unevaluated.
+- [x] NumPy-only pose metrics and name/DOF mapping have negative unit coverage.
+- [x] Container CI passes (108 unit tests plus Ruff lint/format).
+- [x] Host prerequisite check and prepared USD conversion exit zero.
+- [x] Host headless smoke exits zero and plays 6 waypoints.
+- [x] Host GUI smoke exits zero, plays 6 waypoints, and auto-exits.
+- [x] No physical robot command is issued.
+
 ## Next step
 
-Land the tested Phase 6 commit on `wip_phase6`, rebase/fast-forward `main`,
-then create `wip_phase7` from updated `main`. Phase 7 implements the
-Isaac Sim validated-plan player and host headless/GUI smoke gates.
+Commit and push the tested Phase 7 state to `wip_phase7` only. Do not push
+`main`; Phase 8 remains future bounded residual-RL work.

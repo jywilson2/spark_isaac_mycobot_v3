@@ -1,5 +1,42 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-19 — Phase 7 Isaac Sim validated-plan playback
+
+### Enumerated changes
+
+1. Added a versioned, typed, Isaac-neutral playback JSON contract generated
+   from `ValidatedPlan`, including exact joints/units/target metadata and a
+   fail-closed executable-plan gate.
+2. Added a compact six-waypoint executable fixture plus tests for round-trip
+   loading, invalid execution status, joint ordering, and non-finite values.
+3. Added NumPy-only tip position/orientation metrics and exact required-joint
+   to articulation-DOF mapping helpers.
+4. Added an Isaac Sim 6.x standalone player that opens the prepared USD,
+   discovers its articulation, applies every waypoint, and writes separate sim
+   metrics. Missing `tcp_link` pose data stays null/unevaluated.
+5. Replaced the host smoke placeholder with prerequisite, vendor asset, USD
+   conversion, and validated-plan playback orchestration for headless/GUI use.
+6. Made the Phase 7 GUI smoke a mandatory `run_verification.sh spark` gate,
+   delegating through `spark_host_exec.sh` from the container with no bypass.
+7. Added Phase 7 wiring tests and synchronized the specification, roadmap,
+   README, references, status, phase report, and prompt history.
+8. Passed container CI (108 tests plus Ruff), host prerequisites/conversion,
+   and both headless and GUI auto-exit smokes. Each smoke played all six
+   waypoints and exited zero.
+
+### Review recommended
+
+- **Isaac warnings:** host runs retain visible audio-device and duplicate
+  protobuf-registration warnings. Stage loading and playback still completed;
+  the warnings were not suppressed.
+- **Synthetic fixture:** the committed near-zero trajectory proves playback
+  wiring only; it is not planning quality or physical-accuracy evidence.
+- **TCP metrics:** review the prepared USD hierarchy if `tcp_link` remains
+  unavailable. Null/unevaluated metrics are intentional until an exact prim is
+  present.
+
+---
+
 ## 2026-07-19 — Phase 6 randomized workspace benchmark
 
 ### Enumerated changes
