@@ -79,8 +79,30 @@ compute-capability warning is retained in that report and is not suppressed.
   project code does not import this private module.
 - **Project compatibility decision**
   [`docs/phase3_nominal_planning.md`](docs/phase3_nominal_planning.md)
-  Records the observed repeated-call failure and the selected policy: one fresh
-  `MotionPlanner` per `plan_grasp` call, including retries.
+  Records the observed repeated-call and unwarmed-endpoint failures and the
+  selected policy: fresh backend, seed reset, configured public warmup, seed
+  reset, then exactly one `plan_grasp`, including retries.
+
+## Phase 4 validation APIs
+
+- **cuRobo v0.8.0 `MotionPlanner.compute_kinematics`**
+  <https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/motion_planner.py>
+  Public FK entry point used by `CuroboTrajectoryEvaluator`.
+- **cuRobo v0.8.0 robot kinematics implementation**
+  <https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/_src/cuda_robot_model/cuda_robot_model.py>
+  Implementation reference for returned tool poses and robot collision spheres;
+  project code accesses these through the planner result.
+- **Project Phase 4 validation report**
+  [`docs/phase4_validation.md`](docs/phase4_validation.md)
+  Documents typed reports, configured thresholds, synthetic/GPU coverage, and
+  the fail-closed boundary for non-empty-world collision clearance.
+- **NumPy**
+  <https://numpy.org/doc/stable/>
+  Deterministic terminal geometry, rotation, limits, dynamics, and clearance
+  metric calculations.
+- **PyYAML**
+  <https://pyyaml.org/wiki/PyYAMLDocumentation>
+  Named validation-profile loading from `config/validation_profiles.yml`.
 
 ## Phase 7 Isaac Sim libraries / host tooling
 

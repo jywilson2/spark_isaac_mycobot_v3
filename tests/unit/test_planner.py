@@ -59,6 +59,13 @@ class FakeBackend:
         self.result = result
         self.kwargs = None
         self.reset_count = 0
+        self.warmup_count = 0
+
+    def warmup(self, *, enable_graph: bool, num_warmup_iterations: int) -> bool:
+        assert enable_graph is False
+        assert num_warmup_iterations == 1
+        self.warmup_count += 1
+        return True
 
     def reset_seed(self) -> None:
         self.reset_count += 1
@@ -162,7 +169,8 @@ def test_success_maps_segments_roll_and_exact_plan_grasp_options() -> None:
     assert backend.kwargs["plan_approach_to_grasp"] is True
     assert backend.kwargs["plan_grasp_to_lift"] is False
     assert backend.kwargs["disable_collision_links"] == []
-    assert backend.reset_count == 1
+    assert backend.reset_count == 2
+    assert backend.warmup_count == 1
 
 
 def test_each_plan_uses_a_fresh_backend() -> None:
@@ -174,7 +182,8 @@ def test_each_plan_uses_a_fresh_backend() -> None:
     assert first.succeeded and second.succeeded
     assert len(backends) == 2
     assert backends[0] is not backends[1]
-    assert [backend.reset_count for backend in backends] == [1, 1]
+    assert [backend.reset_count for backend in backends] == [2, 2]
+    assert [backend.warmup_count for backend in backends] == [1, 1]
 
 
 def test_expected_infeasibility_returns_structured_failure() -> None:

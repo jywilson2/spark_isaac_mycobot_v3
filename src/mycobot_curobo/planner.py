@@ -311,8 +311,16 @@ class NominalPlanner:
             for attempt_count in range(1, self.profile.max_plan_grasp_attempts + 1):
                 # Never issue a second plan_grasp call to the same v0.8.0
                 # MotionPlanner. This also applies to retries after an
-                # infeasible result.
+                # infeasible result. Generic warmup is also mandatory: Phase 4
+                # endpoint validation showed an unwarmed fresh planner could
+                # report success while leaving the terminal segment at the
+                # pre-approach pose.
                 backend = self._backend_factory()
+                backend.reset_seed()
+                backend.warmup(
+                    enable_graph=self.profile.enable_graph_warmup,
+                    num_warmup_iterations=self.profile.warmup_iterations,
+                )
                 backend.reset_seed()
                 raw = backend.plan_grasp(
                     grasp_poses=backend_goal,

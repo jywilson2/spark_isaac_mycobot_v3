@@ -583,6 +583,10 @@ Treat these as an initial profile, not universal constants. Store values in YAML
   `plan_grasp` call, including retries. Phase 3 GPU regression testing found
   that reusing one instance mutates optimizer/tool-criteria state and can
   produce shortened trajectories or later failures.
+- Before that single call, reset the seed, run configured public
+  `MotionPlanner.warmup(...)`, and reset the seed again. Phase 4 endpoint
+  validation found that an unwarmed fresh planner could report success while
+  remaining at the pre-approach pose.
 - Treat planner construction/warmup latency as part of request wall time.
 - Do not reuse a planner merely because robot and scene configuration are
   unchanged. Revisit this reliability-first exception only after a future
@@ -630,6 +634,13 @@ Do not reintroduce legacy `PoseCostMetric` APIs. The fallback must pass the same
 
 Prove that the terminal segment meets the application’s approach constraints before it is eligible for execution.
 
+### Implemented validation contracts
+
+`validation.py` owns typed `ValidationProfile`, `KinematicCollisionBatch`,
+`ValidationViolation`, `ValidationMetrics`, `ValidationReport`, and
+`ValidatedPlan` contracts. `CuroboTrajectoryEvaluator` supplies cuRobo FK and
+self-clearance data to backend-neutral `validate_nominal_plan`.
+
 ### Required checks
 
 For each sampled waypoint in the interpolated terminal trajectory:
@@ -666,25 +677,43 @@ a^T (p_i - p_goal)
 Approach-axis angular error:
 
 ```text
-acos(clamp(z_tcp_i dot a, -1, 1))
+acos(clamp(signed_tcp_axis_i dot a, -1, 1))
 ```
 
-Use the configured TCP axis rather than always using TCP Z.
+Use the configured TCP axis and sign rather than always using TCP Z.
+
+Roll error about the approach axis when roll is constrained:
+
+```text
+acos(clamp(projected_actual_tangent_i dot desired_tangent, -1, 1))
+```
+
+where the tangent is the next cyclic TCP axis after the configured approach
+axis, projected into the plane perpendicular to `a`.
 
 ### Initial validation thresholds
 
-Use separate planner and hardware profiles. For simulation-only initial acceptance:
+Use separate simulation and hardware profiles in
+`config/validation_profiles.yml`. For simulation-only initial acceptance:
 
 ```yaml
 max_lateral_error_m: 0.005
 max_approach_axis_error_rad: 0.05236  # 3 degrees
+max_roll_error_rad: 0.05236
 max_terminal_position_error_m: 0.005
 max_terminal_orientation_error_rad: 0.05236
 max_progress_regression_m: 0.001
 minimum_joint_limit_margin_rad: 0.02
+minimum_self_collision_clearance_m: 0.0
+minimum_world_collision_clearance_m: 0.0
+boundary_position_tolerance_rad: 1.0e-6
 ```
 
-These are starting values. Do not claim physical MyCobot accuracy from simulation thresholds.
+Empty worlds may report infinite world clearance. Unsupported non-empty world
+distance evaluation must remain unevaluated and fail closed. These are starting
+values. Do not claim physical MyCobot accuracy from simulation thresholds. The
+`hardware_placeholder` profile is a named stub only until Phase 9/10 measures
+hardware-specific thresholds.
 
 ### Fail-closed behavior
 
@@ -699,7 +728,13 @@ These are starting values. Do not claim physical MyCobot accuracy from simulatio
 - A deliberately curved terminal path fails lateral validation.
 - A reversed-progress path fails monotonicity validation.
 - A misoriented TCP fails orientation validation.
+- Joint position/dynamics, self-collision, non-finite output, and unevaluated
+  world collision failures identify the offending waypoint and fail closed.
 - A valid nominal path passes.
+- A GPU test validates real cuRobo FK and self-collision clearance in an
+  explicitly empty world.
+- Non-empty-world collision clearance remains unevaluated and non-executable
+  until a supported adapter and obstacle regression are available.
 
 ---
 

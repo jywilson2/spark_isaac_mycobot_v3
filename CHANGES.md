@@ -1,5 +1,75 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-19 — Prior-project retirement / V3 isolation
+
+### Enumerated changes
+
+1. Added V3-only `spark_isaac_mycobot_v3.code-workspace` and retirement docs
+   (`docs/v2_retirement.md`, `docs/legacy/`).
+2. Added Cursor rules `05-v2-retirement.mdc` and `30-workflow-and-isaac.mdc`;
+   corrected `10-curobo-v080.mdc` to the fresh-planner-per-call v0.8.0 policy.
+3. Migrated Phase 7 scaffolding tests (`test_urdf_utils`, `test_joint_drives`),
+   Phase 8 Isaac Lab host bootstrap (`isaac_lab/`, install/verify scripts),
+   `scripts/run_verification.sh`, CI workflow, and secondary docs push helper.
+4. Added Phase 7 `smoke_isaac_viz.sh` placeholder and fixed dangling host-script
+   examples that advertised nonexistent commands.
+5. Archived the prior project's final uncommitted docs/metrics under
+   `docs/legacy/v2_archive/` (historical only; not V3 acceptance evidence).
+6. Retired prior-tree agent access via that tree's `.cursorignore`, `RETIRED.md`,
+   and workspace redirect away from its own sources.
+
+### Review recommended
+
+- **Workspace reopen:** reload Cursor on the V3-only workspace and start a new
+  agent chat so multi-root prior-project context is discarded.
+- **Isaac Lab pin:** `isaac_lab/versions.env` still defaults to `develop`; pin
+  an exact revision before Phase 8 reproducibility claims.
+- **Phase 7 player:** implement a V3-native `NominalPlan` player; do not revive
+  the prior IK/recovery viz stack.
+
+---
+
+## 2026-07-19 — Phase 4 validation
+
+### Enumerated changes
+
+1. Added `validation.py` with typed `ValidationProfile`,
+   `KinematicCollisionBatch`, violations, metrics, reports, `ValidatedPlan`,
+   `CuroboTrajectoryEvaluator`, and fail-closed `validate_nominal_plan`.
+2. Added `config/validation_profiles.yml` with the specification's simulation
+   thresholds plus roll, self/world clearance, segment-boundary limits, and a
+   non-authoritative `hardware_placeholder` stub for later hardware work.
+3. Added `CuroboTrajectoryEvaluator` for independent cuRobo FK and configured
+   self-collision sphere-pair clearance; explicitly empty worlds are evaluated
+   while unsupported non-empty worlds fail closed as unevaluated.
+4. Enforced fresh backend → reset seed → configured public warmup → reset seed
+   → exactly one `plan_grasp` after GPU evidence showed an unwarmed v0.8.0
+   planner could stop at the pre-approach pose while reporting success.
+5. Strengthened the Phase 3 GPU regression to require the measured terminal FK
+   endpoint to reach the target within the configured planner position
+   tolerance.
+6. Added synthetic coverage for valid, curved, reversed-progress, misoriented,
+   unevaluated-world, limit/dynamics, self-collision, and non-finite cases.
+   Added a DGX Spark GPU eligibility regression using real cuRobo FK and
+   self-clearance in an explicitly empty world.
+7. Added `docs/phase4_validation.md` and synchronized STATUS, README,
+   REFERENCES, specification, roadmap, Phase 3 lifecycle notes, and change
+   inventory.
+
+### Review recommended
+
+- **World clearance:** empty-scene evaluation is accepted; non-empty worlds
+  still fail closed until a supported distance adapter and obstacle regression
+  land.
+- **Hardware thresholds:** `hardware_placeholder` is a stub only. Do not use it
+  for physical MyCobot claims before Phase 9/10 measurement.
+- **Clearance policy:** review zero-meter simulation thresholds and collision
+  sphere coverage before hardware work; these are not hardware safety margins.
+- **Planner latency:** benchmark fresh construction plus warmup in Phase 6
+  without weakening the one-call lifecycle.
+
+---
+
 ## 2026-07-19 — Phase 3 nominal planning
 
 ### Enumerated changes

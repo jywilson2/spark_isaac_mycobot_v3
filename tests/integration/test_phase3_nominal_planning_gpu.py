@@ -105,6 +105,10 @@ def test_reachable_plan_grasp_returns_two_reproducible_normal_line_segments() ->
         measured.plan.terminal_trajectory.position_rad[-1],
         spec=model,
     )
+    assert (
+        float(np.linalg.norm(measured_endpoint.position_m - target.position_base_m))
+        <= profile.position_tolerance_m
+    )
     assert np.allclose(
         warmup_endpoint.position_m,
         measured_endpoint.position_m,

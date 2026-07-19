@@ -33,13 +33,19 @@ The selected Phase 3 policy is therefore:
 
 1. `NominalPlanner` receives an application-owned backend factory.
 2. Every `plan_grasp` attempt constructs a fresh `MotionPlanner`.
-3. Retries after infeasibility also construct a fresh planner.
-4. Construction and optional warmup cost is included in adapter wall time.
-5. Reuse remains prohibited for the pinned v0.8.0 runtime.
+3. The adapter resets the seed, runs configured public warmup, resets the seed
+   again, then issues exactly one `plan_grasp` call.
+4. Retries after infeasibility also construct a fresh planner and repeat the
+   warmup sequence.
+5. Construction and warmup cost is included in adapter wall time.
+6. Reuse remains prohibited for the pinned v0.8.0 runtime.
 
-This is a reliability-first tradeoff. It costs more GPU latency than warmed
-reuse, but avoids depending on mutated private state. A future cuRobo upgrade
-may remove this policy only after the repeated-call GPU regression passes.
+Phase 4 endpoint validation later showed that an unwarmed fresh planner could
+report success while remaining at the pre-approach pose; mandatory warmup is
+therefore part of this lifecycle, not optional. This is a reliability-first
+tradeoff. It costs more GPU latency than warmed reuse, but avoids depending on
+mutated private state. A future cuRobo upgrade may remove this policy only
+after the repeated-call and endpoint GPU regressions pass.
 
 ## Result and failure contracts
 
@@ -64,11 +70,13 @@ Executed on 2026-07-19:
   tests/integration/test_phase3_nominal_planning_gpu.py -vv` — **1 passed** on
   the DGX Spark host.
 
-The GPU regression constructs two distinct planners for identical seeded
-requests, verifies both trajectory segments and selected roll, compares
-reproduced approach trajectories and terminal FK poses, and checks terminal TCP
-positions remain within 5 mm of the target-normal line. This is simulation/FK
-evidence, not physical-robot accuracy evidence.
+The strengthened GPU regression constructs distinct warmed planners for
+identical seeded requests, verifies both trajectory segments and selected roll,
+compares reproduced approach trajectories and terminal FK poses, checks the
+target-normal line, and requires the measured endpoint to reach the target
+within configured planner tolerance. Phase 3 and Phase 4 GPU tests pass with
+the mandatory lifecycle. This is simulation/FK evidence, not physical-robot
+accuracy evidence.
 
 ## Review recommendation
 

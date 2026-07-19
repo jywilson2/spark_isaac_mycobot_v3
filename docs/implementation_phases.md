@@ -75,10 +75,11 @@ flowchart LR
 
 **Objective:** `MotionPlanner.plan_grasp` owns free-space + terminal approach.
 
-**Deliverables:** Planner factory, fresh-backend-per-`plan_grasp` lifecycle for
-the pinned v0.8.0 runtime, result mapping, and optional fallback only as
-documented. Reuse may return only after a future pinned version passes the GPU
-repeated-call regression.
+**Deliverables:** Planner factory, result mapping, and the pinned-v0.8.0
+lifecycle: fresh backend → seed reset → configured public warmup → seed reset
+→ exactly one `plan_grasp`. Retries repeat the full sequence with another fresh
+backend. Reuse may return only after a future pinned version passes the GPU
+repeated-call and endpoint regressions.
 
 **Must not:** Legacy `MotionGen`, moving collision spheres for path shaping, distance-only planner switching.
 
@@ -88,7 +89,15 @@ repeated-call regression.
 
 **Objective:** Re-check every candidate with FK-based geometry before executable status.
 
-**Deliverables:** Lateral error, orientation error, progress monotonicity, collision/smoothness checks, fail-closed reports.
+**Deliverables:** Typed profiles, evaluator batches, violations, metrics,
+reports and validated plans; lateral/axis/roll/progress metrics; joint limits
+and dynamics; boundary continuity; fail-closed collision handling; synthetic
+negative coverage; and a real-cuRobo GPU eligibility regression in an
+explicitly empty world.
+
+**Current boundary:** Non-empty-world collision clearance is not yet validated
+and remains unevaluated, invalid, and non-executable. Simulation thresholds and
+empty-world results are not physical accuracy evidence.
 
 ---
 

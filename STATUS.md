@@ -4,7 +4,7 @@ Last updated: **2026-07-19**
 
 ## Current phase
 
-**Phase 3 — cuRobo nominal planning: COMPLETE**
+**Phase 4 — independent trajectory validation: COMPLETE**
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–10)
@@ -20,7 +20,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 1 | Robot model + spheres | **Complete** |
 | 2 | Task frames / roll goals | **Complete** |
 | 3 | `plan_grasp` nominal planning | **Complete** |
-| 4 | Independent validation | Not started |
+| 4 | Independent validation | **Complete** |
 | 5 | Execution + zero residual seam | Not started |
 | 6 | Randomized benchmark | Not started |
 | 7 | Isaac Sim closed-loop viz/validation | Scaffolding staged; not started |
@@ -38,9 +38,11 @@ planning-success claims, or hardware-readiness claims carry forward.
 - pytest and ruff configuration.
 - Fresh README, change inventory, references, and Apache-2.0 license.
 - Phase 0–10 roadmap in `docs/implementation_phases.md` and `spec.md` §8.
-- Phase 7 Isaac Sim scaffolding adapted from v2 (host scripts, URDF helpers,
-  vendor obtain script, staging URDFs). Vendor package obtained locally via
-  `third_party/mycobot_ros2` → sibling symlink (gitignored).
+- Phase 7 Isaac Sim scaffolding (host scripts, URDF helpers, vendor obtain
+  script, staging URDFs) plus retirement isolation so V3 no longer depends on
+  the prior-project tree. Vendor package obtained locally via
+  `third_party/mycobot_ros2` → sibling symlink (gitignored). See
+  [`docs/v2_retirement.md`](docs/v2_retirement.md).
 - Phase 1 cuRobo format-2.0 robot YAML, pinned vendor provenance/license,
   corrected published velocity limits, explicit bare-flange TCP, independent
   CPU FK, named-state reordering, and five-case FK regression fixture.
@@ -52,6 +54,11 @@ planning-success claims, or hardware-readiness claims carry forward.
 - Phase 3 approach-only `plan_grasp` adapter, typed plans/failures, valid
   trajectory extraction, selected-roll mapping, planner profiles, empty scene,
   and a fresh planner backend for every v0.8.0 call and retry.
+- Phase 3 lifecycle corrected to require fresh backend → reset seed →
+  configured public warmup → reset seed → exactly one `plan_grasp`.
+- Phase 4 independent validator with typed reports, simulation/hardware
+  profiles, synthetic fail-closed coverage, and GPU FK/self-collision checks
+  on an explicitly empty world.
 
 ## Acceptance checklist (Phase 0)
 
@@ -112,15 +119,33 @@ tracked with provenance; vendor meshes remain obtained into gitignored
 - [x] Terminal TCP samples remain within 5 mm of the target-normal line.
 - [x] Identical seeded requests use distinct planner instances and reproduce
       approach trajectories and terminal FK pose within defined tolerances.
+- [x] Terminal FK endpoint reaches the target within planner position tolerance
+      after mandatory fresh-backend warmup.
 - [x] Expected infeasibility and malformed backend output return structured
       failure categories.
 - [x] All returned plans remain non-executable pending Phase 4 validation.
-- [x] Cumulative unit suite passes (61 tests); Phase 3 GPU regression passes
-      (1 test on NVIDIA GB10).
+- [x] No physical robot command is issued.
+
+## Acceptance checklist (Phase 4)
+
+- [x] Synthetic trajectory deviations are detected by unit tests.
+- [x] A deliberately curved terminal path fails lateral validation.
+- [x] A reversed-progress path fails monotonicity validation.
+- [x] A misoriented TCP fails orientation validation.
+- [x] Unevaluated world collision fails closed.
+- [x] Joint-limit and dynamics violations report waypoint indices.
+- [x] A valid nominal path becomes executable only after independent validation.
+- [x] GPU integration independently validates FK, terminal accuracy, and
+      self-collision clearance on an empty world.
+- [x] Non-empty world clearance remains unevaluated / fail-closed until a
+      supported adapter lands.
+- [x] Cumulative unit suite passes (76 tests).
+- [x] All GPU integrations pass (5 tests on NVIDIA GB10) with the corrected
+      lifecycle; the known PyTorch CUDA-capability warning remains recorded.
 - [x] No physical robot command is issued.
 
 ## Next step
 
-Land the tested Phase 3 commit on `wip_phase3`, rebase/fast-forward `main`, then
-create `wip_phase4` from updated `main`. Phase 4 independently validates every
-trajectory waypoint before any plan may become executable.
+Land the tested Phase 4 commit on `wip_phase4`, rebase/fast-forward `main`, then
+create `wip_phase5` from updated `main`. Phase 5 adds the execution abstraction
+and zero-residual correction seam without coupling to hardware drivers.

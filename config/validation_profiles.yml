@@ -1,0 +1,26 @@
+# Phase 4 validation thresholds. Simulation values are not hardware claims.
+profiles:
+  simulation_initial:
+    max_lateral_error_m: 0.005
+    max_approach_axis_error_rad: 0.05236
+    max_roll_error_rad: 0.05236
+    max_terminal_position_error_m: 0.005
+    max_terminal_orientation_error_rad: 0.05236
+    max_progress_regression_m: 0.001
+    minimum_joint_limit_margin_rad: 0.02
+    minimum_self_collision_clearance_m: 0.0
+    minimum_world_collision_clearance_m: 0.0
+    boundary_position_tolerance_rad: 1.0e-6
+  # Placeholder only. Do not use for physical MyCobot claims until Phase 9/10
+  # measures hardware-specific clearances and pose errors.
+  hardware_placeholder:
+    max_lateral_error_m: 0.005
+    max_approach_axis_error_rad: 0.05236
+    max_roll_error_rad: 0.05236
+    max_terminal_position_error_m: 0.005
+    max_terminal_orientation_error_rad: 0.05236
+    max_progress_regression_m: 0.001
+    minimum_joint_limit_margin_rad: 0.02
+    minimum_self_collision_clearance_m: 0.0
+    minimum_world_collision_clearance_m: 0.0
+    boundary_position_tolerance_rad: 1.0e-6

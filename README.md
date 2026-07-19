@@ -13,7 +13,7 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 ## Current phase
 
-**Phase 3 — cuRobo nominal planning: complete.**
+**Phase 4 — independent trajectory validation: complete.**
 
 Full roadmap (Phases 0–10, including Isaac Sim, residual RL, and physical
 hardware): [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -33,12 +33,15 @@ Implemented now:
 - typed surface targets and deterministic configurable roll goal sets;
 - public cuRoboV2 `GoalToolPose` conversion;
 - structured `plan_grasp` nominal plans with finite trajectory extraction,
-  selected-roll mapping, and fresh planner construction for every backend call;
+  selected-roll mapping, and a fresh/warmed backend for exactly one call;
+- typed fail-closed validation reports covering terminal geometry, limits,
+  dynamics, continuity, and available collision clearance;
+- real cuRobo FK and self-collision validation in an explicitly empty world;
 - Phase 7 Isaac Sim **scaffolding** (host scripts, URDF helpers, vendor obtain).
 
-Not implemented through Phase 3:
+Not implemented through Phase 4:
 
-- independent trajectory validation (Phase 4);
+- non-empty-world collision-clearance evaluation (fails closed);
 - residual seam, benchmarks (Phases 5–6);
 - Isaac closed-loop player, residual RL training, hardware motion (Phases 7–10).
 
@@ -143,8 +146,11 @@ against the outward normal. Defaults and roll angles come from
 
 `NominalPlanner` accepts a backend factory, not a reusable backend. The pinned
 cuRobo v0.8.0 runtime changed internal optimizer/tool-criteria state after
-`plan_grasp`; repeated use could shorten or fail later trajectories. Every
-request and retry therefore constructs a fresh planner:
+`plan_grasp`; repeated use could shorten or fail later trajectories. Phase 4
+also found that an unwarmed fresh backend could report success while remaining
+at the pre-approach endpoint. Every request and retry therefore constructs a
+fresh backend, resets its seed, performs configured public warmup, resets the
+seed again, and invokes `plan_grasp` exactly once:
 
 ```python
 from mycobot_curobo import (
@@ -163,9 +169,9 @@ planner = NominalPlanner(
 outcome = planner.plan(request)
 ```
 
-This reliability-first lifecycle includes planner construction in request wall
-time. Returned plans remain `executable=False` until Phase 4 independently
-validates every waypoint. See
+This reliability-first lifecycle includes construction and warmup in request
+wall time. Returned nominal plans remain `executable=False` until Phase 4
+independently validates every waypoint. See
 [`docs/phase3_nominal_planning.md`](docs/phase3_nominal_planning.md).
 
 ### Phase 3 implementation libraries
@@ -176,6 +182,29 @@ validates every waypoint. See
 | NumPy | fail-closed tensor conversion and trajectory validation |
 | PyYAML | planner-profile and empty-scene configuration |
 | pytest | CPU orchestration tests and GPU lifecycle regression |
+
+## Validate a Phase 4 nominal plan
+
+`validate_nominal_plan` combines a typed `ValidationProfile` with an injected
+trajectory evaluator. It checks the terminal corridor, approach axis, selected
+roll, target progress, endpoint pose, joint margins and dynamics, segment
+boundary, and available collision clearances. Violations identify the first
+offending waypoint; only a valid `ValidatedPlan` is executable.
+
+Thresholds live in `config/validation_profiles.yml`. The GPU test uses
+`CuroboTrajectoryEvaluator` for real cuRobo FK and self-collision clearances in
+an explicitly empty world. Non-empty-world clearance is not yet implemented:
+it is reported as unevaluated and fails closed. See
+[`docs/phase4_validation.md`](docs/phase4_validation.md).
+
+### Phase 4 implementation libraries
+
+| Library | Pinned use |
+|---|---|
+| NVIDIA cuRobo v0.8.0 | terminal-waypoint FK and collision-sphere state |
+| NumPy | deterministic geometry, limits, dynamics, and report metrics |
+| PyYAML | named validation threshold profiles |
+| pytest | synthetic violation coverage and GPU acceptance |
 
 ## Isaac Sim scaffolding (Phase 7+)
 
@@ -190,7 +219,9 @@ Optional host tooling adapted from v2. Not required for Phase 0 unit tests.
 ./scripts/host/spark_host_exec.sh ./scripts/host/check_prereqs.sh
 ```
 
-Install cuRobo **v0.8.0** into the Isaac Sim Python env when ready:
+`scripts/host/smoke_isaac_viz.sh` is a Phase 7 placeholder until a
+`NominalPlan` player exists. Install cuRobo **v0.8.0** into the Isaac Sim
+Python env when ready:
 
 ```bash
 ./scripts/host/install_curobo.sh
