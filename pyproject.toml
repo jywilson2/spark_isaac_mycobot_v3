@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mycobot-curobo"
+version = "0.1.0"
+description = "Constrained surface-normal approach planning for the MyCobot 280 M5"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [{ name = "spark_isaac_mycobot_v3 contributors" }]
+dependencies = [
+  "numpy>=1.24",
+  "nvidia-curobo[cu12-torch] @ git+https://github.com/NVlabs/curobo.git@v0.8.0",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.4,<9",
+  "ruff>=0.4",
+]
+
+[project.scripts]
+mycobot-verify-environment = "mycobot_curobo.version_guard:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = ["--strict-config", "--strict-markers"]
+markers = [
+  "gpu: requires NVIDIA CUDA, PyTorch, and pinned cuRobo v0.8.0",
+]
+
+[tool.ruff]
+line-length = 99
+target-version = "py310"
+extend-exclude = ["artifacts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

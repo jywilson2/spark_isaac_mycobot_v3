@@ -1,0 +1,17 @@
+---
+alwaysApply: true
+---
+
+# MyCobot cuRobo project rules
+
+- Read `@spec.md` before changing architecture, planning behavior, frame conventions, configuration, or safety logic.
+- Implement one specification phase at a time and satisfy its acceptance criteria before starting the next phase.
+- Keep the core package independent of ROS 2, Isaac Sim, Isaac Lab, physical MyCobot drivers, sensors, and RL frameworks.
+- Use typed domain objects instead of unstructured dictionaries across core module boundaries.
+- Keep units explicit: meters, radians, seconds, and scalar-first `wxyz` quaternions.
+- Never infer frame names, joint order, units, or TCP calibration silently.
+- Expected planning infeasibility returns a structured result. Invalid environment or configuration raises a specific error.
+- Do not mark a plan executable until independent validation passes.
+- Do not issue commands to physical hardware in this project phase.
+- Add tests for every behavior change. Keep random tests reproducible with explicit seeds.
+- Do not suppress errors, weaken thresholds, or skip tests merely to obtain a passing run.

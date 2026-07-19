@@ -1,0 +1,1015 @@
+# MyCobot 280 M5 Constrained Approach Planner
+
+## Cursor Implementation Specification
+
+**Document status:** Initial implementation specification  
+**Primary robot:** Elephant Robotics MyCobot 280 M5  
+**Primary motion-planning dependency:** NVIDIA cuRobo **v0.8.0 (cuRoboV2)**  
+**Scope:** Deterministic, collision-aware motion planning with a controlled surface-normal approach. The architecture must expose safe extension points for residual reinforcement learning and hardware integration, but those systems are intentionally not implemented in the initial phases.
+
+---
+
+## 1. Purpose
+
+Build a reusable Python project that plans and verifies MyCobot 280 M5 end-effector motion to a target pose while controlling the final approach direction and tool orientation.
+
+The key behavior is:
+
+1. Move from the current joint state through free space to a pre-approach pose.
+2. Approach the target along the target surface normal.
+3. Maintain the required end-effector orientation during the terminal approach.
+4. Reject any trajectory that violates geometric, kinematic, collision, smoothness, or numerical constraints.
+5. Preserve a bounded correction interface for a future residual RL policy without allowing that policy to invalidate the nominal cuRobo plan.
+
+This project must replace obstacle-based path shaping and distance-dependent IK switching with explicit task-frame construction, cuRobo trajectory optimization, terminal linear-motion criteria, and independent trajectory validation.
+
+---
+
+## 2. Non-goals for the initial implementation
+
+Do **not** add or implement the following until a later specification explicitly requests them:
+
+- ROS 2 integration
+- Isaac Sim or Isaac Lab integration
+- Physical MyCobot serial or network control
+- `pymycobot`
+- Camera, depth, force, tactile, or motor-current sensing
+- Reinforcement-learning frameworks or trained policies
+- Online learning
+- Dynamic obstacle tracking
+- Contact-rich manipulation
+- A graphical user interface
+- A general task planner
+
+The initial project plans and validates trajectories. It does not command physical hardware.
+
+---
+
+## 3. Fixed technology baseline
+
+### 3.1 cuRobo version
+
+Pin cuRobo to the exact Git tag:
+
+```text
+v0.8.0
+```
+
+Do not develop against an unpinned `main` branch. Record the resolved package version and source revision at runtime.
+
+cuRobo v0.8.0 is cuRoboV2 and is a major API rewrite. Do not copy code written for the older v0.7.x API.
+
+### 3.2 Required public cuRobo APIs
+
+Prefer stable public imports such as:
+
+```python
+from curobo.motion_planner import MotionPlanner, MotionPlannerCfg
+from curobo.types import GoalToolPose, JointState, Pose
+```
+
+Use these core operations:
+
+- `MotionPlannerCfg.create(...)`
+- `MotionPlanner(...)`
+- `MotionPlanner.warmup(...)`
+- `MotionPlanner.plan_pose(...)`
+- `MotionPlanner.plan_grasp(...)`
+- `MotionPlanner.compute_kinematics(...)`
+- `GoalToolPose.from_poses(...)`
+- `JointState.from_position(...)`
+- `TrajOptSolverResult.get_interpolated_plan()` where applicable
+
+Do not use these legacy v0.7 patterns in project code:
+
+- `MotionGen`
+- `MotionGenConfig`
+- `MotionGenPlanConfig`
+- `PoseCostMetric.create_grasp_approach_metric`
+- imports under `curobo.wrap.reacher`
+
+### 3.3 Python, CUDA, and PyTorch
+
+The cuRobo v0.8.0 package declares Python `>=3.10`. Its CUDA 12 + PyTorch optional dependency set requires PyTorch `>=2.5`.
+
+The project shall:
+
+- use Python 3.10 or newer;
+- use an NVIDIA CUDA-capable environment;
+- select a PyTorch build compatible with the installed CUDA runtime and GPU;
+- fail fast with an actionable diagnostic if CUDA, PyTorch, or cuRobo is unavailable;
+- avoid CPU fallback for planning unless a later phase explicitly adds and validates it.
+
+### 3.4 Dependency policy
+
+Initial application dependencies are limited to:
+
+- cuRobo v0.8.0 and its required dependencies;
+- PyTorch/CUDA required by cuRobo;
+- NumPy;
+- PyYAML;
+- pytest for tests;
+- ruff for formatting and linting.
+
+Do not add a package merely for convenience. Use the Python standard library where practical.
+
+---
+
+## 4. Design principles
+
+### 4.1 cuRobo owns global motion planning
+
+cuRobo is responsible for:
+
+- inverse kinematics;
+- collision checking;
+- graph-seeded planning where needed;
+- trajectory optimization;
+- joint-space feasibility;
+- velocity, acceleration, and jerk-aware smoothing;
+- selecting among candidate target roll orientations.
+
+Application code must not implement a competing global IK or path planner.
+
+### 4.2 The target is a full task frame, not only a position
+
+Every target shall include:
+
+- target position in the robot base frame;
+- unit surface normal in the robot base frame;
+- desired tool approach axis;
+- a tangent reference or explicit roll angle;
+- target-frame orientation;
+- pre-approach distance;
+- allowed roll candidates, when roll about the normal is not fixed.
+
+### 4.3 The final approach is planned and then independently verified
+
+A cuRobo success result is necessary but not sufficient. Every returned terminal trajectory must be independently checked with forward kinematics and explicit geometric metrics.
+
+### 4.4 No moving collision spheres for path shaping
+
+Collision spheres describe robot geometry and safety margins. They must not be moved dynamically to force a desired approach path.
+
+### 4.5 No planner switching based only on target distance
+
+The same deterministic planning pipeline must work across randomized valid targets. A phase change may alter constraints or controller authority, but must not silently replace one IK method with another.
+
+### 4.6 Future RL is residual and bounded
+
+The future learning policy will correct execution error around a verified nominal path. It will not replace cuRobo planning and will not directly bypass deterministic safety checks.
+
+---
+
+## 5. Coordinate-frame conventions
+
+All frame conventions must be explicit, documented, and covered by tests.
+
+### 5.1 Required frames
+
+Use at least these conceptual frames:
+
+- `base_link`: robot planning reference frame;
+- `flange_link`: final modeled robot flange;
+- `tcp_link`: calibrated tool center point used as the cuRobo tool frame;
+- `target_frame`: task frame at the desired target;
+- `surface_frame`: optional source frame supplied by perception later.
+
+The cuRobo robot configuration must expose `tcp_link` as a tool frame. Do not plan to a visual mesh frame unless it is exactly the calibrated TCP.
+
+### 5.2 Units and quaternion order
+
+- Position: meters
+- Joint angles: radians
+- Linear velocity: meters/second where Cartesian; radians/second where joint-space
+- Quaternion: scalar-first `wxyz`, matching cuRobo examples
+
+### 5.3 Approach-axis convention
+
+The project configuration shall define one of the TCP axes as the physical approach axis, for example:
+
+```yaml
+tool_approach_axis: z
+tool_approach_sign: -1
+```
+
+The sign and axis must be verified by a unit test and a visual or numerical sanity check. Never assume that positive tool Z points toward the target.
+
+### 5.4 Target frame construction
+
+Given target position `p`, outward surface normal `n`, and tangent hint `r`:
+
+1. Normalize `n`.
+2. Define the desired approach direction `a = -n`, unless task configuration says otherwise.
+3. Align the configured TCP approach axis with `a`.
+4. Project the tangent hint onto the plane orthogonal to `a`.
+5. Normalize the projected tangent.
+6. Form an orthonormal right-handed rotation matrix.
+7. Convert it to a normalized `wxyz` quaternion.
+
+If the tangent hint is nearly parallel to the normal, use a deterministic fallback basis axis with the smallest absolute dot product with the normal.
+
+Reject zero-length normals, non-finite values, invalid quaternions, and non-orthonormal rotations.
+
+---
+
+## 6. Core data contracts
+
+Use typed dataclasses or immutable value objects. Do not pass unstructured dictionaries through the core domain layer.
+
+### 6.1 `SurfaceTarget`
+
+Required fields:
+
+```text
+position_base_m: vector[3]
+surface_normal_base: unit vector[3]
+tangent_hint_base: optional vector[3]
+fixed_roll_rad: optional float
+roll_candidates_rad: tuple[float, ...]
+pre_approach_distance_m: float
+tool_frame: str
+target_id: str
+```
+
+Validation requirements:
+
+- all values finite;
+- normal magnitude greater than a configured epsilon before normalization;
+- pre-approach distance positive and within configured bounds;
+- fixed roll and roll candidates mutually exclusive;
+- no duplicate roll candidates after angle normalization.
+
+### 6.2 `PlanningRequest`
+
+Required fields:
+
+```text
+current_joint_state
+surface_target
+scene_revision
+planner_profile
+random_seed
+```
+
+### 6.3 `NominalPlan`
+
+Required fields:
+
+```text
+selected_goal_index
+selected_roll_rad
+approach_trajectory
+terminal_trajectory
+combined_trajectory
+planner_status
+planner_timings
+curobo_version
+scene_revision
+```
+
+### 6.4 `ConstraintReport`
+
+Include at least:
+
+```text
+valid
+failure_reasons
+max_lateral_error_m
+max_orientation_error_rad
+max_line_progress_regression_m
+terminal_position_error_m
+terminal_orientation_error_rad
+min_joint_limit_margin_rad
+max_joint_velocity_ratio
+max_joint_acceleration_ratio
+max_joint_jerk_ratio
+minimum_collision_clearance_m
+sample_count
+```
+
+Where a metric cannot yet be computed from an available public API, return `not_evaluated` rather than inventing a result. A plan cannot be marked hardware-ready when required metrics are not evaluated.
+
+### 6.5 Future residual-correction contract
+
+Define an interface but provide only a zero-output implementation:
+
+```python
+class ResidualCorrector(Protocol):
+    def correction(self, observation: ResidualObservation) -> CartesianResidual:
+        ...
+```
+
+The initial `ZeroResidualCorrector` always returns zero.
+
+The interface exists to prevent future RL code from being coupled directly into cuRobo planning classes.
+
+---
+
+## 7. Proposed repository layout
+
+```text
+.
+├── spec.md
+├── README.md
+├── pyproject.toml
+├── .cursorrules
+├── .cursor/
+│   └── rules/
+│       ├── 00-project-core.mdc
+│       ├── 10-curobo-v080.mdc
+│       └── 20-safety-and-testing.mdc
+├── config/
+│   ├── app.yml
+│   ├── planner_profiles.yml
+│   ├── scenes/
+│   │   └── empty.yml
+│   └── robots/
+│       └── mycobot_280_m5.yml
+├── assets/
+│   └── mycobot_280_m5/
+│       ├── urdf/
+│       └── meshes/
+├── src/
+│   └── mycobot_curobo/
+│       ├── __init__.py
+│       ├── version_guard.py
+│       ├── config.py
+│       ├── errors.py
+│       ├── frames.py
+│       ├── targets.py
+│       ├── goal_set.py
+│       ├── robot_model.py
+│       ├── planner.py
+│       ├── trajectory.py
+│       ├── validation.py
+│       ├── safety.py
+│       ├── residual.py
+│       ├── benchmark.py
+│       └── cli.py
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   ├── regression/
+│   └── data/
+├── scripts/
+│   ├── verify_environment.py
+│   ├── inspect_robot_model.py
+│   ├── plan_single_target.py
+│   └── benchmark_random_targets.py
+└── artifacts/
+    ├── plans/
+    ├── reports/
+    └── benchmarks/
+```
+
+Generated artifacts must not be committed unless explicitly designated as regression fixtures.
+
+---
+
+## 8. Implementation phases
+
+## Phase 0 — Repository bootstrap and environment verification
+
+### Objective
+
+Create a minimal, reproducible Python project that verifies the required runtime before any planning code is written.
+
+### Tasks
+
+1. Create `pyproject.toml` with a `src/` layout.
+2. Pin the project integration to cuRobo v0.8.0.
+3. Add pytest and ruff development configuration.
+4. Implement `version_guard.py`.
+5. Implement `scripts/verify_environment.py`.
+6. Print and record:
+   - Python version;
+   - cuRobo version;
+   - PyTorch version;
+   - CUDA runtime version visible to PyTorch;
+   - GPU name;
+   - CUDA availability;
+   - selected device and dtype.
+7. Fail when:
+   - cuRobo is not exactly compatible with v0.8.0;
+   - a legacy cuRobo API is detected;
+   - CUDA is unavailable;
+   - tensors cannot be allocated on the GPU.
+8. Add a smoke test that imports `MotionPlanner`, `MotionPlannerCfg`, `GoalToolPose`, `JointState`, and `Pose` from public modules.
+
+### Acceptance criteria
+
+- `pytest` passes without constructing a planner.
+- `ruff check .` passes.
+- The environment script produces a machine-readable JSON report.
+- No ROS, Isaac, MyCobot hardware, or RL dependency is present.
+
+---
+
+## Phase 1 — MyCobot 280 M5 model and cuRobo robot configuration
+
+### Objective
+
+Create a validated cuRobo v0.8.0 robot configuration for the exact MyCobot 280 M5 model and tool configuration.
+
+### Tasks
+
+1. Import or supply the authoritative URDF and mesh assets.
+2. Preserve source asset licensing and provenance.
+3. Confirm the actuated joint list and order.
+4. Confirm joint position, velocity, and acceleration limits from authoritative robot data.
+5. Add conservative jerk limits when authoritative values are unavailable; mark them as assumptions.
+6. Define:
+   - base link;
+   - flange link;
+   - calibrated TCP link;
+   - tool frames;
+   - collision link names;
+   - mesh link names;
+   - default joint position;
+   - c-space weights;
+   - self-collision buffers;
+   - self-collision ignore map;
+   - collision spheres for every moving link.
+7. Use cuRobo robot-config format version `2.0`.
+8. Keep collision-sphere definitions static and version controlled.
+9. Set `grasp_contact_link_names` to an empty list unless a later contact task explicitly requires collision disabling.
+10. Add an inspection script that prints:
+    - active joints in cuRobo order;
+    - tool frames;
+    - default state;
+    - FK pose for the default state;
+    - collision-sphere count by link.
+11. Add tests for joint-name ordering and limit consistency.
+12. Add FK regression fixtures for at least five known joint configurations.
+
+### Design constraints
+
+- Never infer joint order from dictionary order.
+- Never silently clamp an input state to make it valid.
+- Reject joint states with missing, duplicate, unknown, or reordered names unless an explicit reorder function is called.
+- TCP calibration must be represented as a fixed transform and must not be buried in target coordinates.
+- Collision buffers must be configurable but not changed dynamically to shape paths.
+
+### Acceptance criteria
+
+- `MotionPlannerCfg.create(robot="config/robots/mycobot_280_m5.yml", ...)` succeeds.
+- The planner can warm up on the GPU.
+- FK results are repeatable and within the test tolerance.
+- Self-collision checking can be executed for the default configuration.
+- No physical robot command is issued.
+
+---
+
+## Phase 2 — Surface target and task-frame generation
+
+### Objective
+
+Convert a target point, surface normal, and optional tangent or roll constraint into one or more valid cuRobo `GoalToolPose` candidates.
+
+### Tasks
+
+1. Implement robust vector normalization and finite-value checks.
+2. Implement target rotation construction for each permitted TCP approach axis and sign.
+3. Implement deterministic tangent fallback.
+4. Implement rotation-matrix validation.
+5. Implement quaternion conversion and normalization in `wxyz` order.
+6. Implement roll candidate generation around the surface normal.
+7. Convert candidate poses to `GoalToolPose` with `num_goalset > 1` when multiple rolls are allowed.
+8. Store the mapping from goal-set index to roll angle.
+9. Add tests over randomized normals, including near-axis and nearly degenerate cases.
+10. Add property tests without introducing another testing dependency; use seeded pytest parameterization and NumPy random generation.
+
+### Default roll strategy
+
+If roll is unconstrained, begin with:
+
+```text
+0, 45, 90, 135, 180, 225, 270, 315 degrees
+```
+
+Make this configurable. Do not generate an unbounded number of candidates.
+
+### Acceptance criteria
+
+For every generated candidate:
+
+- the TCP approach axis aligns with the desired approach direction within numerical tolerance;
+- the rotation determinant is approximately `+1`;
+- axes are mutually orthogonal;
+- quaternion norm is approximately `1`;
+- the target position is unchanged by roll generation;
+- candidate ordering is deterministic for a fixed input.
+
+---
+
+## Phase 3 — cuRobo nominal planning
+
+### Objective
+
+Plan a free-space segment to a pre-approach pose and a constrained linear terminal segment to the target.
+
+### Preferred cuRobo v0.8.0 method
+
+Use `MotionPlanner.plan_grasp(...)` as the primary high-level primitive, configured as an approach-only operation:
+
+```python
+result = planner.plan_grasp(
+    grasp_poses=goal_set,
+    current_state=current_state,
+    grasp_approach_axis=config.tool_approach_axis,
+    grasp_approach_offset=signed_pre_approach_offset,
+    grasp_approach_in_tool_frame=True,
+    plan_approach_to_grasp=True,
+    plan_grasp_to_lift=False,
+    disable_collision_links=[],
+)
+```
+
+The sign of `signed_pre_approach_offset` must be derived from the configured TCP axis convention and tested. Never copy an offset sign from an unrelated robot example.
+
+In cuRobo v0.8.0, `plan_grasp`:
+
+1. evaluates the supplied grasp goal set;
+2. selects a reachable target candidate;
+3. constructs an approach pose by applying the configured offset;
+4. plans from the current state to the approach pose;
+5. applies `ToolPoseCriteria.linear_motion(...)` for the approach-to-target segment;
+6. returns separate approach and grasp trajectories.
+
+### Planner creation
+
+Start from a profile similar to:
+
+```python
+planner_cfg = MotionPlannerCfg.create(
+    robot=robot_config_path,
+    scene_model=scene_config_path,
+    self_collision_check=True,
+    num_ik_seeds=32,
+    num_trajopt_seeds=4,
+    position_tolerance=0.005,
+    orientation_tolerance=0.05,
+    use_cuda_graph=True,
+    random_seed=project_seed,
+    optimizer_collision_activation_distance=0.01,
+    max_batch_size=1,
+    multi_env=False,
+    max_goalset=max_roll_candidates,
+)
+```
+
+Treat these as an initial profile, not universal constants. Store values in YAML and record them with every plan result.
+
+### Planner lifecycle
+
+- Construct planners through one application-owned factory.
+- Warm up the planner before benchmark timing.
+- Reuse a warmed planner when robot and scene configuration are unchanged.
+- Recreate or deliberately update planner state when configuration changes.
+- Do not create a new planner per target.
+- Use a fixed random seed for reproducible tests.
+- Permit a separate seed sweep in benchmarking.
+
+### Result handling
+
+A planning operation is not successful unless:
+
+- the result object exists;
+- `result.success` contains a true value;
+- `approach_interpolated_trajectory` exists;
+- `grasp_interpolated_trajectory` exists;
+- the selected goal-set index is valid;
+- all required trajectories contain finite values;
+- independent validation passes.
+
+Do not concatenate padded or invalid trailing samples. Respect any valid-last-timestep metadata returned by cuRobo.
+
+### Fallback method
+
+Implement a two-call fallback only if `plan_grasp` cannot satisfy a documented robot-specific case:
+
+1. `plan_pose()` to the pre-approach pose;
+2. a narrowly scoped terminal plan using cuRoboV2 tool-pose criteria.
+
+Do not reintroduce legacy `PoseCostMetric` APIs. The fallback must pass the same validator and be tagged in the output as a fallback plan.
+
+### Acceptance criteria
+
+- At least one reachable test target produces both segments.
+- Goal-set selection returns the associated roll candidate.
+- The terminal segment remains near the target-normal line.
+- Repeated calls with the same seed and input are reproducible within defined tolerance.
+- Planning failures return structured reasons rather than exceptions from normal infeasibility.
+
+---
+
+## Phase 4 — Independent trajectory verification
+
+### Objective
+
+Prove that the terminal segment meets the application’s approach constraints before it is eligible for execution.
+
+### Required checks
+
+For each sampled waypoint in the interpolated terminal trajectory:
+
+1. Compute FK for `tcp_link`.
+2. Calculate lateral distance from the ideal normal-approach line.
+3. Calculate angular error between actual TCP approach axis and desired approach direction.
+4. Calculate roll error when roll is constrained.
+5. Verify monotonic progress toward the target, allowing only a small numerical tolerance.
+6. Verify joint position limits.
+7. Verify joint velocity limits.
+8. Verify joint acceleration limits.
+9. Verify joint jerk limits when available.
+10. Evaluate self-collision and world-collision clearance using a supported cuRobo collision API.
+11. Check terminal position and orientation error.
+12. Check continuity at the approach/terminal segment boundary.
+
+### Geometric metrics
+
+Let `a` be the unit approach direction, `p_goal` the target point, and `p_i` a TCP position.
+
+Line-lateral error:
+
+```text
+|| (I - a a^T) (p_i - p_goal) ||
+```
+
+Signed distance to goal along the approach axis:
+
+```text
+a^T (p_i - p_goal)
+```
+
+Approach-axis angular error:
+
+```text
+acos(clamp(z_tcp_i dot a, -1, 1))
+```
+
+Use the configured TCP axis rather than always using TCP Z.
+
+### Initial validation thresholds
+
+Use separate planner and hardware profiles. For simulation-only initial acceptance:
+
+```yaml
+max_lateral_error_m: 0.005
+max_approach_axis_error_rad: 0.05236  # 3 degrees
+max_terminal_position_error_m: 0.005
+max_terminal_orientation_error_rad: 0.05236
+max_progress_regression_m: 0.001
+minimum_joint_limit_margin_rad: 0.02
+```
+
+These are starting values. Do not claim physical MyCobot accuracy from simulation thresholds.
+
+### Fail-closed behavior
+
+- Any non-finite value invalidates the plan.
+- Any unevaluated required safety metric invalidates hardware eligibility.
+- Any threshold violation invalidates the plan.
+- A failed plan must include machine-readable reasons and the offending waypoint index.
+
+### Acceptance criteria
+
+- Synthetic trajectory deviations are detected by unit tests.
+- A deliberately curved terminal path fails lateral validation.
+- A reversed-progress path fails monotonicity validation.
+- A misoriented TCP fails orientation validation.
+- A valid nominal path passes.
+
+---
+
+## Phase 5 — Execution abstraction and residual-correction seam
+
+### Objective
+
+Create interfaces that allow later hardware and RL integrations without coupling them to the planner.
+
+### Components
+
+#### `TrajectorySource`
+
+Samples the verified nominal trajectory by time or waypoint index.
+
+#### `RobotStateProvider`
+
+Returns measured joint state and timestamps. Initial implementation is a deterministic replay provider.
+
+#### `ResidualCorrector`
+
+Returns a small Cartesian correction. Initial implementation is `ZeroResidualCorrector`.
+
+#### `SafetyProjector`
+
+Projects or rejects residual corrections so that they remain inside a configured Cartesian corridor and joint-space feasibility envelope.
+
+#### `TrajectoryExecutor`
+
+Consumes a verified plan and produces commands through an injected output adapter. Initial adapter writes commands to an in-memory log only.
+
+### Hard constraints for future RL
+
+The future residual policy shall not:
+
+- alter the world model;
+- modify collision spheres;
+- change joint limits;
+- disable collision checks;
+- choose arbitrary global joint configurations;
+- exceed configured translation, rotation, velocity, or acceleration corrections;
+- run when the nominal plan is invalid;
+- continue after watchdog timeout, stale state, collision risk, or corridor violation.
+
+The safety projector must remain deterministic and outside the learned policy.
+
+### Acceptance criteria
+
+- Replaying with `ZeroResidualCorrector` reproduces the nominal command stream.
+- Unsafe synthetic corrections are clipped or rejected.
+- A correction cannot move the command outside the terminal approach corridor.
+- No physical driver dependency is present.
+
+---
+
+## Phase 6 — Randomized workspace benchmark
+
+### Objective
+
+Measure whether the planning method works consistently when targets are randomized within a declared dexterous workspace.
+
+### Benchmark input
+
+Define a configurable target-sampling region that excludes clearly unreachable or unsafe geometry. Do not label the entire geometric reach envelope as dexterous workspace without measurement.
+
+Randomize:
+
+- target position;
+- surface normal;
+- target roll constraints;
+- start joint configuration from a validated set;
+- pre-approach distance within safe bounds;
+- planner seed in a controlled seed sweep.
+
+### Benchmark stages
+
+1. A small deterministic smoke set of at least 20 cases.
+2. A regression set of at least 100 fixed cases stored as seeds and parameters.
+3. An exploratory set of at least 1,000 generated cases.
+
+### Metrics
+
+Report:
+
+- planning success rate;
+- validation pass rate;
+- success rate by workspace region;
+- success rate by surface-normal direction;
+- failure category counts;
+- selected roll distribution;
+- IK/planning time distributions;
+- maximum and percentile lateral error;
+- maximum and percentile orientation error;
+- minimum clearance distribution;
+- deterministic-repeat disagreement rate.
+
+Distinguish:
+
+- no reachable IK;
+- collision infeasibility;
+- trajectory optimization failure;
+- terminal-line validation failure;
+- orientation validation failure;
+- numerical failure;
+- configuration/model failure.
+
+### Acceptance criteria
+
+- The benchmark is reproducible from a root seed.
+- Every failed case can be replayed from a serialized request.
+- Reports are written in JSON and Markdown.
+- The benchmark never suppresses failures to inflate success rate.
+
+---
+
+## Phase 7 — Future integration boundaries only
+
+Do not implement these adapters in the initial project. Document interfaces and TODO files only.
+
+### Planned future adapters
+
+- ROS 2 joint trajectory execution
+- MyCobot 280 M5 hardware state and command adapter
+- Isaac Sim/Isaac Lab simulation adapter
+- perception adapter that supplies target point, normal, and confidence
+- residual RL policy adapter
+- force/current-based terminal contact adapter
+- online scene update adapter
+
+Each adapter must depend on the core domain interfaces. The core planner and validator must not import these external systems.
+
+---
+
+## 9. Configuration requirements
+
+All behavior-changing parameters must be configuration-driven and validated at startup.
+
+### `config/app.yml`
+
+Include:
+
+- robot config path;
+- scene config path;
+- tool frame;
+- approach axis and sign;
+- planner profile name;
+- validation profile name;
+- output path;
+- project random seed;
+- logging level.
+
+### `config/planner_profiles.yml`
+
+Include named profiles such as:
+
+- `development_fast`;
+- `validation_strict`;
+- `benchmark_reproducible`.
+
+Each profile records cuRobo seed counts, tolerances, graph settings, CUDA graph settings, collision activation distance, and goal-set size.
+
+Do not hard-code planner tolerances in application logic.
+
+---
+
+## 10. Error handling and observability
+
+Use structured exceptions for invalid configuration and environment errors. Use result objects for expected planning infeasibility.
+
+Every plan attempt shall log:
+
+- request ID;
+- target ID;
+- current joint state hash;
+- scene revision;
+- planner profile;
+- cuRobo version;
+- GPU and runtime information;
+- goal-set candidate count;
+- selected goal index and roll;
+- planner status;
+- timings;
+- validation report;
+- serialized replay data.
+
+Never log only `planning failed`. Preserve the most specific available reason.
+
+---
+
+## 11. Testing strategy
+
+### Unit tests
+
+Cover:
+
+- frame construction;
+- normal and tangent degeneracy;
+- quaternion convention;
+- roll candidate generation;
+- joint-state name reordering;
+- configuration validation;
+- lateral and orientation metrics;
+- progress monotonicity;
+- residual safety projection.
+
+### Integration tests
+
+Cover:
+
+- cuRobo import and version guard;
+- robot configuration load;
+- planner warmup;
+- FK calculation;
+- empty-scene planning;
+- obstacle-scene planning;
+- goal-set planning;
+- `plan_grasp` approach-only planning;
+- interpolated trajectory validation.
+
+Mark GPU tests explicitly so lightweight unit tests can run separately.
+
+### Regression tests
+
+Persist only compact inputs and expected metric bounds. Do not commit large generated trajectory dumps unless needed to reproduce a defect.
+
+### Test commands
+
+The project should support:
+
+```bash
+pytest tests/unit
+pytest -m gpu tests/integration
+ruff check .
+ruff format --check .
+```
+
+---
+
+## 12. Safety requirements
+
+Even before physical hardware is connected, the project shall be designed as safety-critical motion software.
+
+1. Invalid or unverified trajectories are never marked executable.
+2. Joint names and units are never inferred silently.
+3. Planning state timestamps are carried through future execution interfaces.
+4. Stale state invalidates execution.
+5. Planner collision checks are not disabled globally.
+6. Contact-link collision disabling must be explicit, narrowly scoped, and off by default.
+7. Terminal approach speed limits will be lower than free-space limits when hardware is added.
+8. Future physical execution requires independent emergency stop and robot-side limits.
+9. RL output is advisory and bounded; deterministic safety has final authority.
+10. All assumptions about robot limits, calibration, payload, and tool geometry are documented next to configuration values.
+
+---
+
+## 13. Cursor implementation workflow
+
+Cursor shall implement one phase at a time.
+
+For each phase:
+
+1. Read this specification and applicable `.cursor/rules/*.mdc` files.
+2. Create or update a phase checklist in the pull request or working notes.
+3. Inspect the exact cuRobo v0.8.0 source or official documentation before using an unfamiliar API.
+4. Add tests before or alongside implementation.
+5. Run the narrow tests for the modified module.
+6. Run the complete unit suite.
+7. Run GPU integration tests when the environment supports them.
+8. Update README usage only after tested behavior exists.
+9. Do not begin the next phase while acceptance criteria for the current phase are failing.
+10. Do not hide incomplete behavior behind a successful exit code.
+
+When cuRobo behavior differs from this document, record the discrepancy and prefer the pinned v0.8.0 source code as the technical authority. Do not silently substitute a v0.7.x example.
+
+---
+
+## 14. Definition of done for the initial project
+
+The initial project is complete when:
+
+- cuRobo v0.8.0 is version-checked and reproducible;
+- the MyCobot 280 M5 robot model loads correctly;
+- task frames are robustly generated from randomized target normals;
+- multiple roll candidates can be supplied as a goal set;
+- `plan_grasp` produces free-space and terminal approach segments;
+- the final segment is independently validated against the surface-normal line and orientation constraints;
+- failures are replayable and categorized;
+- randomized benchmarks produce JSON and Markdown reports;
+- the zero-residual execution seam is tested;
+- no ROS, Isaac, hardware-control, or RL dependency has been introduced;
+- all unit tests, required GPU tests, linting, and formatting checks pass.
+
+---
+
+## 15. Official references
+
+Use pinned v0.8.0 sources wherever possible.
+
+### cuRobo release and API baseline
+
+- cuRobo releases: https://github.com/NVlabs/curobo/releases
+- cuRobo v0.8.0 tag: https://github.com/NVlabs/curobo/tree/v0.8.0
+- cuRobo v0.8.0 README: https://github.com/NVlabs/curobo/blob/v0.8.0/README.md
+- cuRobo v0.8.0 changelog: https://github.com/NVlabs/curobo/blob/v0.8.0/CHANGELOG.md
+- cuRoboV2 paper: https://arxiv.org/abs/2603.05493
+
+### Motion planning
+
+- v0.8.0 motion-planning example: https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/examples/getting_started/motion_planning.py
+- Public motion-planner module: https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/motion_planner.py
+- MotionPlanner implementation: https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/_src/motion/motion_planner.py
+- MotionPlannerCfg implementation: https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/_src/motion/motion_planner_cfg.py
+- Motion-planner result types: https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/_src/motion/motion_planner_result.py
+- Tool-pose criteria: https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/_src/cost/tool_pose_criteria.py
+
+### Robot model and configuration
+
+- v0.8.0 Franka robot configuration example: https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/content/configs/robot/franka.yml
+- Robot-model example: https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/examples/getting_started/build_robot_model.py
+- Public types: https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/types.py
+- Robot configuration internals: https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/_src/types/robot.py
+
+### Package requirements
+
+- v0.8.0 `pyproject.toml`: https://github.com/NVlabs/curobo/blob/v0.8.0/pyproject.toml
+
+### Cursor rules
+
+- Current Cursor Rules documentation: https://cursor.com/docs/rules
+
+### Legacy documentation warning
+
+The pages at https://curobo.org/ primarily document the v0.7.x generation and are useful for concepts, but they are not the implementation authority for this project. When an example uses `MotionGen` or `curobo.wrap.reacher`, treat it as legacy unless a v0.8.0 source confirms the same API.

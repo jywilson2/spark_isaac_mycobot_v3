@@ -1,0 +1,28 @@
+---
+description: cuRobo v0.8.0 API, configuration, and constrained-approach requirements
+alwaysApply: false
+globs: "src/**/*.py,tests/**/*.py,config/**/*.yml,config/**/*.yaml,pyproject.toml,scripts/**/*.py"
+---
+
+# cuRobo v0.8.0 rules
+
+- The required version is NVIDIA cuRobo v0.8.0 (cuRoboV2), pinned to the exact tag.
+- Before using an unfamiliar API, inspect the v0.8.0 source linked in `@spec.md`.
+- Use public imports where available:
+  - `from curobo.motion_planner import MotionPlanner, MotionPlannerCfg`
+  - `from curobo.types import GoalToolPose, JointState, Pose`
+- Do not use legacy v0.7 APIs:
+  - `MotionGen`
+  - `MotionGenConfig`
+  - `MotionGenPlanConfig`
+  - `PoseCostMetric`
+  - `curobo.wrap.reacher`
+- Prefer `MotionPlanner.plan_grasp` for target-goal-set selection, pre-approach planning, and linear terminal approach.
+- For approach-only planning, set `plan_approach_to_grasp=True` and `plan_grasp_to_lift=False`.
+- Pass `disable_collision_links=[]` unless an explicitly specified contact task requires narrowly scoped collision disabling.
+- The approach-axis name and signed offset come from validated configuration. Never copy a sign from another robot example.
+- Warm up the planner before benchmark timing and reuse it while robot and scene configuration remain unchanged.
+- Respect result success tensors, segment presence, finite-value checks, and valid-last-timestep metadata.
+- A cuRobo success result is not sufficient; run the FK-based validator on the interpolated terminal trajectory.
+- Collision spheres represent static robot geometry and configured buffers. Do not animate or reposition them to shape a trajectory.
+- Do not switch IK or planning algorithms based solely on distance to the target.

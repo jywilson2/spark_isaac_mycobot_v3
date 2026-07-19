@@ -1,0 +1,20 @@
+---
+description: Safety, trajectory validation, residual-control boundaries, and test requirements
+alwaysApply: false
+globs: "src/**/*.py,tests/**/*.py,config/**/*.yml,config/**/*.yaml,scripts/**/*.py"
+---
+
+# Safety and validation rules
+
+- Fail closed on non-finite values, invalid frames, invalid joint names, unknown units, stale state, or unevaluated required safety metrics.
+- Validate the interpolated terminal trajectory waypoint-by-waypoint using FK.
+- At minimum validate lateral line error, TCP approach-axis error, monotonic target progress, terminal pose error, joint limits, and available collision clearance.
+- Report the first offending waypoint and all applicable failure categories.
+- Do not silently clamp target vectors, joint states, quaternions, planner outputs, or validation metrics.
+- Any future residual correction is bounded and processed by deterministic `SafetyProjector` logic outside the learned policy.
+- The initial residual implementation is zero output. Do not add an RL package without a later specification.
+- Never let residual logic disable collision checking, modify collision geometry, change joint limits, or choose a global joint configuration.
+- Tests must include negative cases that deliberately violate each critical constraint.
+- GPU integration tests must be marked separately from lightweight unit tests.
+- Every randomized test and benchmark must record a seed and enough input data for exact replay.
+- Do not claim physical-robot accuracy from simulation-only thresholds or results.

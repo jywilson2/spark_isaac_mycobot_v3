@@ -1,0 +1,39 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Phase reports are generated at runtime. Compact regression fixtures may be
+# committed explicitly under tests/data/.
+artifacts/*
+!artifacts/.gitkeep
+!artifacts/plans/
+!artifacts/reports/
+!artifacts/benchmarks/
+artifacts/plans/*
+artifacts/reports/*
+artifacts/benchmarks/*
+!artifacts/plans/.gitkeep
+!artifacts/reports/.gitkeep
+!artifacts/benchmarks/.gitkeep
+
+# Robot assets are introduced with provenance during Phase 1. Ignore local
+# vendor checkouts and generated conversions.
+third_party/
+*.usd
+*.usda
+*.usdc
+
+.DS_Store
+*.swp
+.idea/
+.vscode/
