@@ -33,6 +33,13 @@ third_party/
 *.usda
 *.usdc
 
+# Host Isaac Sim logs (keep directory placeholder).
+assets/logs/isaac_host/*
+!assets/logs/isaac_host/.gitkeep
+
+# Generated Isaac-ready URDF + mesh copies (from prepare_robot_assets).
+assets/mycobot_280_m5/prepared/
+
 .DS_Store
 *.swp
 .idea/

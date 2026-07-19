@@ -6,7 +6,8 @@ alwaysApply: true
 
 - Read `@spec.md` before changing architecture, planning behavior, frame conventions, configuration, or safety logic.
 - Implement one specification phase at a time and satisfy its acceptance criteria before starting the next phase.
-- Keep the core package independent of ROS 2, Isaac Sim, Isaac Lab, physical MyCobot drivers, sensors, and RL frameworks.
+- Keep the core `mycobot_curobo` package independent of ROS 2, Isaac Sim, Isaac Lab, physical MyCobot drivers, sensors, and RL frameworks. Host-side Isaac scaffolding under `isaac_sim/` and `scripts/host/` is allowed for Phase 7+ but must not become a Phase 0–6 runtime dependency.
+- Follow `docs/implementation_phases.md` for the Phase 0–10 roadmap (Isaac Sim, residual RL, hardware).
 - Use typed domain objects instead of unstructured dictionaries across core module boundaries.
 - Keep units explicit: meters, radians, seconds, and scalar-first `wxyz` quaternions.
 - Never infer frame names, joint order, units, or TCP calibration silently.

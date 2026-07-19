@@ -15,6 +15,9 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 **Phase 0 — repository bootstrap and environment verification.**
 
+Full roadmap (Phases 0–10, including Isaac Sim, residual RL, and physical
+hardware): [`docs/implementation_phases.md`](docs/implementation_phases.md).
+
 Implemented now:
 
 - Python `src/` package layout;
@@ -23,17 +26,18 @@ Implemented now:
 - CUDA tensor-allocation check;
 - machine-readable environment report;
 - lightweight unit tests and a separately marked GPU import smoke test;
-- ruff lint/format configuration.
+- ruff lint/format configuration;
+- Phase 7 Isaac Sim **scaffolding** (host scripts, URDF helpers, vendor obtain).
 
 Not implemented in Phase 0:
 
-- robot model or collision-sphere configuration;
-- target-frame generation;
-- motion planning or trajectory validation;
-- ROS 2, Isaac Sim/Lab, physical hardware, sensors, or RL.
+- robot model or collision-sphere configuration (Phase 1);
+- target-frame generation / planning / validation (Phases 2–4);
+- residual seam, benchmarks (Phases 5–6);
+- Isaac closed-loop player, residual RL training, hardware motion (Phases 7–10).
 
 See [`STATUS.md`](STATUS.md) for acceptance status and [`CHANGES.md`](CHANGES.md)
-for the bootstrap inventory.
+for the change inventory.
 
 ## Install
 
@@ -83,12 +87,31 @@ The verifier records:
 It exits nonzero if the exact cuRobo baseline, required public APIs, CUDA, or
 GPU allocation are unavailable.
 
+## Isaac Sim scaffolding (Phase 7+)
+
+Optional host tooling adapted from v2. Not required for Phase 0 unit tests.
+
+```bash
+./scripts/download_mycobot_ros2.sh          # vendor URDF + meshes (local)
+./scripts/host/check_prereqs.sh             # host: Isaac python.sh + URDF
+./scripts/convert_urdf_to_usd.sh            # host: URDF → USD
+./scripts/host/launch_isaac_sim.sh          # host: empty-stage GUI
+# From the Isaac ROS container:
+./scripts/host/spark_host_exec.sh ./scripts/host/check_prereqs.sh
+```
+
+Install cuRobo **v0.8.0** into the Isaac Sim Python env when ready:
+
+```bash
+./scripts/host/install_curobo.sh
+```
+
 ## Safety boundary
 
 This project currently plans and validates only; it does not command a robot.
-Later plans are not executable until independent waypoint-by-waypoint
-validation passes. Future residual corrections remain bounded and subordinate
-to deterministic safety logic.
+Plans are not executable until independent waypoint-by-waypoint validation
+passes. Residual RL (Phase 8) remains bounded and subordinate to deterministic
+safety logic. Physical motion (Phases 9–10) is gated and dry-run by default.
 
 ## Branch policy
 

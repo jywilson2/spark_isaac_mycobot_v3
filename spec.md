@@ -5,7 +5,7 @@
 **Document status:** Initial implementation specification  
 **Primary robot:** Elephant Robotics MyCobot 280 M5  
 **Primary motion-planning dependency:** NVIDIA cuRobo **v0.8.0 (cuRoboV2)**  
-**Scope:** Deterministic, collision-aware motion planning with a controlled surface-normal approach. The architecture must expose safe extension points for residual reinforcement learning and hardware integration, but those systems are intentionally not implemented in the initial phases.
+**Scope:** Deterministic, collision-aware motion planning with a controlled surface-normal approach. The architecture must expose safe extension points for residual reinforcement learning and hardware integration. Phases 0–6 implement the initial planner; Phases 7–10 cover Isaac Sim validation, bounded residual RL, and physical MyCobot 280 M5 testing (see §8 and `docs/implementation_phases.md`).
 
 ---
 
@@ -25,12 +25,12 @@ This project must replace obstacle-based path shaping and distance-dependent IK 
 
 ---
 
-## 2. Non-goals for the initial implementation
+## 2. Non-goals for the initial implementation (Phases 0–6)
 
-Do **not** add or implement the following until a later specification explicitly requests them:
+Do **not** implement the following inside the core `mycobot_curobo` planner path during Phases 0–6. Host-side Isaac scaffolding (scripts/assets) may be staged early for Phase 7, but must remain optional and unused by Phase 0–6 acceptance tests:
 
 - ROS 2 integration
-- Isaac Sim or Isaac Lab integration
+- Isaac Sim or Isaac Lab **runtime** integration in the core package
 - Physical MyCobot serial or network control
 - `pymycobot`
 - Camera, depth, force, tactile, or motor-current sensing
@@ -38,6 +38,8 @@ Do **not** add or implement the following until a later specification explicitly
 - Online learning
 - Dynamic obstacle tracking
 - Contact-rich manipulation
+
+Phases 7–10 explicitly schedule Isaac Sim, residual RL, hardware dry-run, and physical validation.
 - A graphical user interface
 - A general task planner
 
@@ -327,9 +329,12 @@ The interface exists to prevent future RL code from being coupled directly into 
 │   └── robots/
 │       └── mycobot_280_m5.yml
 ├── assets/
-│   └── mycobot_280_m5/
-│       ├── urdf/
-│       └── meshes/
+│   ├── mycobot_280_m5/
+│   │   ├── urdf/
+│   │   └── meshes/
+│   ├── usd/                    # generated; gitignored
+│   └── logs/isaac_host/        # host Isaac logs; gitignored content
+├── isaac_sim/                  # Phase 7+ host helpers (optional for Phases 0–6)
 ├── src/
 │   └── mycobot_curobo/
 │       ├── __init__.py
@@ -356,7 +361,13 @@ The interface exists to prevent future RL code from being coupled directly into 
 │   ├── verify_environment.py
 │   ├── inspect_robot_model.py
 │   ├── plan_single_target.py
-│   └── benchmark_random_targets.py
+│   ├── benchmark_random_targets.py
+│   ├── isaac_sim_env.sh
+│   ├── download_mycobot_ros2.sh
+│   ├── convert_urdf_to_usd.sh
+│   └── host/                   # DGX Spark / native Isaac Sim launchers
+├── docs/
+│   └── implementation_phases.md
 └── artifacts/
     ├── plans/
     ├── reports/
@@ -795,21 +806,121 @@ Distinguish:
 
 ---
 
-## Phase 7 — Future integration boundaries only
+## Phase 7 — Isaac Sim closed-loop visualization and sim validation
 
-Do not implement these adapters in the initial project. Document interfaces and TODO files only.
+### Objective
 
-### Planned future adapters
+Visualize and closed-loop-validate Phase 3–6 plans in Isaac Sim on the DGX Spark host without moving planning authority out of cuRobo.
+
+### Tasks
+
+1. Obtain vendor URDF + meshes (`scripts/download_mycobot_ros2.sh`).
+2. Convert/import MyCobot into USD using `isaac_sim/` helpers (Isaac 6.x workarounds retained).
+3. Play validated `NominalPlan` joint trajectories in headless and GUI modes.
+4. Report sim tip / orientation metrics separately from cuRobo planning metrics.
+5. Keep Kit/python.sh resolution on the host (`scripts/isaac_sim_env.sh`, `scripts/host/*`).
+
+### Design constraints
+
+- Core `mycobot_curobo` modules must not import Isaac Kit APIs.
+- Prefer host execution; container may only delegate via `spark_host_exec.sh`.
+- Simulation thresholds are sim metrics only — never claim physical accuracy.
+
+### Acceptance criteria
+
+- Host prereq check finds Isaac Sim `python.sh` and vendor URDF.
+- Headless smoke loads the robot and plays at least one validated plan.
+- GUI smoke exits 0 when required by the project verification gate for that change set.
+- Failures remain fail-closed: invalid plans are not marked executable because Isaac played them.
+
+---
+
+## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
+
+### Objective
+
+Train and evaluate a residual policy that improves approach metrics under model mismatch while preserving cuRobo as the primary planner.
+
+Residual RL is in scope because this architecture already separates nominal planning from a bounded correction seam (Phase 5 / §4.6 / §6.5). End-to-end learned IK is not an acceptable substitute.
+
+### Tasks
+
+1. Implement a non-zero `ResidualCorrector` behind the Phase 5 protocol.
+2. Train only in Isaac Lab / Isaac Sim; never command the physical arm during training.
+3. Clamp corrections through `SafetyProjector` (Cartesian and/or small joint residual as configured).
+4. Compare residual vs `ZeroResidualCorrector` on Phase 6 scenes in simulation.
+5. On any validation failure after correction: fall back to nominal plan or no motion.
+
+### Hard constraints
+
+- Deployed path remains: nominal cuRobo plan → optional clamped residual → independent validation.
+- No policy may map target pose → full 6-DOF joints as the primary hardware or sim control path.
+- Checkpoints are advisory; deterministic validation has final authority.
+
+### Acceptance criteria
+
+- Training and eval scripts run only in sim.
+- Residual bounds are configuration-driven and tested.
+- Benchmark reports show residual-on vs residual-off with clear sim-only labeling.
+- Physical hardware is never moved by the training loop.
+
+---
+
+## Phase 9 — Hardware interface and dry-run execution
+
+### Objective
+
+Expose a MyCobot 280 M5 state/command adapter that consumes validated plans with motion disabled by default.
+
+### Tasks
+
+1. Define hardware adapter interfaces that depend on domain types only.
+2. Implement dry-run logging of intended joint commands without serial/network motion.
+3. Gate any live command path behind an explicit environment flag (e.g. `ENABLE_MYCOBOT_HARDWARE_TESTS=1`).
+4. Carry planning timestamps; reject stale state.
+5. Document e-stop and robot-side limit assumptions next to configuration.
+
+### Acceptance criteria
+
+- Default tests and launches never move the arm.
+- Dry-run tests cover command formatting, joint-name ordering, and stale-state rejection.
+- Core planner/validator do not import `pymycobot` or serial stacks.
+
+---
+
+## Phase 10 — Physical MyCobot 280 M5 validation
+
+### Objective
+
+Run gated on-robot trials that measure approach success and safe failure behavior on a real MyCobot 280 M5.
+
+### Tasks
+
+1. Publish a hardware test plan (workspace envelope, reduced speeds, operator presence).
+2. Execute zero-residual baseline trials before any residual-enabled trials.
+3. Log target, plan status, validation report, residual mode, and measured tip error when instrumented.
+4. Separate hardware metrics from Phase 6/7 sim reports in all documentation.
+5. Optionally evaluate Phase 8 residuals only after the zero-residual baseline is recorded.
+
+### Acceptance criteria
+
+- Live motion requires the explicit hardware enable flag and operator acknowledgment.
+- No unsupervised online RL on the physical arm.
+- Documentation does not claim sub-millimeter accuracy without measured hardware evidence.
+- Validation failures produce no motion (or a documented safe abort), never unsafe residuals.
+
+---
+
+## Remaining future adapters (not yet phased)
+
+Document interfaces only until a later change set schedules them:
 
 - ROS 2 joint trajectory execution
-- MyCobot 280 M5 hardware state and command adapter
-- Isaac Sim/Isaac Lab simulation adapter
-- perception adapter that supplies target point, normal, and confidence
-- residual RL policy adapter
+- perception adapter (point, normal, confidence)
 - force/current-based terminal contact adapter
 - online scene update adapter
 
-Each adapter must depend on the core domain interfaces. The core planner and validator must not import these external systems.
+Each adapter must depend on core domain interfaces. The core planner and validator must not import these external systems.
 
 ---
 
@@ -958,7 +1069,7 @@ When cuRobo behavior differs from this document, record the discrepancy and pref
 
 ## 14. Definition of done for the initial project
 
-The initial project is complete when:
+The **initial project** (Phases 0–6) is complete when:
 
 - cuRobo v0.8.0 is version-checked and reproducible;
 - the MyCobot 280 M5 robot model loads correctly;
@@ -969,8 +1080,10 @@ The initial project is complete when:
 - failures are replayable and categorized;
 - randomized benchmarks produce JSON and Markdown reports;
 - the zero-residual execution seam is tested;
-- no ROS, Isaac, hardware-control, or RL dependency has been introduced;
+- the core `mycobot_curobo` package has no ROS, Isaac Kit, hardware-control, or RL runtime dependency;
 - all unit tests, required GPU tests, linting, and formatting checks pass.
+
+Phases 7–10 are complete only when their own acceptance criteria in §8 are met. Host-side Isaac scaffolding may exist earlier without counting as Phase 7 completion.
 
 ---
 

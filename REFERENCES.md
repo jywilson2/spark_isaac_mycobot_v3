@@ -30,11 +30,29 @@ implementation authority for this project.
 - **Ruff configuration**  
   <https://docs.astral.sh/ruff/configuration/>
 
-## Future Phase 1 asset sources
+## Phase 1 asset sources
 
 - **Elephant Robotics `mycobot_ros2`**  
   <https://github.com/elephantrobotics/mycobot_ros2>  
-  Candidate source for MyCobot 280 M5 URDF and meshes. No asset is copied into
-  v3 until the exact model, revision, license, joint limits, and TCP transform
-  are reviewed and recorded.
+  Vendor URDF + meshes. Obtained locally via `scripts/download_mycobot_ros2.sh`
+  into gitignored `third_party/`. Staging kinematics/cuRobo URDFs under
+  `assets/mycobot_280_m5/urdf/` still require Phase 1 provenance review.
+
+## Phase 7 Isaac Sim libraries / host tooling
+
+- **Isaac Sim host `python.sh` resolution** — `scripts/isaac_sim_env.sh`
+- **Container → host delegation** — `scripts/host/spark_host_exec.sh`
+- **URDF import workarounds** — `isaac_sim/urdf_utils.py` (package://, COLLADA GUID)
+- **Joint drive gains (sim)** — `config/robots/joint_drives.yaml`
+
+## Phase 8 residual RL (planned)
+
+- Training only in Isaac Lab / Isaac Sim; residual must use Phase 5
+  `ResidualCorrector` + `SafetyProjector` contracts in `spec.md` §4.6 / §6.5.
+- No e2e pose→joints primary policy.
+
+## Phases 9–10 hardware (planned)
+
+- Physical MyCobot 280 M5 via gated adapter; default dry-run; enable flag required
+  for live motion. Do not claim hardware accuracy from sim metrics.
 
