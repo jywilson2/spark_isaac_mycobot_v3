@@ -75,7 +75,10 @@ flowchart LR
 
 **Objective:** `MotionPlanner.plan_grasp` owns free-space + terminal approach.
 
-**Deliverables:** Planner factory, lifecycle (warmup/dispose), result mapping, optional fallback only as documented.
+**Deliverables:** Planner factory, fresh-backend-per-`plan_grasp` lifecycle for
+the pinned v0.8.0 runtime, result mapping, and optional fallback only as
+documented. Reuse may return only after a future pinned version passes the GPU
+repeated-call regression.
 
 **Must not:** Legacy `MotionGen`, moving collision spheres for path shaping, distance-only planner switching.
 

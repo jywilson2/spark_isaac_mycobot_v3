@@ -1,0 +1,47 @@
+# cuRoboV2 MotionPlanner profiles. All planner behavior is recorded by name.
+profiles:
+  development_fast:
+    self_collision_check: true
+    num_ik_seeds: 16
+    num_trajopt_seeds: 2
+    position_tolerance_m: 0.005
+    orientation_tolerance_rad: 0.05
+    use_cuda_graph: false
+    random_seed: 123
+    optimizer_collision_activation_distance_m: 0.001
+    max_batch_size: 1
+    multi_env: false
+    max_goalset: 8
+    warmup_iterations: 1
+    enable_graph_warmup: false
+    max_plan_grasp_attempts: 2
+  validation_strict:
+    self_collision_check: true
+    num_ik_seeds: 32
+    num_trajopt_seeds: 4
+    position_tolerance_m: 0.005
+    orientation_tolerance_rad: 0.05
+    use_cuda_graph: true
+    random_seed: 123
+    optimizer_collision_activation_distance_m: 0.001
+    max_batch_size: 1
+    multi_env: false
+    max_goalset: 8
+    warmup_iterations: 2
+    enable_graph_warmup: true
+    max_plan_grasp_attempts: 2
+  benchmark_reproducible:
+    self_collision_check: true
+    num_ik_seeds: 32
+    num_trajopt_seeds: 4
+    position_tolerance_m: 0.005
+    orientation_tolerance_rad: 0.05
+    use_cuda_graph: false
+    random_seed: 123
+    optimizer_collision_activation_distance_m: 0.001
+    max_batch_size: 1
+    multi_env: false
+    max_goalset: 8
+    warmup_iterations: 2
+    enable_graph_warmup: false
+    max_plan_grasp_attempts: 2

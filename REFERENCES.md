@@ -67,6 +67,21 @@ compute-capability warning is retained in that report and is not suppressed.
   Defines `[batch, horizon, links, goalset, 3/4]` shape and ordered tool-frame
   conversion. The project calls the class through `curobo.types`.
 
+## Phase 3 nominal-planning APIs
+
+- **cuRobo v0.8.0 `MotionPlanner.plan_grasp`**
+  <https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/motion_planner.py>
+  Authority for approach-only arguments, separate approach/grasp trajectories,
+  goal-set selection, and valid-last-timestep fields.
+- **cuRobo v0.8.0 tool-pose criteria**
+  <https://github.com/NVlabs/curobo/blob/v0.8.0/curobo/_src/wrap/reacher/tool_pose_reacher.py>
+  Internal implementation reference used to diagnose planner-state mutation;
+  project code does not import this private module.
+- **Project compatibility decision**
+  [`docs/phase3_nominal_planning.md`](docs/phase3_nominal_planning.md)
+  Records the observed repeated-call failure and the selected policy: one fresh
+  `MotionPlanner` per `plan_grasp` call, including retries.
+
 ## Phase 7 Isaac Sim libraries / host tooling
 
 - **Isaac Sim host `python.sh` resolution** — `scripts/isaac_sim_env.sh`

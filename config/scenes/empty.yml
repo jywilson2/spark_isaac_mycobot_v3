@@ -1,0 +1,7 @@
+# Empty planning world for deterministic kinematics/planner acceptance tests.
+# Robot self-collision remains enabled by the planner profile.
+cuboid: {}
+mesh: {}
+sphere: {}
+cylinder: {}
+capsule: {}

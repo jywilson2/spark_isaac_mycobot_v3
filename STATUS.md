@@ -1,10 +1,10 @@
 # STATUS — MyCobot 280 M5 Constrained Approach Planner
 
-Last updated: **2026-07-18**
+Last updated: **2026-07-19**
 
 ## Current phase
 
-**Phase 2 — surface target and task-frame generation: COMPLETE**
+**Phase 3 — cuRobo nominal planning: COMPLETE**
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–10)
@@ -19,7 +19,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 0 | Env / version guard | **Complete** |
 | 1 | Robot model + spheres | **Complete** |
 | 2 | Task frames / roll goals | **Complete** |
-| 3 | `plan_grasp` nominal planning | Not started |
+| 3 | `plan_grasp` nominal planning | **Complete** |
 | 4 | Independent validation | Not started |
 | 5 | Execution + zero residual seam | Not started |
 | 6 | Randomized benchmark | Not started |
@@ -49,6 +49,9 @@ planning-success claims, or hardware-readiness claims carry forward.
 - Phase 2 typed surface targets, configurable signed tool-axis conventions,
   robust tangent fallback, deterministic roll generation, rotation/quaternion
   validation, goal-index mapping, and public cuRobo `GoalToolPose` conversion.
+- Phase 3 approach-only `plan_grasp` adapter, typed plans/failures, valid
+  trajectory extraction, selected-roll mapping, planner profiles, empty scene,
+  and a fresh planner backend for every v0.8.0 call and retry.
 
 ## Acceptance checklist (Phase 0)
 
@@ -101,8 +104,23 @@ tracked with provenance; vendor meshes remain obtained into gitignored
 - [x] Three-roll public cuRoboV2 `GoalToolPose` conversion passes on GPU.
 - [x] Phase 2 unit tests pass (22 tests); cumulative lightweight suite passes.
 
+## Acceptance checklist (Phase 3)
+
+- [x] Reachable seeded target produces free-space and terminal trajectories.
+- [x] Selected goal index maps to the configured roll candidate.
+- [x] Padded/non-finite samples are excluded or fail closed.
+- [x] Terminal TCP samples remain within 5 mm of the target-normal line.
+- [x] Identical seeded requests use distinct planner instances and reproduce
+      approach trajectories and terminal FK pose within defined tolerances.
+- [x] Expected infeasibility and malformed backend output return structured
+      failure categories.
+- [x] All returned plans remain non-executable pending Phase 4 validation.
+- [x] Cumulative unit suite passes (61 tests); Phase 3 GPU regression passes
+      (1 test on NVIDIA GB10).
+- [x] No physical robot command is issued.
+
 ## Next step
 
-Land the tested Phase 2 commit on `wip_phase2`, rebase/fast-forward `main`, then
-create `wip_phase3` from updated `main`. Phase 3 implements the cuRoboV2
-`MotionPlanner.plan_grasp` adapter and structured nominal-plan results.
+Land the tested Phase 3 commit on `wip_phase3`, rebase/fast-forward `main`, then
+create `wip_phase4` from updated `main`. Phase 4 independently validates every
+trajectory waypoint before any plan may become executable.

@@ -1,5 +1,36 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-19 — Phase 3 nominal planning
+
+### Enumerated changes
+
+1. Added typed planning requests, named joint states, planner profiles, nominal
+   plans, structured failures, and fail-closed outcomes.
+2. Added the public cuRobo v0.8.0 `MotionPlanner.plan_grasp` adapter with
+   approach-only options and signed TCP-axis pre-approach offsets.
+3. Added valid-last-timestep trajectory extraction, finite checks, segment
+   continuity enforcement, concatenation, and stable selected-roll mapping.
+4. Added YAML planner profiles and an empty deterministic planning scene.
+5. Adopted the user-selected reliability policy of constructing a fresh
+   `MotionPlanner` for every `plan_grasp` call and retry after GPU tests showed
+   unsafe state mutation when a v0.8.0 instance was reused.
+6. Added CPU orchestration/error tests and a DGX Spark GPU regression covering
+   two-segment planning, distinct backend instances, seeded reproducibility,
+   endpoint FK, and the target-normal line constraint.
+7. Added `docs/phase3_nominal_planning.md`, updated the authoritative lifecycle
+   in `spec.md`, and synchronized README, references, status, roadmap, exports,
+   change inventory, and prompt history.
+
+### Review recommended
+
+- **Planner latency:** fresh construction is intentionally slower than warmed
+  reuse. Measure it in Phase 6, but do not restore reuse without a future
+  pinned cuRobo version passing the lifecycle regression.
+- **Validation boundary:** Phase 3 plans remain non-executable. Review Phase 4
+  geometry, collision, limits, and smoothness validation before execution.
+
+---
+
 ## 2026-07-18 — Phase 2 task frames
 
 ### Enumerated changes

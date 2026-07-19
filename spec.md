@@ -579,10 +579,14 @@ Treat these as an initial profile, not universal constants. Store values in YAML
 ### Planner lifecycle
 
 - Construct planners through one application-owned factory.
-- Warm up the planner before benchmark timing.
-- Reuse a warmed planner when robot and scene configuration are unchanged.
-- Recreate or deliberately update planner state when configuration changes.
-- Do not create a new planner per target.
+- For the pinned cuRobo v0.8.0 runtime, create a fresh `MotionPlanner` for every
+  `plan_grasp` call, including retries. Phase 3 GPU regression testing found
+  that reusing one instance mutates optimizer/tool-criteria state and can
+  produce shortened trajectories or later failures.
+- Treat planner construction/warmup latency as part of request wall time.
+- Do not reuse a planner merely because robot and scene configuration are
+  unchanged. Revisit this reliability-first exception only after a future
+  pinned cuRobo version passes the same repeated-call regression.
 - Use a fixed random seed for reproducible tests.
 - Permit a separate seed sweep in benchmarking.
 
@@ -615,6 +619,7 @@ Do not reintroduce legacy `PoseCostMetric` APIs. The fallback must pass the same
 - Goal-set selection returns the associated roll candidate.
 - The terminal segment remains near the target-normal line.
 - Repeated calls with the same seed and input are reproducible within defined tolerance.
+- Regression evidence confirms each `plan_grasp` call uses a distinct planner instance.
 - Planning failures return structured reasons rather than exceptions from normal infeasibility.
 
 ---

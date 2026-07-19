@@ -1,5 +1,21 @@
 # The last prompt executed in the Cursor Agent window:
 
+## BEGIN: 2026-07-19 01:35 -0700
+Item 2 (of the three items in the question)
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-19 00:33 -0700
+What does this mean: "Pinned v0.8.0 compatibility patch with regression tests (recommended)"
+## END
+
+## BEGIN: 2026-07-19 00:31 -0700
+What does this mean:
+
+"uRobo v0.8.0 MotionPlanner.plan_grasp does not safely reuse a warmed planner"
+## END
+
 ## BEGIN: 2026-07-18 19:22 -0700
 Continue development for Phases 0 through 6 in the version 3 repo.
 
@@ -15,8 +31,6 @@ Add the latter version control policy to the cursor rules file or spec.md (if ap
 
 Iterate on all changes to resolve bugs and continue development.
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-18 19:03 -0700
 For the v3 project, define separate implementation phases to satisfy the requirements in @spark_isaac_mycobot_v3/spec.md .

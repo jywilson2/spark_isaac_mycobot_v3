@@ -13,7 +13,7 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 ## Current phase
 
-**Phase 2 — surface target and task-frame generation: complete.**
+**Phase 3 — cuRobo nominal planning: complete.**
 
 Full roadmap (Phases 0–10, including Isaac Sim, residual RL, and physical
 hardware): [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -32,11 +32,13 @@ Implemented now:
 - static collision spheres, self-collision config, and GPU planner warmup;
 - typed surface targets and deterministic configurable roll goal sets;
 - public cuRoboV2 `GoalToolPose` conversion;
+- structured `plan_grasp` nominal plans with finite trajectory extraction,
+  selected-roll mapping, and fresh planner construction for every backend call;
 - Phase 7 Isaac Sim **scaffolding** (host scripts, URDF helpers, vendor obtain).
 
-Not implemented through Phase 2:
+Not implemented through Phase 3:
 
-- nominal planning / independent validation (Phases 3–4);
+- independent trajectory validation (Phase 4);
 - residual seam, benchmarks (Phases 5–6);
 - Isaac closed-loop player, residual RL training, hardware motion (Phases 7–10).
 
@@ -136,6 +138,44 @@ The default signed axis is tool Z × -1 and the desired motion direction is
 against the outward normal. Defaults and roll angles come from
 `config/app.yml`; see
 [`docs/phase2_task_frames.md`](docs/phase2_task_frames.md).
+
+## Plan a Phase 3 nominal approach
+
+`NominalPlanner` accepts a backend factory, not a reusable backend. The pinned
+cuRobo v0.8.0 runtime changed internal optimizer/tool-criteria state after
+`plan_grasp`; repeated use could shorten or fail later trajectories. Every
+request and retry therefore constructs a fresh planner:
+
+```python
+from mycobot_curobo import (
+    NominalPlanner,
+    TaskFrameConfig,
+    create_curobo_planner,
+    load_planner_profile,
+)
+
+profile = load_planner_profile("development_fast")
+planner = NominalPlanner(
+    lambda: create_curobo_planner(profile, warmup=False),
+    profile,
+    task_frame_config=TaskFrameConfig(),
+)
+outcome = planner.plan(request)
+```
+
+This reliability-first lifecycle includes planner construction in request wall
+time. Returned plans remain `executable=False` until Phase 4 independently
+validates every waypoint. See
+[`docs/phase3_nominal_planning.md`](docs/phase3_nominal_planning.md).
+
+### Phase 3 implementation libraries
+
+| Library | Pinned use |
+|---|---|
+| NVIDIA cuRobo v0.8.0 | `MotionPlanner`, `MotionPlannerCfg`, `plan_grasp`, `JointState` |
+| NumPy | fail-closed tensor conversion and trajectory validation |
+| PyYAML | planner-profile and empty-scene configuration |
+| pytest | CPU orchestration tests and GPU lifecycle regression |
 
 ## Isaac Sim scaffolding (Phase 7+)
 
