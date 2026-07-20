@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
 import traceback
 from dataclasses import asdict, replace
@@ -23,6 +24,7 @@ for candidate in (REPO_ROOT, REPO_ROOT / "src"):
 
 # Kit needs a few post-open updates before stage queries are reliable.
 STAGE_SETTLE_UPDATES = 10
+GUI_VIEWPORT_SETTLE_STEPS = 30
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -31,13 +33,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
     parser.add_argument("--usd", type=Path)
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--headless", action="store_true", default=True)
-    mode.add_argument("--gui", action="store_true")
+    mode.add_argument("--headless", action="store_false", dest="gui")
+    mode.add_argument("--gui", action="store_true", dest="gui")
+    parser.set_defaults(gui=False)
     exit_mode = parser.add_mutually_exclusive_group()
     exit_mode.add_argument("--auto-exit", action="store_true", default=True)
     exit_mode.add_argument("--no-auto-exit", action="store_false", dest="auto_exit")
     parser.add_argument("--output-report", type=Path, required=True)
-    parser.add_argument("--hold-s", type=float, default=0.5)
+    parser.add_argument("--hold-s", type=float, default=None)
     return parser.parse_args(argv)
 
 
@@ -45,6 +48,7 @@ def _empty_report_payload() -> dict[str, Any]:
     return {
         "schema_version": 1,
         "lighting_ready": False,
+        "stage_lighting_mode": False,
         "joint_playback_completed": False,
         "tip_metrics_status": "not_evaluated",
         "tip_position_error_m": None,
@@ -115,8 +119,8 @@ def _play_validated_episodes(
     from isaac_sim.scene_setup import (
         IsaacLightingConfig,
         add_cube_prim,
-        add_scene_lighting,
-        lighting_ready,
+        prepare_illuminated_stage,
+        stage_lighting_mode_active,
     )
     from mycobot_curobo.benchmark import FailureCategory
     from mycobot_curobo.cube_suite import (
@@ -191,17 +195,30 @@ def _play_validated_episodes(
     for _ in range(STAGE_SETTLE_UPDATES):
         app.update()
     stage = context.get_stage()
-    lighting_paths = add_scene_lighting(stage, lighting_config)
-    lighting_ok = lighting_ready(stage, lighting_paths)
+    _lighting_paths, lighting_ok = prepare_illuminated_stage(stage, lighting_config)
     if not lighting_ok:
         raise RuntimeError("Phase 7.1 lighting prims were not created")
-    print("phase7_1_playback: lighting_ready", flush=True)
+    print(
+        "phase7_1_playback: lighting_ready "
+        f"stage_lighting_mode={stage_lighting_mode_active()}",
+        flush=True,
+    )
 
     world = World(stage_units_in_meters=1.0)
     robot_root = _find_articulation_root(stage)
     robot = world.scene.add(SingleArticulation(prim_path=robot_root, name="mycobot_phase7_1"))
     world.reset()
+    # World.reset can restore camera/rig lighting; re-enable stage lights.
+    prepare_illuminated_stage(stage, lighting_config)
     robot.initialize()
+    if args.gui:
+        for _ in range(GUI_VIEWPORT_SETTLE_STEPS):
+            world.step(render=True)
+        print(
+            "phase7_1_playback: GUI viewport settled "
+            f"(DISPLAY={os.environ.get('DISPLAY', '')!r})",
+            flush=True,
+        )
     dof_names = tuple(str(name) for name in robot.dof_names)
     physics_dt_s = world.get_physics_dt()
 
@@ -262,6 +279,10 @@ def _play_validated_episodes(
         print(format_episode_console_row(results[index], count=len(results)), flush=True)
 
     if not args.auto_exit:
+        print(
+            "phase7_1_playback: holding GUI open (--no-auto-exit); close the window to finish",
+            flush=True,
+        )
         while app.is_running():
             world.step(render=True)
 
@@ -272,6 +293,7 @@ def _play_validated_episodes(
     return {
         "schema_version": 1,
         "lighting_ready": lighting_ok,
+        "stage_lighting_mode": stage_lighting_mode_active(),
         "joint_playback_completed": (
             all(result.isaac_prohibited_contacts is not None for result in executable)
             if executable
@@ -289,6 +311,8 @@ def _play_validated_episodes(
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.hold_s is None:
+        args.hold_s = 2.0 if args.gui else 0.5
     if args.hold_s < 0.0 or not math.isfinite(args.hold_s):
         raise ValueError("--hold-s must be finite and non-negative")
     if not args.bundle.is_file():
@@ -299,7 +323,19 @@ def main(argv: list[str] | None = None) -> int:
     # Launch Kit before importing project modules that might pull CUDA/Warp helpers.
     from isaacsim import SimulationApp
 
-    app = SimulationApp({"headless": not args.gui})
+    if args.gui:
+        print(
+            f"phase7_1_playback: opening Isaac Sim GUI on DISPLAY={os.environ.get('DISPLAY', '')!r}",
+            flush=True,
+        )
+    app = SimulationApp(
+        {
+            "headless": not args.gui,
+            "width": 1280,
+            "height": 720,
+        }
+    )
+    exit_code = 1
     try:
         payload = _play_validated_episodes(app=app, args=args)
         lighting_ok = bool(payload.get("lighting_ready"))
@@ -309,6 +345,16 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         # Write evidence before close(): Kit shutdown can terminate the process
         # before statements after close() run.
+        if payload.get("error"):
+            exit_code = 2
+        else:
+            summary = payload.get("summary") or {}
+            exit_code = (
+                0
+                if summary.get("successes") == summary.get("total_episodes") and lighting_ok
+                else 1
+            )
+        payload["exit_code"] = exit_code
         _write_report(args.output_report, payload)
         print(
             json.dumps({"summary": payload.get("summary"), "report": str(args.output_report)}),
@@ -318,10 +364,7 @@ def main(argv: list[str] | None = None) -> int:
             app.close()
         except Exception as close_exc:  # noqa: BLE001
             print(f"warning: SimulationApp.close failed: {close_exc}", flush=True)
-    if payload.get("error"):
-        return 2
-    summary = payload["summary"]
-    return 0 if summary.get("successes") == summary.get("total_episodes") and lighting_ok else 1
+    return exit_code
 
 
 if __name__ == "__main__":

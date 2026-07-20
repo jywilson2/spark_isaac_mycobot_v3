@@ -9,9 +9,10 @@ Authoritative acceptance criteria are in [`spec.md`](../spec.md) §8.
 ## Purpose
 
 Run a configurable, replayable set of cuRobo-planned episodes in which the
-circular bare-flange face approaches a small cube along the cube-face normal
-and configured signed tool axis. Stream readable results while the suite runs,
-then write matching machine-readable aggregate evidence.
+circular bare-flange **tip face** (tool +Z, `tool_approach_sign: +1`) approaches
+a small cube along the cube-face normal. Mode D places the cube on the tip-face
+side of the FK goal pose (outward normal = −tool_+Z). Stream readable results
+while the suite runs, then write matching machine-readable aggregate evidence.
 
 Phase 7.1 extends, but does not replace:
 
@@ -33,7 +34,8 @@ Phase 7.1 extends, but does not replace:
 - Isaac host path splits **planning** (`isaac_sim/plan_cube_suite.py`, cuRobo
   only) from **playback** (`isaac_sim/play_cube_suite.py`, Kit only) so Warp
   imported by cuRobo cannot break SimulationApp startup.
-- `scene_setup.py` — dome + distant lights before reset; static
+- `scene_setup.py` — dome + distant lights before reset, then Kit
+  `set_lighting_mode_stage` so viewport stage lights stay enabled; static
   contact-reporting cubes (`displayOpacity` as float array).
 - `contact_monitor.py` — PhysX prohibited arm-to-cube counts only.
 - Playback uses labeled joint-position **resets** only; planned motion uses
@@ -52,10 +54,20 @@ Phase 7.1 extends, but does not replace:
   ./scripts/host/smoke_phase7_1_cube_suite.sh --headless --auto-exit
 ./scripts/host/spark_host_exec.sh \
   ./scripts/host/smoke_phase7_1_cube_suite.sh --gui --auto-exit --all-modes
+# Keep Kit open to inspect lit stage (close window to finish):
+./scripts/host/spark_host_exec.sh \
+  ./scripts/host/smoke_phase7_1_cube_suite.sh --gui --no-auto-exit --all-modes
+
+# Mode B chained (no home reset between cubes) — run on the host:
+./scripts/host/run_phase7_1_chained_gui.sh --GUI --episodes 20
+# From the container:
+./scripts/host/spark_host_exec.sh ./scripts/host/run_phase7_1_chained_gui.sh --GUI
+# Planner flags: --chained (force B+D) and --episodes N
 ```
 
 `./scripts/run_verification.sh spark` runs Phase 7 GUI smoke then the Phase 7.1
-GUI `--all-modes` smoke.
+GUI `--all-modes` smoke. Planning runs without a window; the GUI appears only
+during Kit playback.
 
 ## Measured acceptance evidence (2026-07-19)
 

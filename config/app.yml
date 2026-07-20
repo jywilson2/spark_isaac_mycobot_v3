@@ -5,7 +5,9 @@ scene_config_path: config/scenes/empty.yml
 benchmark_config_path: config/benchmark_workspace.yml
 tool_frame: tcp_link
 tool_approach_axis: z
-tool_approach_sign: -1
+# +1 aligns tool +Z (bare-flange tip face) with the approach direction into the
+# workpiece. Sign -1 made the wrist/back of the flange lead into contact.
+tool_approach_sign: 1
 approach_against_outward_normal: true
 default_roll_candidates_deg: [0, 45, 90, 135, 180, 225, 270, 315]
 normal_epsilon: 1.0e-9

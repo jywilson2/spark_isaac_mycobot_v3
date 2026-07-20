@@ -20,8 +20,8 @@ if str(REPO_ROOT / "src") not in sys.path:
 from isaac_sim.articulation_playback import articulation_position_targets  # noqa: E402
 from isaac_sim.scene_setup import (  # noqa: E402
     DEFAULT_LIGHTING,
-    add_scene_lighting,
-    lighting_ready,
+    prepare_illuminated_stage,
+    stage_lighting_mode_active,
 )
 from isaac_sim.sim_metrics import orientation_error_rad, tip_position_error_m  # noqa: E402
 from isaac_sim.urdf_utils import default_prepared_urdf  # noqa: E402
@@ -34,11 +34,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--usd", type=Path)
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--headless", action="store_true", default=True)
-    mode.add_argument("--gui", action="store_true")
+    mode.add_argument("--headless", action="store_false", dest="gui")
+    mode.add_argument("--gui", action="store_true", dest="gui")
+    parser.set_defaults(gui=False)
     parser.add_argument("--auto-exit", action="store_true", default=True)
     parser.add_argument("--no-auto-exit", action="store_false", dest="auto_exit")
-    parser.add_argument("--hold-s", type=float, default=0.5)
+    # Longer default hold in GUI keeps the window readable before auto-exit.
+    parser.add_argument("--hold-s", type=float, default=None)
     parser.add_argument("--output-metrics", type=Path, required=True)
     return parser.parse_args(argv)
 
@@ -82,6 +84,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     plan = load_playback_plan(args.plan)
     require_executable_plan(plan)
+    if args.hold_s is None:
+        args.hold_s = 2.0 if args.gui else 0.5
     if args.hold_s < 0.0 or not math.isfinite(args.hold_s):
         raise ValueError("--hold-s must be finite and non-negative")
     repo = args.repo_root.resolve()
@@ -93,7 +97,18 @@ def main(argv: list[str] | None = None) -> int:
 
     from isaacsim import SimulationApp
 
-    app = SimulationApp({"headless": not args.gui})
+    if args.gui:
+        print(
+            f"phase7_playback: opening Isaac Sim GUI on DISPLAY={os.environ.get('DISPLAY', '')!r}",
+            flush=True,
+        )
+    app = SimulationApp(
+        {
+            "headless": not args.gui,
+            "width": 1280,
+            "height": 720,
+        }
+    )
     metrics: dict[str, Any] = {
         "schema_version": 1,
         "request_id": plan.request_id,
@@ -103,7 +118,9 @@ def main(argv: list[str] | None = None) -> int:
         "tip_position_error_m": None,
         "tip_orientation_error_rad": None,
         "lighting_ready": False,
+        "stage_lighting_mode": False,
     }
+    exit_code = 1
     try:
         import omni.usd
         from isaacsim.core.api import World
@@ -115,8 +132,9 @@ def main(argv: list[str] | None = None) -> int:
         for _ in range(10):
             app.update()
         stage = context.get_stage()
-        light_paths = add_scene_lighting(stage, DEFAULT_LIGHTING)
-        metrics["lighting_ready"] = lighting_ready(stage, light_paths)
+        _light_paths, lighting_ok = prepare_illuminated_stage(stage, DEFAULT_LIGHTING)
+        metrics["lighting_ready"] = lighting_ok
+        metrics["stage_lighting_mode"] = stage_lighting_mode_active()
         if not metrics["lighting_ready"]:
             raise RuntimeError("Phase 7 lighting prims were not created")
         articulation_path = _find_articulation_root(stage)
@@ -125,7 +143,14 @@ def main(argv: list[str] | None = None) -> int:
             SingleArticulation(prim_path=articulation_path, name="mycobot_phase7")
         )
         world.reset()
+        # Re-assert stage lighting after World.reset; Kit may restore camera/rig.
+        prepare_illuminated_stage(stage, DEFAULT_LIGHTING)
+        metrics["stage_lighting_mode"] = stage_lighting_mode_active()
         robot.initialize()
+        if args.gui:
+            for _ in range(30):
+                world.step(render=True)
+            print("phase7_playback: GUI viewport settled with stage lighting", flush=True)
         dof_names = tuple(str(name) for name in robot.dof_names)
         current = robot.get_joint_positions()
         if current is None:
@@ -153,19 +178,24 @@ def main(argv: list[str] | None = None) -> int:
             )
             metrics["tip_metrics_status"] = "evaluated"
         _write_metrics(args.output_metrics, metrics)
-        print(json.dumps(metrics, sort_keys=True))
+        print(json.dumps(metrics, sort_keys=True), flush=True)
         if not args.auto_exit:
+            print("phase7_playback: holding GUI open (--no-auto-exit); close the window to finish", flush=True)
             while app.is_running():
                 world.step(render=True)
-        return 0
+        exit_code = 0
     except Exception as exc:
         metrics["error"] = f"{type(exc).__name__}: {exc}"
         _write_metrics(args.output_metrics, metrics)
         print(metrics["error"], file=sys.stderr)
         sys.stderr.flush()
-        os._exit(1)
+        exit_code = 1
     finally:
-        app.close()
+        try:
+            app.close()
+        except Exception as close_exc:  # noqa: BLE001
+            print(f"warning: SimulationApp.close failed: {close_exc}", flush=True)
+    return exit_code
 
 
 if __name__ == "__main__":

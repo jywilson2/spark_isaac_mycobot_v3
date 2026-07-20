@@ -194,6 +194,10 @@ compute-capability warning is retained in that report and is not suppressed.
 - **OpenUSD lighting schemas** —
   <https://openusd.org/release/api/usd_lux_page_front.html>
   Authority for `UsdLux.DomeLight` and `UsdLux.DistantLight` scene lighting.
+- **Kit viewport stage lighting mode** —
+  `omni.kit.viewport.menubar.lighting` action `set_lighting_mode_stage` and
+  `/rtx/useViewLightingMode=false`. Required after creating UsdLux lights so
+  the viewport does not keep camera/rig mode that hides stage lights.
 - **OpenUSD collision schema** —
   <https://openusd.org/release/api/class_usd_physics_collision_a_p_i.html>
   Authority for static cube collision geometry; PhysX contact reporting is

@@ -14,6 +14,7 @@ from isaac_sim.articulation_playback import (
 
 ROOT = Path(__file__).parents[2]
 SMOKE = ROOT / "scripts" / "host" / "smoke_isaac_viz.sh"
+CHAINED_GUI = ROOT / "scripts" / "host" / "run_phase7_1_chained_gui.sh"
 VERIFY = ROOT / "scripts" / "run_verification.sh"
 PLAYER = ROOT / "isaac_sim" / "play_nominal_plan.py"
 PHASE7_1_PLAYER = ROOT / "isaac_sim" / "play_cube_suite.py"
@@ -42,10 +43,32 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "spark_host_exec.sh" in verification
     assert "SPARK_RUN_ISAAC_GUI_SMOKE" not in verification
     player = PLAYER.read_text(encoding="utf-8")
-    assert "add_scene_lighting" in player
-    assert "lighting_ready" in player
+    assert "prepare_illuminated_stage" in player
+    assert "stage_lighting_mode" in player
     assert "scene_setup" in player
-    assert "set_joint_position_targets" in PHASE7_1_PLAYER.read_text(encoding="utf-8")
+    phase71 = PHASE7_1_PLAYER.read_text(encoding="utf-8")
+    assert "set_joint_position_targets" in phase71
+    assert "prepare_illuminated_stage" in phase71
+    assert "enable_viewport_stage_lighting" in (
+        ROOT / "isaac_sim" / "scene_setup.py"
+    ).read_text(encoding="utf-8")
+
+
+def test_chained_gui_host_script_wires_mode_b_and_episodes() -> None:
+    script = CHAINED_GUI.read_text(encoding="utf-8")
+    planner = (ROOT / "isaac_sim" / "plan_cube_suite.py").read_text(encoding="utf-8")
+    assert CHAINED_GUI.exists()
+    assert "spark_host_require_native_shell" in script
+    assert "spark_require_gui_display" in script
+    assert "plan_cube_suite.py" in script
+    assert "play_cube_suite.py" in script
+    assert '--GUI|--gui' in script
+    assert 'mode="--gui"' in script
+    assert "--chained" in script
+    assert "--episodes" in script
+    assert "episodes=20" in script
+    assert '"--chained"' in planner or "chained" in planner
+    assert 'force_modes = ("B", "D")' in planner
 
 
 def test_player_refuses_invalid_plan_before_isaac_import(tmp_path: Path) -> None:

@@ -136,7 +136,7 @@ def test_seeded_random_normals_produce_valid_deterministic_frames() -> None:
                 candidate_b.rotation_base_from_tool,
             )
             assert np.allclose(
-                -candidate_a.rotation_base_from_tool[:, 2],
+                candidate_a.rotation_base_from_tool[:, 2],
                 -target.surface_normal_base,
                 atol=1.0e-10,
             )
@@ -158,7 +158,7 @@ def test_app_config_drives_task_frame_and_roll_defaults() -> None:
 
     assert config.tool_frame == "tcp_link"
     assert config.task_frame.tool_approach_axis == "z"
-    assert config.task_frame.tool_approach_sign == -1
+    assert config.task_frame.tool_approach_sign == 1
     assert config.default_roll_candidates_rad == DEFAULT_ROLL_CANDIDATES_RAD
     assert config.robot_config_path.name == "mycobot_280_m5.yml"
 

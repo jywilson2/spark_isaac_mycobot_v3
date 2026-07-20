@@ -1,6 +1,6 @@
 # Phase 7.1 cube-suite contract. Regions are conservative, unmeasured g_base AABBs
 # covering FK-aligned cube centres that remain start-clear for the bank.
-episode_count: 5
+episode_count: 50
 root_seed: 123
 frame: g_base
 modes:

@@ -29,12 +29,17 @@ delegate each command:
 ./scripts/host/spark_host_exec.sh ./scripts/host/check_prereqs.sh
 ./scripts/host/spark_host_exec.sh ./scripts/host/smoke_isaac_viz.sh --headless
 ./scripts/host/spark_host_exec.sh ./scripts/host/smoke_isaac_viz.sh --gui --auto-exit
+# Keep the window open to verify lighting (close Kit to finish):
+./scripts/host/spark_host_exec.sh ./scripts/host/smoke_isaac_viz.sh --gui --no-auto-exit
 ```
 
 The smoke checks host prerequisites, obtains the pinned vendor URDF when
 missing, creates the prepared USD when missing, and runs
-`isaac_sim/play_nominal_plan.py`. `./scripts/run_verification.sh spark` makes
-the GUI smoke mandatory and provides no environment bypass.
+`isaac_sim/play_nominal_plan.py`. Players create UsdLux lights **and** switch
+the viewport to stage-lighting mode (`set_lighting_mode_stage`); otherwise Kit
+can leave stage lights disabled and the scene stays dark.
+`./scripts/run_verification.sh spark` makes the GUI smoke mandatory and provides
+no environment bypass.
 
 The player discovers the articulation root, maps exact revolute names to Isaac
 DOF indices, applies each waypoint at `dt_s`, and writes a separate simulation

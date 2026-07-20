@@ -24,7 +24,7 @@ class TaskFrameConfig:
     """Explicit TCP approach-axis convention."""
 
     tool_approach_axis: str = "z"
-    tool_approach_sign: int = -1
+    tool_approach_sign: int = 1
     approach_against_outward_normal: bool = True
     tangent_epsilon: float = 1.0e-9
     orthonormal_tolerance: float = 1.0e-8

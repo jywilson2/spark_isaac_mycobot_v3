@@ -32,6 +32,45 @@ def test_goal_region_sample_budget_is_named_constant() -> None:
     assert module.GOAL_REGION_SAMPLE_ATTEMPTS == 64
 
 
+def test_mode_d_places_cube_on_tip_face_side() -> None:
+    """Bare-flange tip (+Z) must look at the cube; wrist/back must not lead."""
+
+    import numpy as np
+
+    from mycobot_curobo.cube_suite import _quaternion_to_rotation
+    from mycobot_curobo.frames import TaskFrameConfig, build_task_frame_candidates
+    from mycobot_curobo.robot_model import forward_kinematics, load_robot_model_spec
+
+    config = load_cube_suite_config(ROOT / "config/phase7_1_cube_suite.yml")
+    episodes = sample_cube_episodes(config, root_seed=123, episode_count=5)
+    spec = load_robot_model_spec()
+    task_frame = TaskFrameConfig()
+    assert task_frame.tool_approach_sign == 1
+    for episode in episodes:
+        goal = next(item for item in config.goal_joint_bank if item.label == episode.goal_label)
+        pose = forward_kinematics(np.asarray(goal.position_rad), spec=spec)
+        rotation = _quaternion_to_rotation(pose.quaternion_wxyz)
+        tip_plus_z = rotation[:, 2] / float(np.linalg.norm(rotation[:, 2]))
+        to_cube = np.asarray(episode.cube_center_m, dtype=float) - pose.position_m
+        to_cube /= float(np.linalg.norm(to_cube))
+        assert float(np.dot(tip_plus_z, to_cube)) > 0.99
+        candidate = build_task_frame_candidates(
+            episode.to_planning_request().surface_target,
+            task_frame,
+        )[0]
+        assert float(np.dot(candidate.rotation_base_from_tool[:, 2], to_cube)) > 0.99
+        assert float(np.dot(candidate.approach_direction_base, to_cube)) > 0.99
+
+
+def test_chained_force_modes_sample_mode_b_only() -> None:
+    config = load_cube_suite_config(ROOT / "config/phase7_1_cube_suite.yml")
+    episodes = sample_cube_episodes(
+        config, root_seed=123, episode_count=4, force_modes=("B", "D")
+    )
+    assert len(episodes) == 4
+    assert all(episode.start_mode is StartMode.B for episode in episodes)
+
+
 def test_acceptance_schedule_exercises_all_start_modes() -> None:
     config = load_cube_suite_config(ROOT / "config/phase7_1_cube_suite.yml")
     episodes = sample_cube_episodes(

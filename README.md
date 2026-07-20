@@ -166,9 +166,9 @@ target = SurfaceTarget.create(
 goal_set = build_surface_goal_set(target)
 ```
 
-The default signed axis is tool Z × -1 and the desired motion direction is
-against the outward normal. Defaults and roll angles come from
-`config/app.yml`; see
+The default signed axis is tool Z × **+1** (bare-flange tip face) and the
+desired motion direction is against the outward normal. Defaults and roll
+angles come from `config/app.yml`; see
 [`docs/phase2_task_frames.md`](docs/phase2_task_frames.md).
 
 ## Plan a Phase 3 nominal approach
@@ -283,6 +283,9 @@ writes simulation pose metrics separately from cuRobo validation metrics.
 # From the Isaac ROS container:
 ./scripts/host/spark_host_exec.sh \
   ./scripts/host/smoke_isaac_viz.sh --gui --auto-exit
+# Keep the window open to verify stage lighting (close Kit to finish):
+./scripts/host/spark_host_exec.sh \
+  ./scripts/host/smoke_isaac_viz.sh --gui --no-auto-exit
 ```
 
 `./scripts/run_verification.sh spark` requires the auto-exiting GUI smoke; no
@@ -314,6 +317,22 @@ static contact-reporting cubes, labeled resets, and drive-target motion:
 ```bash
 ./scripts/host/spark_host_exec.sh \
   ./scripts/host/smoke_phase7_1_cube_suite.sh --gui --auto-exit --all-modes
+```
+
+Mode B chained GUI (continue from last success, no home reset between cubes).
+Host-native script; planner uses `--chained` + `--episodes` on the base suite
+YAML. Pass `--GUI` (or `--gui`) so Kit opens on the host display (default):
+
+```bash
+./scripts/host/run_phase7_1_chained_gui.sh --GUI            # 20 eps, keep GUI open
+./scripts/host/run_phase7_1_chained_gui.sh --gui --episodes 20
+```
+
+From the Isaac ROS container, delegate the same script (pass the script path,
+not `bash -lc '...'`):
+
+```bash
+./scripts/host/spark_host_exec.sh ./scripts/host/run_phase7_1_chained_gui.sh --GUI
 ```
 
 ## Planned Phase 9/9.1 contact tool

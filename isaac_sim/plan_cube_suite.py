@@ -57,7 +57,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=Path,
         default=REPO_ROOT / "config/phase7_1_cube_suite.yml",
     )
-    parser.add_argument("--all-modes", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--all-modes",
+        action="store_true",
+        help="Cycle start modes A/B/C (acceptance schedule).",
+    )
+    mode.add_argument(
+        "--chained",
+        action="store_true",
+        help="Mode B only: continue from last success (no home reset).",
+    )
+    parser.add_argument(
+        "--episodes",
+        type=int,
+        default=None,
+        help="Override config episode_count (positive integer).",
+    )
     parser.add_argument("--output-bundle", type=Path, required=True)
     return parser.parse_args(argv)
 
@@ -284,11 +300,20 @@ def plan_and_validate(
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.episodes is not None and args.episodes <= 0:
+        raise ConfigurationError("--episodes must be a positive integer")
     config = load_cube_suite_config(args.config)
+    if args.all_modes:
+        force_modes: tuple[str, ...] | None = ("A", "B", "C", "D")
+    elif args.chained:
+        force_modes = ("B", "D")
+    else:
+        force_modes = None
     episodes = sample_cube_episodes(
         config,
         root_seed=config.root_seed,
-        force_modes=("A", "B", "C", "D") if args.all_modes else None,
+        episode_count=args.episodes,
+        force_modes=force_modes,
     )
     results, trajectories = plan_and_validate(
         episodes,

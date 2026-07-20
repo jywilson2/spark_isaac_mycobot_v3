@@ -21,7 +21,7 @@ right-handed task-frame candidates and public cuRobo `GoalToolPose` goal sets.
 
 Defaults are loaded from `config/app.yml`:
 
-- approach axis/sign: tool Z / -1;
+- approach axis/sign: tool Z / **+1** (bare-flange tip face into the workpiece);
 - desired approach: `-surface_normal`;
 - unconstrained rolls: 0°, 45°, …, 315°;
 - pre-approach range: 0.01–0.15 m.

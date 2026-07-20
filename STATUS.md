@@ -1,6 +1,6 @@
 # STATUS — MyCobot 280 M5 Constrained Approach Planner
 
-Last updated: **2026-07-19**
+Last updated: **2026-07-20**
 
 ## Current phase
 
@@ -79,3 +79,24 @@ gates for any Isaac-path changes.
 Phase 7.1 sources were re-audited against newly added Cursor `python` /
 `bash` / `clean-code` rules; chemistry/PyTorch and C++ packs were treated as
 non-applicable. Cleanup committed on `wip_phase7_1` after CI/GPU/GUI retest.
+
+## 2026-07-20 GUI / lighting fix (in progress)
+
+Viewport now forces **stage** lighting mode after UsdLux prim creation (and
+again after `World.reset`). Prior runs could report `lighting_ready=true` while
+the Kit UI still had stage lights disabled, leaving a dark viewport. Use
+`--gui --no-auto-exit` on the host desktop to inspect the lit window.
+
+## 2026-07-20 approach-axis sign (tip face)
+
+`tool_approach_sign` is **+1** and Mode D places the cube on the flange tip
+(+Z) side. Prior −1 / −Z placement contacted the cube with the wrong side of
+the EE.
+
+## 2026-07-20 host Mode B chained GUI
+
+`scripts/host/run_phase7_1_chained_gui.sh` runs Mode B chained cube GUI on the
+host (default 20 episodes, keep window open). Pass `--GUI`/`--gui` (default)
+to open Kit after resolving `DISPLAY` via `spark_require_gui_display`. Uses
+`plan_cube_suite.py --chained --episodes N` over the base suite YAML (Mode B
+cannot be a YAML default; loader still requires Mode A by default).

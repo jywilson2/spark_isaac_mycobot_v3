@@ -164,7 +164,7 @@ def test_success_maps_segments_roll_and_exact_plan_grasp_options() -> None:
     assert outcome.plan.validation_status == "not_evaluated"
     assert outcome.plan.executable is False
     assert backend.kwargs["grasp_approach_axis"] == "z"
-    assert backend.kwargs["grasp_approach_offset"] == 0.04
+    assert backend.kwargs["grasp_approach_offset"] == -0.04
     assert backend.kwargs["grasp_approach_in_tool_frame"] is True
     assert backend.kwargs["plan_approach_to_grasp"] is True
     assert backend.kwargs["plan_grasp_to_lift"] is False

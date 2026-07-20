@@ -343,7 +343,9 @@ def sample_cube_episodes(
             candidate = config.goal_joint_bank[int(rng.integers(len(config.goal_joint_bank)))]
             pose = forward_kinematics(np.asarray(candidate.position_rad), spec=robot_spec)
             rotation = _quaternion_to_rotation(pose.quaternion_wxyz)
-            candidate_outward = rotation[:, 2] / float(np.linalg.norm(rotation[:, 2]))
+            tool_plus_z = rotation[:, 2] / float(np.linalg.norm(rotation[:, 2]))
+            # Outward face normal opposes tool +Z so the bare-flange tip faces the cube.
+            candidate_outward = -tool_plus_z
             cube_center = (
                 pose.position_m
                 - (config.terminal_standoff_m + 0.5 * config.cube_edge_m) * candidate_outward
@@ -367,7 +369,7 @@ def sample_cube_episodes(
             raise ConfigurationError(
                 "unable to sample Mode D cube centres inside declared regions from goal bank"
             )
-        # Keep normal bins in the frozen payload for replay taxonomy; FK tool +z wins.
+        # Keep normal bins in the frozen payload for replay taxonomy; FK tip face wins.
         normal_bin = config.normal_bins[int(rng.integers(len(config.normal_bins)))]
         revision = f"{config.scene_revision_prefix}-{cube_scene_revision(cube)}"
         episodes.append(

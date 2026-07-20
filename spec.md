@@ -210,10 +210,13 @@ The project configuration shall define one of the TCP axes as the physical appro
 
 ```yaml
 tool_approach_axis: z
-tool_approach_sign: -1
+tool_approach_sign: 1
 ```
 
-The sign and axis must be verified by a unit test and a visual or numerical sanity check. Never assume that positive tool Z points toward the target.
+The signed approach axis is tool Z with ``+1`` so the bare-flange tip face leads
+into the workpiece. Sign ``-1`` pointed the wrist/back of the flange at the
+target. The sign and axis must be verified by a unit test and a visual or
+numerical sanity check. Never assume an unverified sign from another robot.
 
 ### 5.4 Target frame construction
 

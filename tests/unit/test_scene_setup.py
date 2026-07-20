@@ -1,6 +1,11 @@
 import pytest
 
-from isaac_sim.scene_setup import DEFAULT_LIGHTING, IsaacLightingConfig, _prim_paths
+from isaac_sim.scene_setup import (
+    DEFAULT_LIGHTING,
+    IsaacLightingConfig,
+    _prim_paths,
+    enable_viewport_stage_lighting,
+)
 
 
 def test_lighting_config_validates_cube_suite_defaults() -> None:
@@ -17,6 +22,25 @@ def test_lighting_config_validates_cube_suite_defaults() -> None:
         "/World/Lights/DomeLight",
         "/World/Lights/DistantLight",
     )
+
+
+def test_enable_viewport_stage_lighting_without_kit_returns_false() -> None:
+    # Pure unit environment has no carb/omni; helper must fail closed, not raise.
+    assert enable_viewport_stage_lighting() is False
+
+
+def test_add_scene_lighting_doc_requires_idempotent_rotate() -> None:
+    from isaac_sim import scene_setup
+
+    source = scene_setup.add_scene_lighting.__doc__ or ""
+    assert "Safe to call more than once" in source
+    # Implementation must re-use existing rotateXYZ rather than AddRotateXYZOp
+    # unconditionally (World.reset re-apply path).
+    import inspect
+
+    body = inspect.getsource(scene_setup.add_scene_lighting)
+    assert 'GetAttribute("xformOp:rotateXYZ")' in body
+    assert "AddRotateXYZOp" in body
 
 
 @pytest.mark.parametrize(

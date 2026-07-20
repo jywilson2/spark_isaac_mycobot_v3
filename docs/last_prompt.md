@@ -1,3 +1,79 @@
+## BEGIN: 2026-07-20 04:11 -0700
+
+Commit, and push to the current branch. Rebase onto main, as well.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-20 04:09 -0700
+
+The simulator is not visible with this new script. Can you provide a --GUI  option?
+
+## END
+
+## BEGIN: 2026-07-20 04:04 -0700
+
+Can you generate a simpler script that is executable from the host?
+
+## END
+
+## BEGIN: 2026-07-20 04:02 -0700
+
+/usr/bin/bash: /usr/bin/bash: cannot execute binary file
+
+## END
+
+## BEGIN: 2026-07-20 03:59 -0700
+
+Can you provide the command to run the GUI with 20 episodes, using the test configuration where the EE moves between cubes without resetting to home?
+
+## END
+
+## BEGIN: 2026-07-20 03:54 -0700
+
+Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that.
+
+## END
+
+## BEGIN: 2026-07-20 03:28 -0700
+
+Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that.
+
+## END
+
+## BEGIN: 2026-07-20 03:24 -0700
+
+The wrong side of the EE is used to make contact with the cube.
+
+## END
+
+## BEGIN: 2026-07-20 03:20 -0700
+
+I am unable to see the GUI.
+
+Also, the stage lighting in IsaacSim is still disabled.
+
+## END
+
+## BEGIN: 2026-07-20 03:08 -0700
+
+Run all IsaacSim GUI tests for 50 episodes. Kill the currently running instance of IsaacSim.
+
+## END
+
+## BEGIN: 2026-07-20 03:02 -0700
+
+Run the visualization GUI test for 50 episodes.
+
+## END
+
+## BEGIN: 2026-07-20 03:00 -0700
+
+Run the GUI valiation with visualization.
+
+## END
+
 # The last prompt executed in the Cursor Agent window:
 
 ## BEGIN: 2026-07-20 00:44 -0700
@@ -6,7 +82,6 @@ Read the newly added cursor rules files and examine all source code for complian
 Retest and commit any changes to the current Phase 7.1 branch, and rebase in main.
 ## END
 
-# Old prompts:
 ## BEGIN: 2026-07-19 14:16 -0700
 Phase 7.1 implementation and landing
 

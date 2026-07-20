@@ -1,5 +1,68 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-20 — Host Mode B chained GUI runner
+
+1. Added `scripts/host/run_phase7_1_chained_gui.sh` for host-native Mode B
+   chained cube GUI (default 20 episodes, `--no-auto-exit`). Planner gains
+   `--chained` (force modes B+D) and `--episodes`.
+2. Added explicit `--GUI`/`--gui`/`--headless` flags; GUI mode resolves
+   `DISPLAY`/`XAUTHORITY` via `spark_require_gui_display` before Kit launch.
+3. Documented host and `spark_host_exec` invocation; unit-wired in
+   `test_isaac_viz_smoke.py` / `test_cube_suite.py`.
+
+### Review recommended
+
+- Host: `./scripts/host/run_phase7_1_chained_gui.sh --GUI --episodes 20` and
+  confirm the Isaac window appears and logs show `B/chained_last_success`
+  after the first success.
+
+---
+
+## 2026-07-20 — Flange tip face leads cube contact
+
+1. Mode D had placed the cube on the tip’s **−Z** side while
+   `tool_approach_sign: -1`, so the wrist/back of the bare flange led into
+   contact. GUI evidence: wrong side of the EE hit the cube.
+2. Set `tool_approach_sign: +1` (app default + `TaskFrameConfig`) so tool **+Z**
+   (flange tip) aligns with the approach direction into the workpiece.
+3. Mode D now stores outward normal as **−tool_+Z** (cube on the tip-face side)
+   and expands the conservative goal AABBs so the existing goal-joint bank still
+   samples inside declared regions.
+4. Unit regression: tip +Z, planned approach axis, and tip→cube direction agree
+   for seed-123 episodes.
+
+### Review recommended
+
+- Re-run Phase 7.1 GUI (`--gui --no-auto-exit`) and confirm the flange tip face
+  approaches the cube. Host GPU smoke after the sign flip.
+
+---
+
+## 2026-07-20 — Isaac GUI visibility + stage lighting mode
+
+1. Creating UsdLux dome/distant lights alone left the Kit viewport on
+   camera/rig lighting, which **hides** stage `LightAPI` prims — the UI showed
+   stage lighting disabled and the scene stayed dark.
+2. Added `enable_viewport_stage_lighting()` /
+   `prepare_illuminated_stage()` in `isaac_sim/scene_setup.py` to call
+   `set_lighting_mode_stage` and clear `/rtx/useViewLightingMode`, then re-apply
+   after `World.reset()` in both Phase 7 and 7.1 players.
+3. GUI path: explicit window size, DISPLAY banner, viewport settle frames,
+   default `--hold-s 2` when `--gui`, and clearer `--no-auto-exit` hold message.
+   Exit status is written into the report before `app.close()` so Kit shutdown
+   cannot mask failures. Light setup is idempotent so re-applying after
+   `World.reset` does not stack `xformOp:rotateXYZ`.
+4. Unit coverage for the new helpers; argparse `--gui`/`--headless` now share a
+   single `gui` dest (headless default).
+
+### Review recommended
+
+- Confirm on the Spark desktop (`DISPLAY=:1`) that the Kit window is lit and
+  the viewport lighting menu shows **Stage**. Interactive check:
+  `./scripts/host/spark_host_exec.sh ./scripts/host/smoke_isaac_viz.sh --gui --no-auto-exit`
+
+---
+
 ## 2026-07-20 — Phase 7.1 rule-compliance cleanup
 
 1. Audited Phase 7.1 sources against newly added Cursor rules (`python`,

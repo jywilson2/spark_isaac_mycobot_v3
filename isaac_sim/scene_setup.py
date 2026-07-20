@@ -60,7 +60,11 @@ def add_scene_lighting(
     *,
     root_path: str = "/World/Lights",
 ) -> tuple[str, str]:
-    """Define a dome and distant light and return their prim paths."""
+    """Define a dome and distant light and return their prim paths.
+
+    Safe to call more than once on the same stage: existing light prims are
+    updated in place without stacking duplicate ``xformOp:rotateXYZ`` entries.
+    """
 
     from pxr import Gf, UsdGeom, UsdLux
 
@@ -70,15 +74,84 @@ def add_scene_lighting(
     dome_path, distant_path = _prim_paths(root_path)
     UsdGeom.Xform.Define(stage, root_path)
     dome = UsdLux.DomeLight.Define(stage, dome_path)
-    dome.CreateIntensityAttr(light_config.dome_intensity)
-    dome.CreateColorAttr(Gf.Vec3f(*light_config.color))
+    intensity = dome.GetIntensityAttr()
+    if intensity:
+        intensity.Set(light_config.dome_intensity)
+    else:
+        dome.CreateIntensityAttr(light_config.dome_intensity)
+    color_attr = dome.GetColorAttr()
+    if color_attr:
+        color_attr.Set(Gf.Vec3f(*light_config.color))
+    else:
+        dome.CreateColorAttr(Gf.Vec3f(*light_config.color))
+    # Align dome with the stage up-axis so RTX does not treat it as inverted.
+    if hasattr(dome, "OrientToStageUpAxis"):
+        dome.OrientToStageUpAxis()
     distant = UsdLux.DistantLight.Define(stage, distant_path)
-    distant.CreateIntensityAttr(light_config.distant_intensity)
-    distant.CreateColorAttr(Gf.Vec3f(*light_config.color))
+    intensity = distant.GetIntensityAttr()
+    if intensity:
+        intensity.Set(light_config.distant_intensity)
+    else:
+        distant.CreateIntensityAttr(light_config.distant_intensity)
+    color_attr = distant.GetColorAttr()
+    if color_attr:
+        color_attr.Set(Gf.Vec3f(*light_config.color))
+    else:
+        distant.CreateColorAttr(Gf.Vec3f(*light_config.color))
     xformable = UsdGeom.Xformable(distant.GetPrim())
-    rotate = xformable.AddRotateXYZOp()
-    rotate.Set(Gf.Vec3f(*light_config.distant_angle_deg))
+    rotate_attr = distant.GetPrim().GetAttribute("xformOp:rotateXYZ")
+    if rotate_attr and rotate_attr.IsValid():
+        rotate_attr.Set(Gf.Vec3f(*light_config.distant_angle_deg))
+    else:
+        rotate = xformable.AddRotateXYZOp()
+        rotate.Set(Gf.Vec3f(*light_config.distant_angle_deg))
     return dome_path, distant_path
+
+
+def enable_viewport_stage_lighting() -> bool:
+    """Switch Kit/RTX from camera/rig lighting to stage UsdLux lights.
+
+    Isaac Sim's viewport lighting menu defaults can leave stage lights hidden
+    (camera light or a light rig). Creating UsdLux prims alone is not enough:
+    ``set_lighting_mode_stage`` makes LightAPI prims visible and clears
+    ``/rtx/useViewLightingMode``.
+    """
+
+    try:
+        import carb
+    except ImportError:
+        return False
+
+    settings = carb.settings.get_settings()
+    settings.set("/rtx/useViewLightingMode", False)
+    try:
+        import omni.kit.actions.core
+
+        action = omni.kit.actions.core.get_action_registry().get_action(
+            "omni.kit.viewport.menubar.lighting",
+            "set_lighting_mode_stage",
+        )
+        if action is not None:
+            action.execute()
+        # RTX flag above is enough when the menubar action is absent (headless).
+        return True
+    except (ImportError, AttributeError, RuntimeError):
+        # Headless Kit without the menubar extension still benefits from the
+        # RTX setting above; treat action failure as soft when that was set.
+        return True
+
+
+def prepare_illuminated_stage(
+    stage: Any,
+    config: IsaacLightingConfig | Mapping[str, Any],
+    *,
+    root_path: str = "/World/Lights",
+) -> tuple[tuple[str, str], bool]:
+    """Create lights, force stage-lighting mode, and report prim readiness."""
+
+    paths = add_scene_lighting(stage, config, root_path=root_path)
+    enable_viewport_stage_lighting()
+    return paths, lighting_ready(stage, paths)
 
 
 def add_cube_prim(
@@ -121,3 +194,13 @@ def lighting_ready(stage: Any, expected_paths: Sequence[str]) -> bool:
     return bool(expected_paths) and all(
         stage.GetPrimAtPath(path).IsValid() for path in expected_paths
     )
+
+
+def stage_lighting_mode_active() -> bool:
+    """Best-effort check that RTX is not using view/camera lighting."""
+
+    try:
+        import carb
+    except ImportError:
+        return False
+    return carb.settings.get_settings().get("/rtx/useViewLightingMode") is False
