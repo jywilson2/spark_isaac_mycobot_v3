@@ -1,5 +1,30 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-20 — Phase 7.2 requirements and API design
+
+1. Added Phase 7.2 (multi-target tip-contact clearance) to `spec.md` §8,
+   `docs/implementation_phases.md`, and
+   [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md).
+2. Documented core Isaac-free multi-target API: `TargetField` with
+   `placement` (`grid`|`manual`), `order` (`shuffle`|`listed`),
+   `retain_targets_after_contact`, same-leg retry, and
+   `max_failed_plans == target_count` by default.
+3. Specified flange-normal tip/EE allow-list contact vs arm-body fail-closed
+   policy, dual console timing, and hardware-transfer surfaces
+   (`ContactDetector`, `TargetPoseSource`, scene revision, `MotionGate`) for
+   Phases 10–11.
+4. Locked docstring and design-doc conventions: concise public headers;
+   call/control flow in the phase report; thin README pointer.
+5. Updated README/STATUS/REFERENCES; branch `wip_phase7_2`. No implementation
+   code in this change set.
+
+### Review recommended
+
+- Confirm acceptance defaults (`grid`, `shuffle`, remove-on-contact) vs
+  suggested HW defaults (`manual`, `listed`, retain) in the phase report.
+
+---
+
 ## 2026-07-20 — Fix Kit "No lights found" / stage lighting warning
 
 1. Opening the prepared robot USD (no `LightAPI` prims) with Kit

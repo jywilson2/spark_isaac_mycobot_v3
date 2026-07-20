@@ -206,6 +206,20 @@ compute-capability warning is retained in that report and is not suppressed.
   Authority for static cube collision geometry; PhysX contact reporting is
   host-only evidence and remains separate from cuRobo validation.
 
+## Phase 7.2 multi-target contracts
+
+- **Project Phase 7.2 report (planned)** —
+  [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md)
+- Normative acceptance: [`spec.md`](spec.md) §8 Phase 7.2.
+- Core orchestration stays Isaac-free (`TargetField`, order/retain policies,
+  `MultiTargetEpisodeRunner`, `ContactDetector` protocol). Isaac host code
+  implements visualization and PhysX tip/body classification only.
+- Hardware transfer surfaces align with remaining adapters: perception as
+  `TargetPoseSource`, force/current as `ContactDetector`, online scene update
+  as scene-revision feed (Phases 10–11).
+- Planning latency logged in 7.2 is sim-host evidence only; Orin AGX budgets
+  remain Phases 10–11.
+
 ## Phase 8 residual RL (planned)
 
 - Training only in Isaac Lab / Isaac Sim; residual must use Phase 5

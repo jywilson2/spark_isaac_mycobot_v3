@@ -5,7 +5,7 @@
 **Document status:** Initial implementation specification  
 **Primary robot:** Elephant Robotics MyCobot 280 M5  
 **Exclusive motion planner and motion-planning dependency:** NVIDIA cuRobo **v0.8.0 (cuRoboV2)**\
-**Scope:** Deterministic, collision-aware motion planning with a controlled surface-normal approach. The architecture must expose safe extension points for residual reinforcement learning and hardware integration. Phases 0–6 implement the initial planner; Phases 7–11 cover Isaac Sim validation, unknown-start approach visualization, bounded residual RL, contact-tool development/evaluation, and physical MyCobot 280 M5 testing (see §8 and `docs/implementation_phases.md`).
+**Scope:** Deterministic, collision-aware motion planning with a controlled surface-normal approach. The architecture must expose safe extension points for residual reinforcement learning and hardware integration. Phases 0–6 implement the initial planner; Phases 7–11 cover Isaac Sim validation, unknown-start approach visualization, multi-target tip-contact clearance, bounded residual RL, contact-tool development/evaluation, and physical MyCobot 280 M5 testing (see §8 and `docs/implementation_phases.md`).
 
 ---
 
@@ -40,8 +40,8 @@ Do **not** implement the following inside the core `mycobot_curobo` planner path
 - Contact-rich manipulation
 
 Phases 7–11 explicitly schedule Isaac Sim, unknown-start visualization,
-residual RL, contact-tool development/evaluation, hardware dry-run, and
-physical validation.
+multi-target tip-contact clearance, residual RL, contact-tool
+development/evaluation, hardware dry-run, and physical validation.
 - A graphical user interface
 - A general task planner
 
@@ -1046,6 +1046,132 @@ Phase 9.1.
 
 ---
 
+## Phase 7.2 — Multi-target tip-contact clearance suite
+
+### Objective
+
+Exercise sequenced flange-normal tip/EE contact against a numbered multi-target
+field in Isaac Sim while cuRobo remains the sole path planner. Support a typed
+multi-target orchestration API that is reusable by later hardware adapters.
+Phase 7.1 remains the single-cube standoff suite; Phase 7.2 does not replace it.
+
+Phase 7.2 uses branch `wip_phase7_2`. Design detail and call-flow documentation
+live in `docs/phase7_2_multi_target_contact.md`.
+
+### Multi-target API (core, Isaac-free)
+
+`plan_grasp` remains one target per call. Multi-target behavior is orchestration
+over successive independently validated plans with an explicit world revision.
+
+- **`TargetField`:** numbered `SurfaceTarget` set with placement and order policy.
+- **`placement: grid | manual`:** deterministic evenly spaced grid in a declared
+  `g_base` AABB, or a caller-supplied list of numbered targets (no position
+  sampling when manual).
+- **`order: shuffle | listed`:** seeded permutation of active target ids
+  (replayable), or preserve enumeration / list order.
+- **`retain_targets_after_contact` (bool, default `false`):** when `false`,
+  allowed tip/EE contact removes the target from the scene and cuRobo world
+  geometry; when `true`, the target is marked contacted, recolored, and left in
+  place as an obstacle for subsequent plans.
+- **`MultiTargetEpisodeRunner`:** for each next id, build the world from active
+  obstacles, call `plan_grasp` with flange-normal approach, independently
+  validate, then consume a `ContactDetector` result.
+- **`ContactDetector` protocol:** reports `allowed_tip_contact`,
+  `prohibited_body_contact`, or `none`. Isaac PhysX and later force/current or
+  operator-ack adapters implement the same contract.
+- Default **`max_failed_plans`** for an episode equals that episode’s active
+  `target_count`. Override only via explicit configuration.
+
+### Scene and episode model
+
+- Configure positive integers `target_count` and `episode_count`.
+- An **episode** is one full clearance or contact sequence over the field, or
+  an early fail.
+- Contact order follows `shuffle` or `listed` as configured.
+- Terminal approach is opposite the outward face normal and aligned to the
+  configured signed TCP approach axis (flange tip / tool approach policy).
+- On structured planning or validation failure for leg `from_id → to_id`,
+  **retry the same leg** until success or the fail budget is exceeded; do not
+  skip to the next target id.
+- Robot self-collision remains a planning/validation failure.
+
+### Contact policy (hard requirement)
+
+- **Allowed:** configured tip/flange (EE allow-list) contact with a target →
+  record success for that id; recolor; post viewport and console messages with
+  timings; remove or retain per `retain_targets_after_contact`.
+- **Prohibited:** any other robot link (arm body) versus any target → episode
+  **FAIL** immediately (`body_contact`), even if tip contact also occurs.
+- Zero prohibited body–target contacts is required simulation evidence and does
+  not replace cuRobo planning or independent validation.
+
+### Success and failure
+
+An episode **PASS** only when:
+
+1. Every target is successfully contacted via allowed tip/EE contact (and
+   removed when retain is false);
+2. Every motion segment was produced by cuRobo and independently validated;
+3. Failed planning/validation attempts for that episode are
+   `<= max_failed_plans` (default `target_count`);
+4. Zero prohibited body–target contacts;
+5. Required timing and identity fields are finite and logged.
+
+Otherwise **FAIL**. Taxonomy includes at least `plan_failed`,
+`validation_failed`, `body_contact`, and `max_failed_plans_exceeded`. Failed
+plans must identify the leg as `from_id → to_id` (use `start` when leaving the
+episode start state).
+
+### Timing, visualization, and latency labeling
+
+- Per leg: `planning_duration_s`, `motion_duration_s`, `time_to_contact_s`
+  (plan + motion through first allowed tip contact).
+- Per episode: `episode_duration_s`, success, failure counts, contact counts.
+- Emit matching live lines to the host terminal and the Isaac Sim console.
+- Numbered viewport labels must match `target_id` in logs and JSON.
+- Planning latency recorded in Phase 7.2 is **simulation host evidence only**.
+  It does not establish Orin AGX real-time budgets (Phases 10–11). An optional
+  advisory `warn_planning_duration_s` may warn without failing the suite.
+
+### Hardware transfer surfaces
+
+Phase 7.2 shall document and type the following so Phases 10–11 can reuse the
+same runner with swapped adapters (see also Remaining future adapters below):
+
+- `MultiTargetEpisodeRunner`, `TargetField`, contact-order policy, retain flag,
+  retry-same-leg fail budget;
+- `ContactDetector`, optional `TargetPoseSource`, scene-revision / obstacle set,
+  `MotionGate`, and leg/episode report schema;
+- Phase 5 execution seam (`RobotStateProvider`, command adapter,
+  `SafetyProjector`, residual corrector) remains the only command path for
+  physical motion.
+
+Suggested physical defaults when hardware work lands: `placement=manual`,
+`order=listed`, `retain_targets_after_contact=true`. Isaac-only visualization
+(prim recolor, Kit messages, PhysX subscription details, USD spawn/despawn)
+must not enter the core package.
+
+### Documentation conventions
+
+Public modules, classes, and methods use concise one-line docstrings.
+Google-style `Args` / `Returns` blocks are reserved for non-obvious public
+contracts. Detailed call/control flow belongs in
+`docs/phase7_2_multi_target_contact.md`; `README.md` carries only a short
+pointer (and optional summary diagram).
+
+### Acceptance criteria
+
+- Parameterized `target_count` and `episode_count`; `grid` and `manual`
+  placement; `shuffle` and `listed` order; retain and remove-after-contact
+  modes; seeded exact replay.
+- Flange-normal tip/EE contact; body–target contact fails closed.
+- Same-leg retry until success or fail budget; dual console/JSON timing.
+- Phase 7 and Phase 7.1 smoke gates remain mandatory for Isaac-path changes.
+- No physical hardware command, alternate planner, Orin SLA claim from sim
+  timings, or simulation-derived physical-accuracy claim is introduced.
+
+---
+
 ## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
 
 ### Objective
@@ -1241,11 +1367,17 @@ Run gated on-robot trials that measure approach success and safe failure behavio
 Document interfaces only until a later change set schedules them:
 
 - ROS 2 joint trajectory execution
-- perception adapter (point, normal, confidence)
-- force/current-based terminal contact adapter
-- online scene update adapter
+- perception adapter (point, normal, confidence) — intended
+  `TargetPoseSource` implementation behind the Phase 7.2 multi-target runner
+- force/current-based terminal contact adapter — intended hardware
+  `ContactDetector` / terminal-contact policy behind Phase 7.2
+- online scene update adapter — intended scene-revision feed for retained or
+  perceived multi-target obstacle sets
 
-Each adapter must depend on core domain interfaces. The core planner and validator must not import these external systems.
+Each adapter must depend on core domain interfaces. The core planner and
+validator must not import these external systems. Phase 7.2 defines the typed
+orchestration surfaces these adapters plug into; it does not implement the
+external systems.
 
 ---
 
@@ -1295,6 +1427,22 @@ Use a validated named YAML configuration for:
 - console refresh/report fields and artifact path; and
 - required self/world collision and Isaac prohibited-contact gates.
 
+### Phase 7.2 suite configuration
+
+Use a validated named YAML configuration for:
+
+- `target_count` and `episode_count` (positive integers);
+- `placement` (`grid` or `manual`) and, when manual, the explicit numbered
+  target list;
+- `order` (`shuffle` or `listed`);
+- `retain_targets_after_contact` (default `false`);
+- `max_failed_plans` defaulting to the episode’s active `target_count`;
+- root seed; tip/EE allow-list link names; body-contact fail-closed policy;
+- planner/validation/scene profiles and lighting;
+- console/report fields, artifact path, and optional
+  `warn_planning_duration_s`; and
+- dual host-terminal and Isaac-console timing fields.
+
 ### Phase 9 optional tool profile
 
 Keep measured flange/TCP transform, tool dimensions, model paths, collision
@@ -1343,7 +1491,9 @@ Cover:
 - lateral and orientation metrics;
 - progress monotonicity;
 - residual safety projection;
-- Phase 7.1 mode/default/config validation and deterministic replay; and
+- Phase 7.1 mode/default/config validation and deterministic replay;
+- Phase 7.2 multi-target field/order/retain/runner contract validation and
+  deterministic replay; and
 - Phase 9 OpenSCAD/STL parameter and model-manifest validation.
 
 ### Integration tests
@@ -1360,6 +1510,8 @@ Cover:
 - `plan_grasp` approach-only planning;
 - interpolated trajectory validation;
 - Phase 7.1 A–D mode runs with cube-world and Isaac prohibited-contact checks;
+- Phase 7.2 multi-target tip/body contact classification, fail-budget, and
+  dual console timing checks;
   and
 - Phase 9.1 optional-tool FK/collision/cube-suite evaluation.
 
@@ -1408,7 +1560,8 @@ For each phase:
 1. Read this specification and applicable `.cursor/rules/*.mdc` files.
 2. Create or continue the phase branch named exactly `wip_phaseN`. Decimal
    phases replace the decimal point with an underscore: Phase 7.1 uses
-   `wip_phase7_1` and Phase 9.1 uses `wip_phase9_1`.
+   `wip_phase7_1`, Phase 7.2 uses `wip_phase7_2`, and Phase 9.1 uses
+   `wip_phase9_1`.
 3. Create or update a phase checklist in the pull request or working notes.
 4. Inspect the exact cuRobo v0.8.0 source or official documentation before using an unfamiliar API.
 5. Add tests before or alongside implementation.

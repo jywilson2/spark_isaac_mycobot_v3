@@ -6,7 +6,7 @@ Date: **2026-07-19**
 
 Stop agent access to the retired prior project tree
 (`../spark_isaac_mycobot_v2`) and keep V3 self-contained for Phases 0–11,
-including decimal Phases 7.1 and 9.1.
+including decimal Phases 7.1, 7.2, and 9.1.
 
 ## Access controls
 

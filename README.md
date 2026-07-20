@@ -17,11 +17,25 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 ## Current phase
 
 **Phase 7 — Isaac Sim validated-plan playback: complete. Phase 7.1 —
-unknown-start cube approach suite: complete on `wip_phase7_1`.** See
-[`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md).
+unknown-start cube approach suite: complete. Phase 7.2 — multi-target
+tip-contact clearance suite: planned on `wip_phase7_2`.** See
+[`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md) and
+[`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md).
 
-Full roadmap (Phases 0–11, including decimal Phases 7.1 and 9.1):
+Full roadmap (Phases 0–11, including decimal Phases 7.1, 7.2, and 9.1):
 [`docs/implementation_phases.md`](docs/implementation_phases.md).
+
+```mermaid
+flowchart LR
+  plan[plan_grasp per target] --> validate[independent validation]
+  validate --> play[Isaac playback or HW seam]
+  play --> contact{ContactDetector}
+  contact -->|tip| next[remove or retain then next id]
+  contact -->|body| fail[episode FAIL]
+  next --> done{field done?}
+  done -->|no| plan
+  done -->|yes| pass[episode PASS]
+```
 
 Implemented now:
 
@@ -58,6 +72,8 @@ Implemented now:
 
 Not implemented:
 
+- Phase 7.2 multi-target tip-contact clearance suite (requirements landed;
+  see [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md));
 - generic non-empty-world collision-clearance evaluation beyond the Phase 7.1
   cube adapter (still fails closed);
 - non-zero residual correction (Phase 8);

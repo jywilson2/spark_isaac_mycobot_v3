@@ -20,6 +20,7 @@ fallback, learned policy, simulator feature, or integration.
 | **6** | Randomized workspace benchmark | JSON/Markdown metrics, failure taxonomy |
 | **7** | Isaac Sim closed-loop visualization & sim validation | GUI/headless smoke of validated plans |
 | **7.1** | Unknown-start normal-approach cube visualization | Five-episode default; all A–D modes validated |
+| **7.2** | Multi-target tip-contact clearance suite | Clear/contact all targets per episode; tip OK; body fails |
 | **8** | Bounded residual RL (Isaac Lab / Isaac Sim only) | Residual improves sim metrics; never replaces planner |
 | **9** | Fabricated contact test tool | OpenSCAD/STL, fit, optional TCP/collision profile |
 | **9.1** | Contact test tool evaluation | Calibration and remounting repeatability characterized |
@@ -41,7 +42,8 @@ flowchart LR
   P5 --> P6[Phase 6 benchmark]
   P6 --> P7[Phase 7 Isaac Sim]
   P7 --> P71[Phase 7.1 cube suite]
-  P71 --> P8[Phase 8 Residual RL]
+  P71 --> P72[Phase 7.2 multi-target]
+  P72 --> P8[Phase 8 Residual RL]
   P8 --> P9[Phase 9 contact tool]
   P9 --> P91[Phase 9.1 tool evaluation]
   P91 --> P10[Phase 10 HW dry-run]
@@ -208,6 +210,35 @@ planner, command hardware, or claim physical accuracy from simulation.
 
 ---
 
+## Phase 7.2 — Multi-target tip-contact clearance suite
+
+**Branch:** `wip_phase7_2`
+
+**Objective:** Stress cuRobo planning and Isaac playback on a numbered
+multi-target field with configurable placement (`grid` / `manual`), contact
+order (`shuffle` / `listed`), and retain-or-remove-after-tip-contact policy.
+Flange-normal tip/EE contact is allowed; arm-body contact with any target fails
+closed. Design a typed multi-target API reusable by later hardware adapters.
+
+**Planned deliverables:**
+
+- Core Isaac-free `TargetField`, order policy, retain flag, and
+  `MultiTargetEpisodeRunner` with same-leg retry and
+  `max_failed_plans == target_count` by default;
+- `ContactDetector` protocol (PhysX tip vs body in Isaac; HW later);
+- Numbered viewport labels, tip/body recolor, dual console timing;
+- Seeded replay; host plan/playback split preserved;
+- Hardware-transfer surfaces documented for Phases 10–11;
+- Phase report [`docs/phase7_2_multi_target_contact.md`](phase7_2_multi_target_contact.md).
+
+**Must not:** Replace cuRobo; command hardware; claim Orin/real-time budgets
+from Spark sim timings; weaken Phase 7/7.1 gates; put Kit visualization into
+the core package.
+
+**Entry criteria:** Phase 7.1 acceptance passes.
+
+---
+
 ## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
 
 **Objective:** Train a residual policy that outputs a **bounded Cartesian
@@ -235,7 +266,9 @@ exclusive motion planner.
 - Generate a replacement trajectory, invoke another planner, or ship a policy
   that maps a target pose to full joint solutions.
 
-**Entry criteria:** Phase 7.1 acceptance passes; Phase 5 seam stable; Phase 6 baseline metrics recorded for comparison.
+**Entry criteria:** Phase 7.2 acceptance passes (Phase 7.1 remains a preserved
+gate for Isaac-path changes); Phase 5 seam stable; Phase 6 baseline metrics
+recorded for comparison.
 
 ---
 
