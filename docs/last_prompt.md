@@ -1,5 +1,12 @@
 # The last prompt executed in the Cursor Agent window:
 
+## BEGIN: 2026-07-20 00:44 -0700
+Read the newly added cursor rules files and examine all source code for compliance with the applicable rule.
+
+Retest and commit any changes to the current Phase 7.1 branch, and rebase in main.
+## END
+
+# Old prompts:
 ## BEGIN: 2026-07-19 14:16 -0700
 Phase 7.1 implementation and landing
 
@@ -8,7 +15,6 @@ Implement the plan as specified, it is attached for your reference. Do NOT edit 
 To-do's from the plan have already been created. Do not create them again. Mark them as in_progress as you work, starting with the first one. Don't stop until you have completed all the to-dos.
 ## END
 
-# Old prompts:
 ## BEGIN: 2026-07-19 13:54 -0700
 Implement the Isaac Sim Phase 7.1 visualization/lighting/contact layer for /workspaces/isaac_ros-dev/src/spark_isaac_mycobot_v3. Do NOT access sibling v2. Do NOT edit the plan file. Do NOT commit/push.
 

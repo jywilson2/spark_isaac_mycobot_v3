@@ -73,3 +73,9 @@ planning-success claims, or hardware-readiness claims carry forward.
 Begin Phase 8 on `wip_phase8` (bounded residual RL in sim only), or Phase 9
 tool fabrication on `wip_phase9` when scheduled. Preserve Phase 7/7.1 GUI smoke
 gates for any Isaac-path changes.
+
+## 2026-07-20 compliance note
+
+Phase 7.1 sources were re-audited against newly added Cursor `python` /
+`bash` / `clean-code` rules; chemistry/PyTorch and C++ packs were treated as
+non-applicable. Cleanup committed on `wip_phase7_1` after CI/GPU/GUI retest.

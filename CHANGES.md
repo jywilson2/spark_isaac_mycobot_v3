@@ -1,5 +1,26 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-20 — Phase 7.1 rule-compliance cleanup
+
+1. Audited Phase 7.1 sources against newly added Cursor rules (`python`,
+   `bash`, `clean-code`). Skipped chemistry/PyTorch and C++ rule packs as
+   out of scope for this package.
+2. Removed unused `_sample_normal` from `cube_suite.py`, named the Mode D
+   rejection budget (`GOAL_REGION_SAMPLE_ATTEMPTS`), and split Kit playback
+   helpers in `play_cube_suite.py` (`STAGE_SETTLE_UPDATES`).
+3. Refactored `smoke_phase7_1_cube_suite.sh` to a `main` with `local` vars,
+   `printf`, and shellcheck-clean sourcing.
+4. Added the new rule files under `.cursor/rules/` and a unit check for the
+   named sample budget. Retested: CI 120 unit tests, host GPU 8/8, Phase 7
+   GUI smoke, Phase 7.1 GUI `--all-modes` exit 0.
+
+### Review recommended
+
+- Broader repo bash scripts still use `echo` (pre-existing). Only the Phase
+  7.1 smoke was brought to the new bash template in this change.
+
+---
+
 ## 2026-07-19 — Phase 7.1 complete (host acceptance)
 
 1. Landed the full Phase 7.1 cube-approach suite: validated config (14 mm cube,
