@@ -181,6 +181,17 @@ run_phase7_1_isaac_gui_smoke() {
   fi
 }
 
+run_phase7_2_isaac_gui_smoke() {
+  echo "=== Phase 7.2 Isaac Sim multi-target GUI smoke ==="
+  if [[ -f /.dockerenv ]]; then
+    bash "${ROOT}/scripts/host/spark_host_exec.sh" \
+      ./scripts/host/smoke_phase7_2_multi_target.sh --gui --auto-exit
+  else
+    bash "${ROOT}/scripts/host/smoke_phase7_2_multi_target.sh" --gui --auto-exit
+  fi
+}
+
+
 case "${MODE}" in
   ci)
     echo "############################################"
@@ -210,6 +221,7 @@ case "${MODE}" in
     fi
     run_isaac_gui_smoke
     run_phase7_1_isaac_gui_smoke
+    run_phase7_2_isaac_gui_smoke
     echo "=== Spark verification PASSED ==="
     ;;
   *)

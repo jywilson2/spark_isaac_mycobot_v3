@@ -267,3 +267,57 @@ def stage_lighting_mode_active() -> bool:
     stage_id = UsdUtils.StageCache.Get().GetId(stage).ToLongInt()
     mode = settings.get(f"{_LIGHTING_MODE_PREFIX}{stage_id}") or ""
     return mode in ("", "stage")
+
+
+TIP_CONTACT_COLOR_RGBA = (0.15, 0.85, 0.25, 1.0)
+BODY_CONTACT_COLOR_RGBA = (0.9, 0.15, 0.1, 1.0)
+DEFAULT_TARGET_COLOR_RGBA = (0.2, 0.6, 0.9, 1.0)
+
+
+def set_cube_color(stage: Any, prim_path: str, color_rgba: Sequence[float]) -> None:
+    """Recolor an existing cube prim for tip/body contact feedback."""
+
+    from pxr import Gf, UsdGeom
+
+    color = _finite_vector(color_rgba, "color_rgba", 4)
+    if any(component < 0.0 or component > 1.0 for component in color):
+        raise ValueError("color_rgba components must be in [0, 1]")
+    prim = stage.GetPrimAtPath(prim_path)
+    if not prim.IsValid():
+        raise ValueError(f"cube prim not found: {prim_path}")
+    cube = UsdGeom.Cube(prim)
+    cube.CreateDisplayColorAttr([Gf.Vec3f(*color[:3])])
+    cube.CreateDisplayOpacityAttr([float(color[3])])
+
+
+def remove_prim(stage: Any, prim_path: str) -> None:
+    """Remove a prim from the stage if it exists."""
+
+    prim = stage.GetPrimAtPath(prim_path)
+    if prim.IsValid():
+        stage.RemovePrim(prim_path)
+
+
+def add_target_label(
+    stage: Any,
+    *,
+    prim_path: str,
+    target_id: str,
+    center_m: Sequence[float],
+    height_offset_m: float = 0.03,
+) -> str:
+    """Add a numbered label prim above a target for viewport identity matching."""
+
+    from pxr import Gf, UsdGeom
+
+    center = _finite_vector(center_m, "center_m", 3)
+    if not prim_path.startswith("/") or not target_id.strip():
+        raise ValueError("prim_path must be absolute and target_id non-empty")
+    label_path = f"{prim_path.rstrip('/')}/label_{target_id}"
+    xform = UsdGeom.Xform.Define(stage, label_path)
+    xformable = UsdGeom.Xformable(xform.GetPrim())
+    translate = xformable.AddTranslateOp()
+    translate.Set(Gf.Vec3d(center[0], center[1], center[2] + height_offset_m))
+    # Store the identity as custom data so playback logs can cross-check labels.
+    xform.GetPrim().SetCustomDataByKey("target_id", str(target_id))
+    return label_path

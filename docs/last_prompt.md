@@ -1,10 +1,38 @@
-## BEGIN: 2026-07-20 14:28 -0700
+## BEGIN: 2026-07-20 15:27 -0700
 
-Commit these spec changes on the branch. Do not yet push to github.
+Commit these changes. Do not push to the github yet.
+
+Provide me with the command to run the test from the host with gui, 10 targets, and 1 episode.
 
 ## END
 
 # Old prompts:
+
+## BEGIN: 2026-07-20 15:25 -0700
+
+Good point. Make the max_target_failures default value .5 of the target_count.
+
+## END
+## BEGIN: 2026-07-20 15:14 -0700
+
+Let's simplify the retry logic. I misunderstood the definition of an episode.
+
+Every planning failure is retried max_planning_failure_per_target, default value of 5. If the count of (e.g. current_count_planning_failure_per_target) exceeds max_planning_failure_per_target then the target is considered a failure. If the total number of target failures in an episode exceeds max_target_failures (defaults to the total number of targets) the episode is considered a failure.
+
+The total number of failed episodes for testing must not exceed, max_failed_episodes (default value of 0).
+
+The other variables defined (intra_episode_plan_failures, max_intra_episode_plan_failures, and max_failed_plans) should be removed in favor of the logic described above.
+
+In summary, we three types of failures, planning failures, target failures, and episode failures.
+
+Please update the documentation and build these changes.
+
+## END
+## BEGIN: 2026-07-20 14:48 -0700
+
+Let's implemente the --episodes parameter.
+
+## END
 
 ## BEGIN: 2026-07-20 14:24 -0700
 

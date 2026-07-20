@@ -1079,45 +1079,54 @@ over successive independently validated plans with an explicit world revision.
 - **`ContactDetector` protocol:** reports `allowed_tip_contact`,
   `prohibited_body_contact`, or `none`. Isaac PhysX and later force/current or
   operator-ack adapters implement the same contract.
-- Default **`max_failed_plans`** equals the episode’s active `target_count`.
-  Override only via explicit configuration. This is the **suite / acceptance**
-  budget: how many planning-failed **episodes** may occur before the overall
-  run fails acceptance. It does **not** set the within-episode retry ceiling.
-- **`max_intra_episode_plan_failures`** (new; default **`10`**) is the
-  within-episode retry ceiling. When observed `intra_episode_plan_failures`
-  exceeds this value, the episode **FAIL**s and that outcome counts as
-  **exactly one** suite planning failure.
-- **`intra_episode_plan_failures`** is the observed within-episode attempt
-  count (starts at `0` each episode; increments on each failed
-  planning/validation attempt).
+- Three failure tiers (planning → target → episode):
+  - **`max_planning_failure_per_target`** (default **`5`**): each failed
+    planning/validation attempt for the current target increments
+    `current_count_planning_failure_per_target`. When that count **exceeds**
+    this limit, the **target** fails.
+  - **`max_target_failures`** (default = **`floor(target_count / 2)`**): when the
+    number of failed targets in an episode **exceeds** this limit, the
+    **episode** fails.
+  - **`max_failed_episodes`** (default **`0`**): suite / acceptance budget;
+    the number of failed episodes must not exceed this value.
+- Observed counters: `current_count_planning_failure_per_target` (resets each
+  target), episode `planning_failure_count` / `target_failure_count`, and suite
+  `failed_episodes`.
 
 ### Scene and episode model
 
 - Configure positive integers `target_count` and `episode_count`.
-- `max_intra_episode_plan_failures` (default **`10`**) does not auto-follow
-  `target_count`.
+- Host planning/smoke may override `target_count` with CLI `--targets N`
+  (positive integer). When the selected YAML uses `placement: manual` and the
+  listed poses are fewer than N, the override switches to `placement: grid`
+  inside the declared field AABB; when the list is long enough, it is truncated
+  to the first N ids. `max_target_failures` tracks the new count when it
+  previously matched the default half of the YAML `target_count`
+  (`floor(old_count / 2)`).
+- Host planning/smoke may override `episode_count` with CLI `--episodes N`
+  (positive integer).
+- `max_planning_failure_per_target` (default **`5`**) and
+  `max_failed_episodes` (default **`0`**) do not auto-follow `target_count`.
 - An **episode** is one full clearance or contact sequence over the field, or
   an early fail.
 - Contact order follows `shuffle` or `listed` as configured.
 - Terminal approach is opposite the outward face normal and aligned to the
   configured signed TCP approach axis (flange tip / tool approach policy).
-- On structured planning or validation failure for leg `from_id → to_id`,
-  **retry the same leg** until success or
-  `max_intra_episode_plan_failures` is exceeded; do not skip to the next
-  target id.
+- On structured planning or validation failure for the current target
+  (`from_id → to_id`), **retry the same target** until success or
+  `current_count_planning_failure_per_target` exceeds
+  `max_planning_failure_per_target` (default **`5`**); then mark that **target**
+  failed and continue to the next id (unless the episode target-failure budget
+  is exceeded).
 - Robot self-collision remains a planning/validation failure.
-- **Failure counting (two scopes):**
-  - **Within an episode:** each failed planning or validation attempt increments
-    observed `intra_episode_plan_failures` (starts at `0`). Retries continue
-    until success or **`max_intra_episode_plan_failures`** (default **`10`**)
-    is exceeded; then the episode fails with
-    `max_intra_episode_plan_failures_exceeded`. That episode contributes
-    **exactly one** to the suite planning-failure count.
-  - **Across episodes (overall suite / acceptance):** path-planning failures
-    are counted **once per failed episode** (not per retry). The suite fails
-    acceptance when the number of planning-failed episodes exceeds
-    **`max_failed_plans`** (default **`target_count`**). Do not sum observed
-    `intra_episode_plan_failures` into the suite planning-failure total.
+- **Failure counting (three tiers):**
+  - **Planning failures:** per-target attempt counter
+    `current_count_planning_failure_per_target`; exceed
+    `max_planning_failure_per_target` → **target failure**.
+  - **Target failures:** count of failed targets in the episode; exceed
+    `max_target_failures` (default `floor(target_count / 2)`) → **episode failure**.
+  - **Episode failures:** suite `failed_episodes` must be
+    `<= max_failed_episodes` (default **`0`**) for acceptance.
 
 ### Contact policy (hard requirement)
 
@@ -1136,39 +1145,34 @@ An episode **PASS** only when:
 1. Every target is successfully contacted via allowed tip/EE contact (and
    removed when retain is false);
 2. Every motion segment was produced by cuRobo and independently validated;
-3. Failed planning/validation attempts for that episode are
-   `<= max_intra_episode_plan_failures` (default **`10`**);
+3. Target failures for that episode are `<= max_target_failures` (default
+   `floor(target_count / 2)`);
 4. Zero prohibited body–target contacts;
 5. Required timing and identity fields are finite and logged.
 
 Otherwise **FAIL**. Taxonomy includes at least `plan_failed`,
-`validation_failed`, `body_contact`, and
-`max_intra_episode_plan_failures_exceeded`. Failed plans must identify the leg
-as `from_id → to_id` (use `start` when leaving the episode start state).
+`validation_failed`, `body_contact`,
+`max_planning_failure_per_target_exceeded`, `max_target_failures_exceeded`, and
+`targets_incomplete`. Failed plans must identify the leg as `from_id → to_id`
+(use `start` when leaving the episode start state).
 
-**Suite aggregation:** overall path-planning failure metrics count **episodes**
-that failed due to exhausting `max_intra_episode_plan_failures`, not individual
-retry attempts. Example: one episode with five failed plan attempts that then
-hits `max_intra_episode_plan_failures` counts as **one** suite planning failure
-and records observed `intra_episode_plan_failures` = 5. The overall acceptance
-run fails when planning-failed episode count exceeds `max_failed_plans`
-(default `target_count`).
+**Suite acceptance:** `failed_episodes <= max_failed_episodes` (default **`0`**).
+Report distinct totals for planning failures, target failures, and failed
+episodes. Example: six planning failures on one target with
+`max_planning_failure_per_target=5` yield one target failure; if that pushes
+`target_failure_count` past `max_target_failures`, the episode fails and
+increments `failed_episodes` by one.
 
 ### Timing, visualization, and latency labeling
 
 - Per leg: `planning_duration_s`, `motion_duration_s`, `time_to_contact_s`
   (plan + motion through first allowed tip contact); when a leg attempt fails,
-  log the attempt against `intra_episode_plan_failures`.
+  log the attempt against `current_count_planning_failure_per_target`.
 - Per episode: `episode_duration_s`, success/fail outcome, contact counts,
-  `intra_episode_plan_failures` (failed planning/validation attempts inside
-  the episode, including retries that later succeed or exhaust the budget).
-- Suite summary: episode pass/fail counts; suite-level planning-failure count
-  equal to the number of episodes whose outcome is
-  `max_intra_episode_plan_failures_exceeded` (or related planning failure) —
-  **not** the sum of `intra_episode_plan_failures`; also report the suite sum
-  (and optionally per-episode values) of `intra_episode_plan_failures`; suite
-  acceptance fails when that episode planning-failure count exceeds
-  `max_failed_plans`.
+  `planning_failure_count`, `target_failure_count`, `failed_target_ids`.
+- Suite summary: episode pass/fail counts; `failed_episodes`,
+  `total_planning_failures`, `total_target_failures`; acceptance requires
+  `failed_episodes <= max_failed_episodes`.
 - Emit matching live lines to the host terminal and the Isaac Sim console.
 - Numbered viewport labels must match `target_id` in logs and JSON.
 - Planning latency recorded in Phase 7.2 is **simulation host evidence only**.
@@ -1181,7 +1185,8 @@ Phase 7.2 shall document and type the following so Phases 10–11 can reuse the
 same runner with swapped adapters (see also Remaining future adapters below):
 
 - `MultiTargetEpisodeRunner`, `TargetField`, contact-order policy, retain flag,
-  `max_intra_episode_plan_failures` / `max_failed_plans` budgets;
+  `max_planning_failure_per_target` / `max_target_failures` /
+  `max_failed_episodes` budgets;
 - `ContactDetector`, optional `TargetPoseSource`, scene-revision / obstacle set,
   `MotionGate`, and leg/episode report schema;
 - Phase 5 execution seam (`RobotStateProvider`, command adapter,
@@ -1207,13 +1212,9 @@ pointer (and optional summary diagram).
   placement; `shuffle` and
   `listed` order; retain and remove-after-contact modes; seeded exact replay.
 - Flange-normal tip/EE contact; body–target contact fails closed.
-- Same-leg retry until success or `max_intra_episode_plan_failures`; dual
-  console/JSON timing.
-- Suite planning-failure counts are episode-scoped (one per episode that
-  exceeds `max_intra_episode_plan_failures`, default **`10`**). Observed
-  `intra_episode_plan_failures` reports within-episode retries separately.
-  Suite acceptance fails when planning-failed episode count exceeds
-  `max_failed_plans` (default `target_count`).
+- Per-target planning retries until `max_planning_failure_per_target`;
+  target/episode/suite budgets as above; dual console/JSON timing.
+- Suite acceptance: `failed_episodes <= max_failed_episodes` (default **`0`**).
 - Phase 7 and Phase 7.1 smoke gates remain mandatory for Isaac-path changes.
 - No physical hardware command, alternate planner, Orin SLA claim from sim
   timings, or simulation-derived physical-accuracy claim is introduced.
@@ -1484,18 +1485,26 @@ Use a validated named YAML configuration for:
   target list;
 - `order` (`shuffle` or `listed`);
 - `retain_targets_after_contact` (default `false`);
-- `max_failed_plans` defaulting to the episode’s active `target_count`
-  (suite / acceptance budget on planning-failed **episode** count);
-- `max_intra_episode_plan_failures` defaulting to **`10`** (within-episode
-  retry ceiling; exceed → one episode failure);
-- observed `intra_episode_plan_failures` (starts at `0` each episode);
+- `max_planning_failure_per_target` defaulting to **`5`**;
+- `max_target_failures` defaulting to **`floor(target_count / 2)`**;
+- `max_failed_episodes` defaulting to **`0`**;
 - root seed; tip/EE allow-list link names; body-contact fail-closed policy;
 - planner/validation/scene profiles and lighting;
-- console/report fields including observed `intra_episode_plan_failures` and
-  episode-scoped suite planning-failure aggregation, artifact path, and
+- console/report fields including planning/target/episode failure counts,
+  artifact path, and
   optional `warn_planning_duration_s`; and
 - dual host-terminal and Isaac-console timing fields.
 
+Host entry points:
+
+- `isaac_sim/plan_multi_target_suite.py --targets N` and `--episodes N`
+  override YAML `target_count` / `episode_count` as defined under Scene and
+  episode model above;
+- `scripts/host/smoke_phase7_2_multi_target.sh --targets N --episodes N`
+  forwards the same overrides into the plan process and writes
+  `artifacts/reports/phase7_2_multi_target_<tag>.{bundle.json,json}` unless
+  `SPARK_PHASE7_2_BUNDLE` / `SPARK_PHASE7_2_REPORT` are set. Artifact tags are
+  `N` (targets only), `epM` (episodes only), or `NxM` (both).
 
 ### Phase 9 optional tool profile
 

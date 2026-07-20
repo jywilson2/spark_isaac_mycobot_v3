@@ -6,8 +6,9 @@ Last updated: **2026-07-20**
 
 **Phase 7.1 — Unknown-start normal-approach cube visualization: COMPLETE**
 
-**Phase 7.2 — Multi-target tip-contact clearance suite: PLANNED** on
-`wip_phase7_2` (requirements and API design landed; implementation not started).
+**Phase 7.2 — Multi-target tip-contact clearance suite: IMPLEMENTED** on
+`wip_phase7_2` (headless smoke green with three-tier failure budgets:
+planning / target / episode; awaiting GUI review before landing).
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–11)  
@@ -29,7 +30,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 6 | Randomized benchmark | **Complete** |
 | 7 | Isaac Sim closed-loop viz/validation | **Complete** |
 | 7.1 | Unknown-start cube approach visualization | **Complete** |
-| 7.2 | Multi-target tip-contact clearance suite | **Planned** |
+| 7.2 | Multi-target tip-contact clearance suite | **Implemented (GUI review)** |
 | 8 | Bounded residual RL (sim only) | Planned |
 | 9 | Fabricated contact test tool | Requirements finalized |
 | 9.1 | Contact test tool evaluation | Requirements finalized |
@@ -38,6 +39,9 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Implemented
 
+- Phase 7.2 multi-target tip-contact suite: `TargetField`,
+  `MultiTargetEpisodeRunner`, tip/body contact classification, plan/play split,
+  and host smoke (`config/phase7_2_multi_target.yml`).
 - Python 3.10+ `src/` project layout.
 - Exact cuRobo v0.8.0 Git-tag dependency declaration.
 - Phase 0–7 complete (see prior STATUS history and phase reports).
@@ -75,10 +79,13 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Next step
 
-Implement Phase 7.2 on `wip_phase7_2` per
-[`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md)
-and `spec.md` §8. Preserve Phase 7/7.1 GUI smoke gates for any Isaac-path
-changes. Phase 8 (`wip_phase8`) follows Phase 7.2 acceptance.
+GUI-review Phase 7.2 visualization (`smoke_phase7_2_multi_target.sh --gui
+--no-auto-exit`), then land `wip_phase7_2` onto `main` per project workflow.
+Three-tier failure budgets are implemented:
+`max_planning_failure_per_target` (default 5), `max_target_failures`
+(default `floor(target_count / 2)`), `max_failed_episodes` (default 0).
+Preserve Phase 7/7.1 GUI smoke gates for any Isaac-path changes. Phase 8
+(`wip_phase8`) follows Phase 7.2 acceptance after GUI review.
 
 ## 2026-07-20 compliance note
 

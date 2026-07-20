@@ -1,0 +1,40 @@
+# Phase 7.2 listed + retain example using the same reachable FK-aligned targets.
+episode_count: 1
+target_count: 2
+root_seed: 7
+frame: g_base
+placement: manual
+order: listed
+retain_targets_after_contact: true
+max_planning_failure_per_target: 5
+max_target_failures: 1
+max_failed_episodes: 0
+tip_allow_link_names:
+  - joint6_flange
+field_aabb:
+  minimum_m: [0.10, -0.24, 0.12]
+  maximum_m: [0.28, 0.02, 0.20]
+target_edge_m: 0.014
+outward_normal_base: [0.0, 0.0, 1.0]
+flange_diameter_assumption_m: 0.031
+targets:
+  - target_id: "1"
+    center_m: [0.243971, -0.040576, 0.170773]
+    outward_normal_base: [-0.36513, 0.91482, 0.17258]
+  - target_id: "2"
+    center_m: [0.135933, -0.20243, 0.155429]
+    outward_normal_base: [0.49008, 0.593372, 0.638538]
+start_joint_position_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+planner_profile: benchmark_reproducible
+validation_profile: simulation_initial
+scene_revision_prefix: phase7_2-manual
+artifact_path: artifacts/phase7_2
+minimum_self_collision_clearance_m: 0.0
+minimum_world_collision_clearance_m: 0.0
+lighting:
+  dome_intensity: 1000.0
+  distant_intensity: 3000.0
+  distant_angle_deg: [45.0, -30.0, 0.0]
+  color: [1.0, 1.0, 1.0]
+pre_approach_distance_m: 0.01
+fixed_roll_rad: 0.0

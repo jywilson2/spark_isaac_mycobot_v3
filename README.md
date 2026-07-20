@@ -18,7 +18,8 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 **Phase 7 — Isaac Sim validated-plan playback: complete. Phase 7.1 —
 unknown-start cube approach suite: complete. Phase 7.2 — multi-target
-tip-contact clearance suite: planned on `wip_phase7_2`.** See
+tip-contact clearance suite: implemented on `wip_phase7_2` (GUI review
+pending).** See
 [`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md) and
 [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md).
 
@@ -72,8 +73,9 @@ Implemented now:
 
 Not implemented:
 
-- Phase 7.2 multi-target tip-contact clearance suite (requirements landed;
-  see [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md));
+- Phase 7.2 multi-target tip-contact clearance suite (implemented; GUI review
+  pending —
+  [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md));
 - generic non-empty-world collision-clearance evaluation beyond the Phase 7.1
   cube adapter (still fails closed);
 - non-zero residual correction (Phase 8);
@@ -353,6 +355,27 @@ not `bash -lc '...'`):
 ```bash
 ./scripts/host/spark_host_exec.sh ./scripts/host/run_phase7_1_chained_gui.sh --GUI
 ```
+
+
+## Phase 7.2 multi-target tip-contact suite
+
+Phase 7.2 clears a numbered multi-target field with flange-normal tip contact.
+Default YAML uses two FK-reachable manual targets; host smoke can override the
+count:
+
+```bash
+./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit
+./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 5
+./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 10 --episodes 5
+./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --manual
+```
+
+`--targets N` and `--episodes N` are defined in [`spec.md`](spec.md) §8 Phase 7.2 / §9.
+Failure budgets: per-target planning retries
+(`max_planning_failure_per_target`, default 5), episode target-failure ceiling
+(`max_target_failures`, default `floor(target_count / 2)`), and suite episode ceiling
+(`max_failed_episodes`, default 0). See
+[`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md).
 
 ## Planned Phase 9/9.1 contact tool
 

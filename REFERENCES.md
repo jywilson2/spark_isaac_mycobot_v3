@@ -208,12 +208,14 @@ compute-capability warning is retained in that report and is not suppressed.
 
 ## Phase 7.2 multi-target contracts
 
-- **Project Phase 7.2 report (planned)** —
+- **Project Phase 7.2 report** —
   [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md)
 - Normative acceptance: [`spec.md`](spec.md) §8 Phase 7.2.
 - Core orchestration stays Isaac-free (`TargetField`, order/retain policies,
   `MultiTargetEpisodeRunner`, `ContactDetector` protocol). Isaac host code
   implements visualization and PhysX tip/body classification only.
+- Failure model: planning failures (per-target retry budget) → target
+  failures (episode budget) → episode failures (suite `max_failed_episodes`).
 - Hardware transfer surfaces align with remaining adapters: perception as
   `TargetPoseSource`, force/current as `ContactDetector`, online scene update
   as scene-revision feed (Phases 10–11).

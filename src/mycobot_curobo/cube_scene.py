@@ -83,12 +83,26 @@ def cube_to_curobo_scene_dict(
 ) -> dict[str, dict[str, dict[str, list[float]]]]:
     """Convert an immutable cube to cuRobo's cuboid scene-model mapping."""
 
+    return cubes_to_curobo_scene_dict((geometry,))
+
+
+def cubes_to_curobo_scene_dict(
+    geometries: Sequence[CubeGeometry],
+) -> dict[str, dict[str, dict[str, list[float]]]]:
+    """Convert zero or more immutable cubes to cuRobo's cuboid scene mapping."""
+
+    if not geometries:
+        return {"cuboid": {}}
+    names = [geometry.name for geometry in geometries]
+    if len(set(names)) != len(names):
+        raise ConfigurationError("cube geometry names must be unique within a scene")
     return {
         "cuboid": {
             geometry.name: {
                 "dims": [geometry.edge_m] * 3,
                 "pose": [*geometry.center_m, *geometry.orientation_wxyz],
             }
+            for geometry in geometries
         }
     }
 
@@ -97,9 +111,18 @@ def cube_scene_revision(geometry: CubeGeometry) -> str:
     """Create a stable scene revision that changes with collision geometry."""
 
     canonical = json.dumps(
-        cube_to_curobo_scene_dict(geometry), sort_keys=True, separators=(",", ":")
+        cubes_to_curobo_scene_dict((geometry,)), sort_keys=True, separators=(",", ":")
     )
     return f"cube-{hashlib.sha256(canonical.encode('utf-8')).hexdigest()[:16]}"
+
+
+def multi_cube_scene_revision(geometries: Sequence[CubeGeometry]) -> str:
+    """Create a stable scene revision for a multi-cuboid obstacle field."""
+
+    canonical = json.dumps(
+        cubes_to_curobo_scene_dict(geometries), sort_keys=True, separators=(",", ":")
+    )
+    return f"cubes-{hashlib.sha256(canonical.encode('utf-8')).hexdigest()[:16]}"
 
 
 def sphere_aabb_clearance_m(

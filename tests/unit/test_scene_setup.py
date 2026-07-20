@@ -85,3 +85,15 @@ def test_add_scene_lighting_doc_requires_idempotent_rotate() -> None:
 def test_lighting_config_rejects_invalid_values(payload: dict[str, object]) -> None:
     with pytest.raises(ValueError):
         IsaacLightingConfig.from_mapping(payload)
+
+
+def test_phase7_2_color_constants_are_valid() -> None:
+    from isaac_sim.scene_setup import (
+        BODY_CONTACT_COLOR_RGBA,
+        DEFAULT_TARGET_COLOR_RGBA,
+        TIP_CONTACT_COLOR_RGBA,
+    )
+
+    for color in (TIP_CONTACT_COLOR_RGBA, BODY_CONTACT_COLOR_RGBA, DEFAULT_TARGET_COLOR_RGBA):
+        assert len(color) == 4
+        assert all(0.0 <= component <= 1.0 for component in color)

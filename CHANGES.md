@@ -1,10 +1,72 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-20 — Default max_target_failures = floor(target_count / 2)
+
+1. Changed the episode target-failure budget default from `target_count` to
+   **`floor(target_count / 2)`** (`default_max_target_failures`).
+2. `--targets N` continues to recompute that default when the prior value was
+   the previous half-default.
+3. Updated YAML comments/examples, unit tests, and Phase 7.2 docs/`spec.md`.
+
+### Review recommended
+
+- Odd `target_count` values floor (e.g. 5 → 2). Confirm that is intended vs
+  ceil/round.
+
+---
+
+## 2026-07-20 — Phase 7.2 three-tier failure model
+
+1. Replaced `intra_episode_plan_failures` / `max_intra_episode_plan_failures` /
+   `max_failed_plans` with:
+   - `max_planning_failure_per_target` (default **5**) +
+     `current_count_planning_failure_per_target`;
+   - `max_target_failures` (default `floor(target_count / 2)`);
+   - `max_failed_episodes` (default **0**).
+2. Runner marks a **target** failed when per-target planning failures exceed
+   the budget, an **episode** failed when target failures exceed theirs, and
+   suite acceptance when `failed_episodes > max_failed_episodes`.
+3. Updated `spec.md`, phase report, configs, unit/GPU tests, and plan suite
+   reporting.
+4. Container CI: 142 unit tests + Ruff passed after the change.
+
+### Review recommended
+
+- Confirm default `max_target_failures == floor(target_count / 2)` with early
+  abort when `target_failure_count > max`.
+
+---
+
+## 2026-07-20 — Phase 7.2 smoke `--episodes` override
+
+1. Added `--episodes N` to `smoke_phase7_2_multi_target.sh`, forwarding to
+   `plan_multi_target_suite.py` (already supported).
+2. Artifact tags use `epM` or `NxM` when episode/target overrides are set.
+3. Documented in `spec.md` §8/§9, README, and the Phase 7.2 report.
+
+## 2026-07-20 — Default max_intra_episode_plan_failures = 5
+
+1. Changed the within-episode retry ceiling default from 10 to **5** in loader,
+   deserialize fallback, tests, and Phase 7.2 docs/`spec.md`.
+
+## 2026-07-20 — Implement Phase 7.2 two-scope plan-failure counting
+
+1. Wired `max_intra_episode_plan_failures` (default 5) as the within-episode
+   retry ceiling and `intra_episode_plan_failures` as the observed metric.
+2. Suite aggregation counts planning-failed **episodes**
+   (`suite_planning_failed_episodes` / `total_failed_plans`); acceptance uses
+   `max_failed_plans` via `suite_acceptance_passed`.
+3. Episode taxonomy on budget exhaustion is
+   `max_intra_episode_plan_failures_exceeded`.
+4. Added `scripts/host/run_phase7_2_gpu.sh` for focused host GPU coverage.
+
+# CHANGES — MyCobot 280 M5 Constrained Approach Planner
+
 ## 2026-07-20 — Phase 7.2 plan-failure counting (spec)
 
 1. Added observed metric **`intra_episode_plan_failures`** (starts at `0` each
    episode) for within-episode planning/validation retry attempts.
-2. Added config **`max_intra_episode_plan_failures`** (default **`10`**):
+2. Added config **`max_intra_episode_plan_failures`** (default **`5`**):
    within-episode retry ceiling. Exceeding it fails the episode and counts as
    **exactly one** suite planning failure.
 3. Clarified **`max_failed_plans`** (default `target_count`) as the suite /

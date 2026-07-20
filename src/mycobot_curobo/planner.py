@@ -65,6 +65,7 @@ class PlanningRequest:
     planner_profile: str
     random_seed: int
     request_id: str
+    disable_collision_links: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -369,7 +370,7 @@ class NominalPlanner:
                     grasp_approach_in_tool_frame=True,
                     plan_approach_to_grasp=True,
                     plan_grasp_to_lift=False,
-                    disable_collision_links=[],
+                    disable_collision_links=list(request.disable_collision_links),
                 )
                 if raw is not None and _bool_tensor(getattr(raw, "success", None)):
                     break
