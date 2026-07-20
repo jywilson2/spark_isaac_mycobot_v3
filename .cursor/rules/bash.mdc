@@ -1,0 +1,48 @@
+---
+description: Strict coding standards and safety guidelines for Bash shell scripts
+globs: "**/*.sh", "**/*.bash", "**/.bashrc", "**/scripts/*"
+alwaysApply: false
+---
+
+# Bash Scripting & Safety Standards
+
+## Execution & Safety Defaults
+- **Shebang**: Always start executable scripts with `#!/usr/bin/env bash`.
+- **Strict Mode**: Include `set -euo pipefail` immediately below the shebang to prevent silent failure cascades.
+  - `-e`: Exit immediately on command failure.
+  - `-u`: Treat unset variables as errors.
+  - `-o pipefail`: Ensure pipelines fail if *any* command in the chain fails.
+
+## Variable Handling & Quoting
+- **Always Quote Variables**: Use `"${variable}"` or `"${array[@]}"` to prevent word splitting and glob expansion.
+- **Local Scope**: All variables defined inside functions MUST be declared with `local`.
+- **Parameter Expansion**: Prefer explicit default assignments like `VAR="${1:-default_value}"` over unvalidated positional parameters.
+
+## Command Hygiene & Patterns
+- **ShellCheck Clean**: Generated code must adhere to `shellcheck` standards:
+  - Use `[[ ... ]]` instead of `[ ... ]` for conditional tests.
+  - Use `$(command)` instead of backticks `` `command` ``.
+  - Use `printf` instead of `echo` for predictable output across environments.
+- **Cleanup Traps**: Use `mktemp` for temporary files and register a `trap` to clean up on `EXIT`, `INT`, or `TERM` signals.
+- **Avoid Dangerous Functions**: Never use `eval`.
+
+## Example Standard Template
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Cleanup on exit
+tmp_dir="$(mktemp -d)"
+cleanup() {
+  rm -rf "${tmp_dir}"
+}
+trap cleanup EXIT INT TERM
+
+# Function with local variables
+main() {
+  local target_dir="${1:-.}"
+  printf "Processing directory: %s\n" "${target_dir}"
+}
+
+main "$@"

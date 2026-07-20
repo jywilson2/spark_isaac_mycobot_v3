@@ -25,6 +25,13 @@ def test_default_suite_is_deterministic_and_uses_mode_a() -> None:
     assert all(episode.fixed_roll_rad == 0.0 for episode in episodes)
 
 
+def test_goal_region_sample_budget_is_named_constant() -> None:
+    from mycobot_curobo import cube_suite as module
+
+    assert module.GOAL_REGION_SAMPLE_ATTEMPTS >= 1
+    assert module.GOAL_REGION_SAMPLE_ATTEMPTS == 64
+
+
 def test_acceptance_schedule_exercises_all_start_modes() -> None:
     config = load_cube_suite_config(ROOT / "config/phase7_1_cube_suite.yml")
     episodes = sample_cube_episodes(

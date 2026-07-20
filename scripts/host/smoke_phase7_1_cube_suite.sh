@@ -2,76 +2,89 @@
 # Phase 7.1 cube-suite Isaac Sim smoke. Run natively on the DGX Spark host.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-MODE="--headless"
-AUTO_EXIT="--auto-exit"
-ALL_MODES=0
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --headless|--gui) MODE="$1"; shift ;;
-    --auto-exit) AUTO_EXIT="--auto-exit"; shift ;;
-    --no-auto-exit) AUTO_EXIT="--no-auto-exit"; shift ;;
-    --all-modes) ALL_MODES=1; shift ;;
-    -h|--help)
-      echo "Usage: $0 [--headless|--gui] [--auto-exit|--no-auto-exit] [--all-modes]"
-      exit 0
-      ;;
-    *) echo "ERROR: unknown argument: $1" >&2; exit 2 ;;
-  esac
-done
+usage() {
+  printf 'Usage: %s [--headless|--gui] [--auto-exit|--no-auto-exit] [--all-modes]\n' "$0"
+}
 
-# shellcheck source=env.isaac_host.sh
-source "${ROOT}/scripts/host/env.isaac_host.sh"
-spark_host_require_native_shell
-"${ROOT}/scripts/host/check_prereqs.sh"
+main() {
+  local root mode auto_exit all_modes vendor_urdf prepared_usd nested_prepared_usd
+  local report bundle suite_status
+  local -a plan_args
 
-VENDOR_URDF="${ROOT}/third_party/mycobot_ros2/mycobot_description/urdf/mycobot_280_m5/mycobot_280_m5.urdf"
-PREPARED_USD="${ROOT}/assets/mycobot_280_m5/prepared/mycobot_280_m5.usd"
-NESTED_PREPARED_USD="${ROOT}/assets/mycobot_280_m5/prepared/mycobot_280_m5/mycobot_280_m5.usda"
-if [[ ! -f "${VENDOR_URDF}" ]]; then
-  "${ROOT}/scripts/download_mycobot_ros2.sh"
-fi
-if [[ ! -f "${PREPARED_USD}" && ! -f "${NESTED_PREPARED_USD}" ]]; then
-  "${ROOT}/scripts/convert_urdf_to_usd.sh"
-fi
-if [[ ! -f "${PREPARED_USD}" ]]; then
-  PREPARED_USD="${NESTED_PREPARED_USD}"
-fi
-if [[ ! -f "${PREPARED_USD}" ]]; then
-  echo "ERROR: URDF conversion produced no prepared USD: ${PREPARED_USD}" >&2
-  exit 1
-fi
+  root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  mode="--headless"
+  auto_exit="--auto-exit"
+  all_modes=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --headless|--gui) mode="$1"; shift ;;
+      --auto-exit) auto_exit="--auto-exit"; shift ;;
+      --no-auto-exit) auto_exit="--no-auto-exit"; shift ;;
+      --all-modes) all_modes=1; shift ;;
+      -h|--help)
+        usage
+        return 0
+        ;;
+      *)
+        printf 'ERROR: unknown argument: %s\n' "$1" >&2
+        return 2
+        ;;
+    esac
+  done
 
-REPORT="${SPARK_PHASE7_1_REPORT:-${ROOT}/artifacts/reports/phase7_1_cube_suite.json}"
-BUNDLE="${SPARK_PHASE7_1_BUNDLE:-${ROOT}/artifacts/reports/phase7_1_cube_suite.bundle.json}"
-mkdir -p "$(dirname "${REPORT}")"
-PLAN_ARGS=()
-if [[ "${ALL_MODES}" -eq 1 ]]; then
-  PLAN_ARGS+=(--all-modes)
-fi
+  # shellcheck source=./env.isaac_host.sh
+  # shellcheck disable=SC1091
+  source "${root}/scripts/host/env.isaac_host.sh"
+  spark_host_require_native_shell
+  "${root}/scripts/host/check_prereqs.sh"
 
-# Plan/validate in a process that never imports Isaac Kit. cuRobo/Warp must not
-# share an address space with SimulationApp on this host stack.
-spark_host_run_python "${ROOT}/isaac_sim/plan_cube_suite.py" \
-  --config "${ROOT}/config/phase7_1_cube_suite.yml" \
-  ${PLAN_ARGS[@]+"${PLAN_ARGS[@]}"} \
-  --output-bundle "${BUNDLE}"
+  vendor_urdf="${root}/third_party/mycobot_ros2/mycobot_description/urdf/mycobot_280_m5/mycobot_280_m5.urdf"
+  prepared_usd="${root}/assets/mycobot_280_m5/prepared/mycobot_280_m5.usd"
+  nested_prepared_usd="${root}/assets/mycobot_280_m5/prepared/mycobot_280_m5/mycobot_280_m5.usda"
+  if [[ ! -f "${vendor_urdf}" ]]; then
+    "${root}/scripts/download_mycobot_ros2.sh"
+  fi
+  if [[ ! -f "${prepared_usd}" && ! -f "${nested_prepared_usd}" ]]; then
+    "${root}/scripts/convert_urdf_to_usd.sh"
+  fi
+  if [[ ! -f "${prepared_usd}" ]]; then
+    prepared_usd="${nested_prepared_usd}"
+  fi
+  if [[ ! -f "${prepared_usd}" ]]; then
+    printf 'ERROR: URDF conversion produced no prepared USD: %s\n' "${prepared_usd}" >&2
+    return 1
+  fi
 
-set +e
-spark_host_run_python "${ROOT}/isaac_sim/play_cube_suite.py" \
-  --repo-root "${ROOT}" \
-  --bundle "${BUNDLE}" \
-  --usd "${PREPARED_USD}" \
-  "${MODE}" \
-  "${AUTO_EXIT}" \
-  --output-report "${REPORT}"
-suite_status=$?
-set -e
-if [[ ! -f "${REPORT}" ]]; then
-  echo "ERROR: Phase 7.1 suite did not write report: ${REPORT}" >&2
-  exit 1
-fi
-python3 -c '
+  report="${SPARK_PHASE7_1_REPORT:-${root}/artifacts/reports/phase7_1_cube_suite.json}"
+  bundle="${SPARK_PHASE7_1_BUNDLE:-${root}/artifacts/reports/phase7_1_cube_suite.bundle.json}"
+  mkdir -p "$(dirname "${report}")"
+  plan_args=()
+  if [[ "${all_modes}" -eq 1 ]]; then
+    plan_args+=(--all-modes)
+  fi
+
+  # Plan/validate in a process that never imports Isaac Kit. cuRobo/Warp must not
+  # share an address space with SimulationApp on this host stack.
+  spark_host_run_python "${root}/isaac_sim/plan_cube_suite.py" \
+    --config "${root}/config/phase7_1_cube_suite.yml" \
+    ${plan_args[@]+"${plan_args[@]}"} \
+    --output-bundle "${bundle}"
+
+  set +e
+  spark_host_run_python "${root}/isaac_sim/play_cube_suite.py" \
+    --repo-root "${root}" \
+    --bundle "${bundle}" \
+    --usd "${prepared_usd}" \
+    "${mode}" \
+    "${auto_exit}" \
+    --output-report "${report}"
+  suite_status=$?
+  set -e
+  if [[ ! -f "${report}" ]]; then
+    printf 'ERROR: Phase 7.1 suite did not write report: %s\n' "${report}" >&2
+    return 1
+  fi
+  python3 -c '
 import json
 import sys
 
@@ -100,4 +113,7 @@ print(
         sort_keys=True,
     )
 )
-' "${REPORT}" "${suite_status}"
+' "${report}" "${suite_status}"
+}
+
+main "$@"

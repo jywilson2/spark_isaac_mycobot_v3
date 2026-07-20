@@ -38,6 +38,9 @@ from mycobot_curobo.robot_model import TCP_LINK, forward_kinematics, load_robot_
 from mycobot_curobo.targets import SurfaceTarget
 from mycobot_curobo.validation import ValidatedPlan, ValidationMetrics
 
+# Rejection budget while FK-mapping goal-bank tips into declared Mode D AABBs.
+GOAL_REGION_SAMPLE_ATTEMPTS = 64
+
 
 def _quaternion_to_rotation(quaternion_wxyz: np.ndarray) -> np.ndarray:
     w, x, y, z = quaternion_wxyz
@@ -298,18 +301,6 @@ class CubeEpisode:
         )
 
 
-def _sample_normal(rng: np.random.Generator, normal_bin: NormalBin) -> tuple[float, float, float]:
-    axis = np.asarray(normal_bin.direction_base)
-    helper = np.eye(3)[int(np.argmin(np.abs(axis)))]
-    tangent = np.cross(axis, helper)
-    tangent /= np.linalg.norm(tangent)
-    bitangent = np.cross(axis, tangent)
-    cosine = rng.uniform(math.cos(normal_bin.cone_half_angle_rad), 1.0)
-    sine = math.sqrt(1.0 - cosine * cosine)
-    angle = rng.uniform(0.0, 2.0 * math.pi)
-    return tuple(cosine * axis + sine * (math.cos(angle) * tangent + math.sin(angle) * bitangent))
-
-
 def sample_cube_episodes(
     config: CubeSuiteConfig,
     *,
@@ -348,7 +339,7 @@ def sample_cube_episodes(
         outward = None
         tangent = None
         region_label = ""
-        for _ in range(64):
+        for _ in range(GOAL_REGION_SAMPLE_ATTEMPTS):
             candidate = config.goal_joint_bank[int(rng.integers(len(config.goal_joint_bank)))]
             pose = forward_kinematics(np.asarray(candidate.position_rad), spec=robot_spec)
             rotation = _quaternion_to_rotation(pose.quaternion_wxyz)
