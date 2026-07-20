@@ -1,10 +1,16 @@
+## BEGIN: 2026-07-20 04:13 -0700
+
+Update the local main.
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-07-20 04:11 -0700
 
 Commit, and push to the current branch. Rebase onto main, as well.
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-20 04:09 -0700
 
