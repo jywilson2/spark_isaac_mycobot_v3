@@ -44,14 +44,17 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "SPARK_RUN_ISAAC_GUI_SMOKE" not in verification
     player = PLAYER.read_text(encoding="utf-8")
     assert "prepare_illuminated_stage" in player
+    assert "configure_kit_for_stage_lighting" in player
     assert "stage_lighting_mode" in player
     assert "scene_setup" in player
     phase71 = PHASE7_1_PLAYER.read_text(encoding="utf-8")
     assert "set_joint_position_targets" in phase71
     assert "prepare_illuminated_stage" in phase71
-    assert "enable_viewport_stage_lighting" in (
-        ROOT / "isaac_sim" / "scene_setup.py"
-    ).read_text(encoding="utf-8")
+    assert "configure_kit_for_stage_lighting" in phase71
+    scene_setup = (ROOT / "isaac_sim" / "scene_setup.py").read_text(encoding="utf-8")
+    assert "enable_viewport_stage_lighting" in scene_setup
+    assert "SetLightingMenuModeCommand" in scene_setup
+    assert "autoLightRig/enabled" in scene_setup
 
 
 def test_chained_gui_host_script_wires_mode_b_and_episodes() -> None:
@@ -62,7 +65,7 @@ def test_chained_gui_host_script_wires_mode_b_and_episodes() -> None:
     assert "spark_require_gui_display" in script
     assert "plan_cube_suite.py" in script
     assert "play_cube_suite.py" in script
-    assert '--GUI|--gui' in script
+    assert "--GUI|--gui" in script
     assert 'mode="--gui"' in script
     assert "--chained" in script
     assert "--episodes" in script

@@ -35,9 +35,10 @@ delegate each command:
 
 The smoke checks host prerequisites, obtains the pinned vendor URDF when
 missing, creates the prepared USD when missing, and runs
-`isaac_sim/play_nominal_plan.py`. Players create UsdLux lights **and** switch
-the viewport to stage-lighting mode (`set_lighting_mode_stage`); otherwise Kit
-can leave stage lights disabled and the scene stays dark.
+`isaac_sim/play_nominal_plan.py`. Players disable Kit auto light-rig before
+`open_stage` (avoids the "No lights found… applying Default" warning), create
+UsdLux lights, and switch the viewport to stage-lighting mode
+(`SetLightingMenuModeCommand`); otherwise Kit can leave stage lights hidden.
 `./scripts/run_verification.sh spark` makes the GUI smoke mandatory and provides
 no environment bypass.
 

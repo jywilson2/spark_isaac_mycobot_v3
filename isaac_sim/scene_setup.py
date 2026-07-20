@@ -46,12 +46,41 @@ DEFAULT_LIGHTING = IsaacLightingConfig(
     color=(1.0, 1.0, 1.0),
 )
 
+# Kit viewport lighting menubar (omni.kit.viewport.menubar.lighting).
+_AUTO_LIGHT_RIG_ENABLED = (
+    "/persistent/exts/omni.kit.viewport.menubar.lighting/autoLightRig/enabled"
+)
+_LIGHTING_NOTIFICATION_DURATION = "/exts/omni.kit.viewport.menubar.lighting/notificationDuration"
+_RTX_VIEW_LIGHTING_MODE = "/rtx/useViewLightingMode"
+_LIGHTING_MODE_PREFIX = "/exts/omni.kit.viewport.menubar.lighting/lightingMode/"
+
 
 def _prim_paths(root_path: str) -> tuple[str, str]:
     root = root_path.rstrip("/")
     if not root.startswith("/") or not root:
         raise ValueError("root_path must be an absolute USD path")
     return f"{root}/DomeLight", f"{root}/DistantLight"
+
+
+def configure_kit_for_stage_lighting() -> bool:
+    """Disable Kit auto light-rig before opening a USD that has no lights yet.
+
+    Isaac Sim's viewport lighting menubar defaults ``autoLightRig.enabled`` to
+    true. Opening the prepared robot USD (no ``LightAPI`` prims) then posts
+    ``No lights found in stage, applying lighting: 'Default'`` and applies a
+    light rig that **hides** later UsdLux prims. Call this after
+    ``SimulationApp`` construction and **before** ``open_stage``.
+    """
+
+    try:
+        import carb
+    except ImportError:
+        return False
+    settings = carb.settings.get_settings()
+    settings.set(_AUTO_LIGHT_RIG_ENABLED, False)
+    settings.set(_LIGHTING_NOTIFICATION_DURATION, 0)
+    settings.set(_RTX_VIEW_LIGHTING_MODE, False)
+    return True
 
 
 def add_scene_lighting(
@@ -113,8 +142,10 @@ def enable_viewport_stage_lighting() -> bool:
 
     Isaac Sim's viewport lighting menu defaults can leave stage lights hidden
     (camera light or a light rig). Creating UsdLux prims alone is not enough:
-    ``set_lighting_mode_stage`` makes LightAPI prims visible and clears
-    ``/rtx/useViewLightingMode``.
+    ``SetLightingMenuModeCommand(lighting_mode="stage")`` makes LightAPI prims
+    visible and clears ``/rtx/useViewLightingMode``. Prefer the Kit command
+    (explicit UsdContext) over the menubar action, which needs an active
+    viewport and can no-op early during stage settle.
     """
 
     try:
@@ -123,7 +154,19 @@ def enable_viewport_stage_lighting() -> bool:
         return False
 
     settings = carb.settings.get_settings()
-    settings.set("/rtx/useViewLightingMode", False)
+    settings.set(_RTX_VIEW_LIGHTING_MODE, False)
+    try:
+        import omni.kit.commands
+
+        success, _result = omni.kit.commands.execute(
+            "SetLightingMenuModeCommand",
+            lighting_mode="stage",
+            usd_context_name="",
+        )
+        if success:
+            return True
+    except (ImportError, AttributeError, RuntimeError, TypeError):
+        pass
     try:
         import omni.kit.actions.core
 
@@ -197,10 +240,30 @@ def lighting_ready(stage: Any, expected_paths: Sequence[str]) -> bool:
 
 
 def stage_lighting_mode_active() -> bool:
-    """Best-effort check that RTX is not using view/camera lighting."""
+    """True when RTX view lighting is off and the menubar mode is stage.
+
+    Menubar ``lightingMode`` stores ``""`` for stage lighting, ``camera`` /
+    ``off`` for those modes, or a light-rig name. ``useViewLightingMode`` alone
+    is insufficient: a Default light rig can leave that flag false while still
+    hiding stage ``LightAPI`` prims.
+    """
 
     try:
         import carb
     except ImportError:
         return False
-    return carb.settings.get_settings().get("/rtx/useViewLightingMode") is False
+    settings = carb.settings.get_settings()
+    if settings.get(_RTX_VIEW_LIGHTING_MODE) is not False:
+        return False
+    try:
+        import omni.usd
+        from pxr import UsdUtils
+    except ImportError:
+        return True
+    context = omni.usd.get_context()
+    stage = context.get_stage() if context is not None else None
+    if stage is None:
+        return True
+    stage_id = UsdUtils.StageCache.Get().GetId(stage).ToLongInt()
+    mode = settings.get(f"{_LIGHTING_MODE_PREFIX}{stage_id}") or ""
+    return mode in ("", "stage")

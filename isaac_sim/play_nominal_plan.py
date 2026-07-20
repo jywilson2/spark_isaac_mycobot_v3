@@ -20,6 +20,7 @@ if str(REPO_ROOT / "src") not in sys.path:
 from isaac_sim.articulation_playback import articulation_position_targets  # noqa: E402
 from isaac_sim.scene_setup import (  # noqa: E402
     DEFAULT_LIGHTING,
+    configure_kit_for_stage_lighting,
     prepare_illuminated_stage,
     stage_lighting_mode_active,
 )
@@ -126,6 +127,9 @@ def main(argv: list[str] | None = None) -> int:
         from isaacsim.core.api import World
         from isaacsim.core.prims import SingleArticulation
 
+        # Disable auto light-rig before open; otherwise Kit warns "No lights found"
+        # and applies Default, which hides later UsdLux prims.
+        configure_kit_for_stage_lighting()
         context = omni.usd.get_context()
         if not context.open_stage(str(usd)):
             raise RuntimeError(f"failed to open USD stage: {usd}")
@@ -150,7 +154,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.gui:
             for _ in range(30):
                 world.step(render=True)
-            print("phase7_playback: GUI viewport settled with stage lighting", flush=True)
+            prepare_illuminated_stage(stage, DEFAULT_LIGHTING)
+            metrics["stage_lighting_mode"] = stage_lighting_mode_active()
+            print(
+                "phase7_playback: GUI viewport settled "
+                f"stage_lighting_mode={metrics['stage_lighting_mode']}",
+                flush=True,
+            )
         dof_names = tuple(str(name) for name in robot.dof_names)
         current = robot.get_joint_positions()
         if current is None:
@@ -180,7 +190,10 @@ def main(argv: list[str] | None = None) -> int:
         _write_metrics(args.output_metrics, metrics)
         print(json.dumps(metrics, sort_keys=True), flush=True)
         if not args.auto_exit:
-            print("phase7_playback: holding GUI open (--no-auto-exit); close the window to finish", flush=True)
+            print(
+                "phase7_playback: holding GUI open (--no-auto-exit); close the window to finish",
+                flush=True,
+            )
             while app.is_running():
                 world.step(render=True)
         exit_code = 0

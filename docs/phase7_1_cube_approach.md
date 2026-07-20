@@ -35,7 +35,8 @@ Phase 7.1 extends, but does not replace:
   only) from **playback** (`isaac_sim/play_cube_suite.py`, Kit only) so Warp
   imported by cuRobo cannot break SimulationApp startup.
 - `scene_setup.py` — dome + distant lights before reset, then Kit
-  `set_lighting_mode_stage` so viewport stage lights stay enabled; static
+  `configure_kit_for_stage_lighting` before open plus
+  `SetLightingMenuModeCommand` so viewport stage lights stay enabled; static
   contact-reporting cubes (`displayOpacity` as float array).
 - `contact_monitor.py` — PhysX prohibited arm-to-cube counts only.
 - Playback uses labeled joint-position **resets** only; planned motion uses

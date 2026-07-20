@@ -119,6 +119,7 @@ def _play_validated_episodes(
     from isaac_sim.scene_setup import (
         IsaacLightingConfig,
         add_cube_prim,
+        configure_kit_for_stage_lighting,
         prepare_illuminated_stage,
         stage_lighting_mode_active,
     )
@@ -189,6 +190,9 @@ def _play_validated_episodes(
     root_seed = int(bundle["root_seed"])
     usd = _resolve_prepared_usd(args.repo_root.resolve(), args.usd)
 
+    # Disable auto light-rig before open; otherwise Kit warns "No lights found"
+    # and applies Default, which hides later UsdLux prims.
+    configure_kit_for_stage_lighting()
     context = omni.usd.get_context()
     if not context.open_stage(str(usd)):
         raise RuntimeError(f"failed to open USD stage: {usd}")
@@ -199,8 +203,7 @@ def _play_validated_episodes(
     if not lighting_ok:
         raise RuntimeError("Phase 7.1 lighting prims were not created")
     print(
-        "phase7_1_playback: lighting_ready "
-        f"stage_lighting_mode={stage_lighting_mode_active()}",
+        f"phase7_1_playback: lighting_ready stage_lighting_mode={stage_lighting_mode_active()}",
         flush=True,
     )
 
@@ -214,9 +217,12 @@ def _play_validated_episodes(
     if args.gui:
         for _ in range(GUI_VIEWPORT_SETTLE_STEPS):
             world.step(render=True)
+        # Viewport may exist only after settle; re-assert stage lighting mode.
+        prepare_illuminated_stage(stage, lighting_config)
         print(
             "phase7_1_playback: GUI viewport settled "
-            f"(DISPLAY={os.environ.get('DISPLAY', '')!r})",
+            f"(DISPLAY={os.environ.get('DISPLAY', '')!r} "
+            f"stage_lighting_mode={stage_lighting_mode_active()})",
             flush=True,
         )
     dof_names = tuple(str(name) for name in robot.dof_names)
@@ -324,8 +330,9 @@ def main(argv: list[str] | None = None) -> int:
     from isaacsim import SimulationApp
 
     if args.gui:
+        display = os.environ.get("DISPLAY", "")
         print(
-            f"phase7_1_playback: opening Isaac Sim GUI on DISPLAY={os.environ.get('DISPLAY', '')!r}",
+            f"phase7_1_playback: opening Isaac Sim GUI on DISPLAY={display!r}",
             flush=True,
         )
     app = SimulationApp(

@@ -1,10 +1,121 @@
+## BEGIN: 2026-07-20 10:29 -0700
+
+Land 7.1 changes, without including any of the recent specification changes.
+
+Land 7.2 spec changes, as well.
+
+Both should cause a rebase with main.
+
+When I say "Land" does this nomenclature imply that the main branch is rebased?
+
+I will let you know when to begin implementation of 7.2.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-20 10:26 -0700
+
+Yes, please do all of the above as suggested.  Nice work!
+
+## END
+
+## BEGIN: 2026-07-20 10:20 -0700
+
+I agree that we need an option for shuffle or listed contact order.
+
+Yes, I agree with "retry same leg" as the best option.
+
+Can you think of any other code that could be transformed into a useful API when the physcial arm is in use to make contact with multiple real targets?
+
+
+## END
+
+## BEGIN: 2026-07-20 10:10 -0700
+
+The mult-target API should provide an option for targets to be manually presented in a list, instead of being positioned from seeded random locations. It should also allow an option to keep the targets even after contact.
+
+I agree with your coding conventions for function headers, and also for how the design documentation is structured in separate per Phase files.
+
+
+## END
+
+## BEGIN: 2026-07-20 10:07 -0700
+
+The mult-target API should provide an option for targets to be manually presented in a list, instead of being positioned from seeded locations. It should also allow an option to keep the target'
+
+
+## END
+
+## BEGIN: 2026-07-20 10:00 -0700
+
+Would it make sense for these change to be designed as a multi-target API, which allows the multiple targets to be specified and contacted?
+
+Does the coding standard require that each function be individually documented with a description, parameters, and return value details? If it does not, recommend changes where appropriate.
+
+Should the design of the code be documented in README.md, in terms of call and control flow for a commanded arm movement?
+
+1. Contact should occur on an approach that is normal to the EE flange.
+
+2. Placement should be in a grid, with seeded order shuffle to allow replay to occur.
+
+3. The default max_failed plans for a particular episode, should be equal to the active number of tragets for the particular episode.
+
+4. Please elaborate.
+
+5. I agree.
+
+
+## END
+
+## BEGIN: 2026-07-20 09:42 -0700
+
+Should we make the following changes part of a new 7.2 version?
+
+Answer all of these questions and comments in the context of proposed documentation changes. Let me review them before you make any changes.
+
+Can you change the color of the target to indicate when contact is made? Can you also display a message in IsaaacSim at the moment contact is made, and display how long it took to intersect the target, including planning and movement time?
+
+I am thinking that we should change the IsaacSim testing scenario. First we would start with a parameterized number of targets, evenly distributed. Movement would occur between these targets, avoiding collision with the arm. The target contat order would be randomly determined at run-time. When contact with a target occurs, it would be removed from the field of view, gradually reducing the number of targets available for subsequent contacts. This would continue until all targets are removed from the field of view.
+
+Could you also number the targets (also in visible in the simulator) to allow them to be correlated with debug output? (see below)
+
+An episode would be defined as a complete sequence where all targets have been removed. A parameter would be provided that allows both the number of targets and the number of episodes to be defined.
+
+Would it be acceptable to measure success in terms of the ability to successfully remove all targets create for a particular episode, with a threshold number of failed planning attempts determining failure?
+
+I believe this type of testing will more accurately represent how the arm will be used to iteract with obstacles in an unpredictable manner.
+
+Can we add more debug output to allow the duration of the planning for each target to be displayed, both in the bash terminal and in the IsaacSim console? This should include total episode duration, as well. If planning time is too long, I am concerned about the impact on real-time performance when control of the physical arm occurs on an Orin AGX board.
+
+When an attempted plan fails, produce output to indicate this, in terms of movement from a particular target number to another target number.
+
+Can you also verify that a test fails if any of the targets make contact with the arm body?
+
+
+## END
+
+## BEGIN: 2026-07-20 09:03 -0700
+
+I still see a warning that the stage lighting is off when the IsaacSim GUI Is loaded.
+
+## END
+
+## BEGIN: 2026-07-20 04:21 -0700
+
+The command:
+
+./scripts/host/run_phase7_1_chained_gui.sh --episodes 20
+
+Does not produce a visible IDE.
+
+## END
+
 ## BEGIN: 2026-07-20 04:13 -0700
 
 Update the local main.
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-20 04:11 -0700
 

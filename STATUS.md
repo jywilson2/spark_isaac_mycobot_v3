@@ -80,12 +80,13 @@ Phase 7.1 sources were re-audited against newly added Cursor `python` /
 `bash` / `clean-code` rules; chemistry/PyTorch and C++ packs were treated as
 non-applicable. Cleanup committed on `wip_phase7_1` after CI/GPU/GUI retest.
 
-## 2026-07-20 GUI / lighting fix (in progress)
+## 2026-07-20 GUI / lighting fix
 
-Viewport now forces **stage** lighting mode after UsdLux prim creation (and
-again after `World.reset`). Prior runs could report `lighting_ready=true` while
-the Kit UI still had stage lights disabled, leaving a dark viewport. Use
-`--gui --no-auto-exit` on the host desktop to inspect the lit window.
+Kit auto light-rig is disabled before `open_stage` so opening the dark robot
+USD no longer posts **No lights found… applying 'Default'** or hides UsdLux
+prims. Players force stage lighting via `SetLightingMenuModeCommand` (and
+again after `World.reset` / GUI settle). Use `--gui --no-auto-exit` on the
+host desktop to confirm the Lighting menu shows Stage with no warning toast.
 
 ## 2026-07-20 approach-axis sign (tip face)
 

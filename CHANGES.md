@@ -1,5 +1,27 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-20 — Fix Kit "No lights found" / stage lighting warning
+
+1. Opening the prepared robot USD (no `LightAPI` prims) with Kit
+   `autoLightRig.enabled=true` posted **No lights found in stage, applying
+   lighting: 'Default'** and applied a light rig that hides later UsdLux
+   prims — the viewport warning persisted even after `lighting_ready=true`.
+2. Added `configure_kit_for_stage_lighting()` (disable auto light-rig +
+   suppress the menubar notification) and call it **before** `open_stage` in
+   both Phase 7 / 7.1 players.
+3. `enable_viewport_stage_lighting()` now prefers
+   `SetLightingMenuModeCommand(lighting_mode="stage")` with an explicit
+   UsdContext (works before a viewport exists); re-assert after GUI settle.
+4. `stage_lighting_mode_active()` also checks the menubar `lightingMode`
+   setting so a Default rig no longer reports as stage mode.
+
+### Review recommended
+
+- Host GUI: `./scripts/host/run_phase7_1_chained_gui.sh --GUI --episodes 5`
+  and confirm no "No lights found" toast; viewport Lighting menu shows Stage.
+
+---
+
 ## 2026-07-20 — Host Mode B chained GUI runner
 
 1. Added `scripts/host/run_phase7_1_chained_gui.sh` for host-native Mode B

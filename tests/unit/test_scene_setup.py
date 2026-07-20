@@ -4,6 +4,7 @@ from isaac_sim.scene_setup import (
     DEFAULT_LIGHTING,
     IsaacLightingConfig,
     _prim_paths,
+    configure_kit_for_stage_lighting,
     enable_viewport_stage_lighting,
 )
 
@@ -24,9 +25,24 @@ def test_lighting_config_validates_cube_suite_defaults() -> None:
     )
 
 
+def test_configure_kit_for_stage_lighting_without_kit_returns_false() -> None:
+    # Pure unit environment has no carb/omni; helper must fail closed, not raise.
+    assert configure_kit_for_stage_lighting() is False
+
+
 def test_enable_viewport_stage_lighting_without_kit_returns_false() -> None:
     # Pure unit environment has no carb/omni; helper must fail closed, not raise.
     assert enable_viewport_stage_lighting() is False
+
+
+def test_enable_viewport_stage_lighting_prefers_kit_command() -> None:
+    import inspect
+
+    from isaac_sim import scene_setup
+
+    body = inspect.getsource(scene_setup.enable_viewport_stage_lighting)
+    assert "SetLightingMenuModeCommand" in body
+    assert "configure_kit_for_stage_lighting" in inspect.getsource(scene_setup)
 
 
 def test_add_scene_lighting_doc_requires_idempotent_rotate() -> None:

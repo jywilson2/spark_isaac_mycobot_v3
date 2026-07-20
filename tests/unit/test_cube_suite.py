@@ -64,9 +64,7 @@ def test_mode_d_places_cube_on_tip_face_side() -> None:
 
 def test_chained_force_modes_sample_mode_b_only() -> None:
     config = load_cube_suite_config(ROOT / "config/phase7_1_cube_suite.yml")
-    episodes = sample_cube_episodes(
-        config, root_seed=123, episode_count=4, force_modes=("B", "D")
-    )
+    episodes = sample_cube_episodes(config, root_seed=123, episode_count=4, force_modes=("B", "D"))
     assert len(episodes) == 4
     assert all(episode.start_mode is StartMode.B for episode in episodes)
 

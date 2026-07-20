@@ -288,6 +288,9 @@ writes simulation pose metrics separately from cuRobo validation metrics.
   ./scripts/host/smoke_isaac_viz.sh --gui --no-auto-exit
 ```
 
+Players disable Kit auto light-rig before opening the robot USD so the GUI does
+not toast "No lights found… applying Default" and hide stage lights.
+
 `./scripts/run_verification.sh spark` requires the auto-exiting GUI smoke; no
 environment bypass is supported. A missing `tcp_link` in the imported USD does
 not fabricate results: joint playback may complete while tip metrics are null
