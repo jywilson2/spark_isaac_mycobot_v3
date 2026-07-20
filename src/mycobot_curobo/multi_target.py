@@ -875,48 +875,27 @@ class MultiTargetEpisodeRunner:
                 pending.pop(0)
                 state.current_count_planning_failure_per_target = 0
                 continue
-            # Tip missed: count as a planning failure for this target and retry.
-            self._record_planning_failure(state)
-            if (
-                state.current_count_planning_failure_per_target
-                > episode.max_planning_failure_per_target
-            ):
-                reason = f"tip contact missed on {state.from_id}->{to_id}"
-                legs[-1] = replace(
-                    leg,
-                    failure_category=(
-                        MultiTargetFailureCategory.MAX_PLANNING_FAILURE_PER_TARGET_EXCEEDED
-                    ),
-                    failure_reason=reason,
-                    attempt_index=state.current_count_planning_failure_per_target,
-                )
-                state.failed_target_ids.append(to_id)
-                state.target_failure_count += 1
-                pending.pop(0)
-                state.current_count_planning_failure_per_target = 0
-                if state.target_failure_count > episode.max_target_failures:
-                    return self._fail_episode(
-                        episode,
-                        legs,
-                        state,
-                        started,
-                        MultiTargetFailureCategory.MAX_TARGET_FAILURES_EXCEEDED,
-                        (
-                            f"target failures {state.target_failure_count} exceed "
-                            f"max_target_failures={episode.max_target_failures}"
-                        ),
-                    )
-                continue
+            # Successful plan/validation but tip missed: abort the episode.
+            reason = f"tip contact missed on {state.from_id}->{to_id}"
             legs[-1] = replace(
                 leg,
                 failure_category=MultiTargetFailureCategory.TIP_CONTACT_MISSED,
-                failure_reason=f"tip contact missed on {state.from_id}->{to_id}",
+                failure_reason=reason,
                 attempt_index=state.current_count_planning_failure_per_target,
             )
-        if len(state.contacted_ids) < len(episode.field.targets):
+            return self._fail_episode(
+                episode,
+                legs,
+                state,
+                started,
+                MultiTargetFailureCategory.TIP_CONTACT_MISSED,
+                reason,
+            )
+        required_ids = set(episode.field.contact_order_ids) - set(state.failed_target_ids)
+        if set(state.contacted_ids) != required_ids:
             reason = (
-                f"contacted {len(state.contacted_ids)}/{len(episode.field.targets)} targets; "
-                f"failed_targets={list(state.failed_target_ids)}"
+                f"contacted {sorted(state.contacted_ids)} != required "
+                f"{sorted(required_ids)} (failed_targets={list(state.failed_target_ids)})"
             )
             return self._fail_episode(
                 episode,

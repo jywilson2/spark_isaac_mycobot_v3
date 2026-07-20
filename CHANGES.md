@@ -1,5 +1,21 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-20 — Tip contact required only for planned targets
+
+1. Episode PASS no longer requires tip contact on planning-failed targets
+   (motion was never attempted).
+2. Tip miss after successful plan/validation aborts the episode immediately
+   (`tip_contact_missed`).
+3. Playback expects tip contact only for `contact_order_ids - failed_target_ids`.
+4. Updated `spec.md`, phase report, unit tests.
+
+### Review recommended
+
+- Confirm that the prior 10-target run (7 tip / 3 planning failures within
+  budget) would now PASS under this rule.
+
+---
+
 ## 2026-07-20 — Default max_target_failures = floor(target_count / 2)
 
 1. Changed the episode target-failure budget default from `target_count` to

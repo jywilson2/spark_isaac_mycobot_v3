@@ -488,11 +488,16 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
             monitor.stop()
 
         if not episode_failed:
-            expected = set(episode.field.contact_order_ids)
+            # Tip contact is required only for targets that planned successfully.
+            # Planning-failed targets never attempt motion.
+            expected = set(episode.field.contact_order_ids) - set(result.failed_target_ids)
             if set(contacted) != expected:
                 episode_failed = True
-                failure_category = MultiTargetFailureCategory.TIP_CONTACT_MISSED
-                failure_reason = f"contacted {contacted} != expected {sorted(expected)}"
+                failure_category = MultiTargetFailureCategory.TARGETS_INCOMPLETE
+                failure_reason = (
+                    f"contacted {sorted(contacted)} != required {sorted(expected)} "
+                    f"(failed_targets={list(result.failed_target_ids)})"
+                )
         results[episode_index] = replace(
             result,
             succeeded=not episode_failed,
@@ -501,6 +506,9 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
             legs=tuple(updated_legs) if updated_legs else result.legs,
             contacted_ids=tuple(contacted),
             removed_ids=tuple(removed),
+            failed_target_ids=result.failed_target_ids,
+            planning_failure_count=result.planning_failure_count,
+            target_failure_count=result.target_failure_count,
         )
         print(format_episode_console_row(results[episode_index], count=len(results)), flush=True)
 

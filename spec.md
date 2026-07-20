@@ -1142,16 +1142,20 @@ over successive independently validated plans with an explicit world revision.
 
 An episode **PASS** only when:
 
-1. Every target is successfully contacted via allowed tip/EE contact (and
-   removed when retain is false);
-2. Every motion segment was produced by cuRobo and independently validated;
+1. Every **non-failed** target (planning/validation succeeded and motion was
+   attempted) is tip-contacted via allowed tip/EE contact (and removed when
+   retain is false). Planning-failed targets require **no** tip contact because
+   arm motion was never attempted;
+2. Every motion segment that ran was produced by cuRobo and independently
+   validated;
 3. Target failures for that episode are `<= max_target_failures` (default
    `floor(target_count / 2)`);
 4. Zero prohibited body–target contacts;
 5. Required timing and identity fields are finite and logged.
 
-Otherwise **FAIL**. Taxonomy includes at least `plan_failed`,
-`validation_failed`, `body_contact`,
+Otherwise **FAIL**. After a successful plan/validation, a tip-contact miss
+aborts the episode immediately (`tip_contact_missed`). Taxonomy includes at
+least `plan_failed`, `validation_failed`, `body_contact`, `tip_contact_missed`,
 `max_planning_failure_per_target_exceeded`, `max_target_failures_exceeded`, and
 `targets_incomplete`. Failed plans must identify the leg as `from_id → to_id`
 (use `start` when leaving the episode start state).

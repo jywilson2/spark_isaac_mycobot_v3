@@ -84,8 +84,10 @@ GUI-review Phase 7.2 visualization (`smoke_phase7_2_multi_target.sh --gui
 Three-tier failure budgets are implemented:
 `max_planning_failure_per_target` (default 5), `max_target_failures`
 (default `floor(target_count / 2)`), `max_failed_episodes` (default 0).
-Preserve Phase 7/7.1 GUI smoke gates for any Isaac-path changes. Phase 8
-(`wip_phase8`) follows Phase 7.2 acceptance after GUI review.
+Tip contact is required only for successfully planned targets; tip miss after
+a good plan aborts the episode. Preserve Phase 7/7.1 GUI smoke gates for any
+Isaac-path changes. Phase 8 (`wip_phase8`) follows Phase 7.2 acceptance after
+GUI review.
 
 ## 2026-07-20 compliance note
 

@@ -301,6 +301,79 @@ def test_runner_removes_targets_when_retain_false() -> None:
     assert len(result.legs) == 2
 
 
+def test_episode_passes_without_tip_contact_on_planning_failed_targets() -> None:
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_manual.yml")
+    episode = sample_multi_target_episodes(config, root_seed=7)[0]
+    episode = replace(episode, max_planning_failure_per_target=1, max_target_failures=1)
+    first_id = episode.field.contact_order_ids[0]
+    second_id = episode.field.contact_order_ids[1]
+    fail = PlanningOutcome(
+        plan=None,
+        failure=PlanningFailure("planning_infeasible", "no path", "failed"),
+    )
+    plan = _plan("ok", 1)
+    outcomes = [fail, fail, PlanningOutcome(plan=plan, failure=None)]
+    planner = _FakePlanner(outcomes)
+
+    def planner_factory(seed: int, scene_model: dict, links: tuple[str, ...]) -> _FakePlanner:
+        del seed, scene_model, links
+        return planner
+
+    def validator(plan: NominalPlan, request: Any, clearance: tuple) -> ValidatedPlan:
+        del clearance
+        return _validated(plan)
+
+    runner = MultiTargetEpisodeRunner(
+        planner_factory=planner_factory,
+        validator=validator,
+        contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lambda _line: None,
+    )
+    result = runner.run((episode,))[0]
+    assert result.succeeded is True
+    assert result.failed_target_ids == (first_id,)
+    assert result.contacted_ids == (second_id,)
+    assert result.target_failure_count == 1
+    assert first_id not in result.contacted_ids
+
+
+def test_tip_miss_after_successful_plan_aborts_episode() -> None:
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_manual.yml")
+    episode = sample_multi_target_episodes(config, root_seed=7)[0]
+
+    def planner_factory(seed: int, scene_model: dict, links: tuple[str, ...]) -> Any:
+        del scene_model, links
+        plan = _plan("tip-miss", seed)
+
+        class _Planner:
+            def plan(self, request: Any) -> PlanningOutcome:
+                return PlanningOutcome(
+                    plan=replace(plan, request_id=request.request_id), failure=None
+                )
+
+        return _Planner()
+
+    def validator(plan: NominalPlan, request: Any, clearance: tuple) -> ValidatedPlan:
+        del request, clearance
+        return _validated(plan)
+
+    class _NoTip:
+        def classify(self) -> ContactEvent:
+            return ContactEvent(ContactKind.NONE)
+
+    runner = MultiTargetEpisodeRunner(
+        planner_factory=planner_factory,
+        validator=validator,
+        contact_detector_factory=lambda ep, to_id: _NoTip(),
+        console_log=lambda _line: None,
+    )
+    result = runner.run((episode,))[0]
+    assert result.succeeded is False
+    assert result.failure_category is MultiTargetFailureCategory.TIP_CONTACT_MISSED
+    assert result.contacted_ids == ()
+    assert result.legs[0].planning_succeeded is True
+
+
 def test_body_contact_fails_closed() -> None:
     config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_manual.yml")
     episode = sample_multi_target_episodes(config, root_seed=7)[0]

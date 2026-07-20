@@ -1,3 +1,25 @@
+## BEGIN: 2026-07-20 15:42 -0700
+
+Yes, please commit, but do not push to github.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-20 15:40 -0700
+
+A tip contact need not be successful for failed targets. Essentially an abort can occur early if the tip contact fails for any of the successful targets (i.e. those with successful planning). Tip contact for failed targets can be ignored since arm motion was never attempted.
+
+## END
+## BEGIN: 2026-07-20 15:35 -0700
+
+Why did this fail?
+
+Phase 7.2: 0/1 (0.0%) failures={'targets_incomplete': 1} tip=7 body=0 failed_episodes=1 plan_fails=18 target_fails=3 plan_p50/p95=7.230758263998723/8.885742973999005
+{"bundle": "/home/jywilson/workspaces/isaac_ros-dev/src/spark_isaac_mycobot_v3/artifacts/reports/phase7_2_multi_target_10x1.bundle.json", "episodes": 1, "suite_accepted": false, "fully_succeeded": false, "failed_episodes": 1, "max_failed_episodes": 0, "total_planning_failures": 18, "total_target_failures": 3}
+There was an error running python
+
+## END
 ## BEGIN: 2026-07-20 15:27 -0700
 
 Commit these changes. Do not push to the github yet.
@@ -5,9 +27,6 @@ Commit these changes. Do not push to the github yet.
 Provide me with the command to run the test from the host with gui, 10 targets, and 1 episode.
 
 ## END
-
-# Old prompts:
-
 ## BEGIN: 2026-07-20 15:25 -0700
 
 Good point. Make the max_target_failures default value .5 of the target_count.

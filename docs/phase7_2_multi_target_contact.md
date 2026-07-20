@@ -24,9 +24,11 @@ Phase 7.2 extends, but does not replace:
 - Phase 4 independent validation; and
 - Phase 7 Isaac validated-plan playback.
 
-An episode succeeds when every target has been successfully contacted (and
-removed when configured) without exceeding the failed-plan budget and without
-prohibited body–target contact.
+An episode succeeds when every **non-failed** target is tip-contacted (and
+removed when configured), planning-failed targets are within
+`max_target_failures`, tip miss after a successful plan aborts immediately, and
+there is zero prohibited body–target contact. Tip contact is not required for
+targets that never attempted motion.
 
 ## Documentation conventions
 
@@ -92,6 +94,11 @@ Three tiers:
 3. **Episode failure:** suite `failed_episodes` must be
    `<= max_failed_episodes` (default **`0`**) for acceptance.
 
+Tip contact is required only for targets whose plan/validation succeeded and
+whose motion ran. After such a leg, tip miss → episode **FAIL**
+(`tip_contact_missed`) immediately. Planning-failed targets skip motion; their
+missing tip contact does not fail the episode by itself.
+
 | Name | Kind | Default | Role |
 |------|------|---------|------|
 | `current_count_planning_failure_per_target` | Observed | starts at `0` | Planning failures for the active target (resets on advance) |
@@ -125,6 +132,7 @@ flowchart TD
   val -->|ok| exec[Playback or execution seam]
   exec --> contact{ContactDetector}
   contact -->|body| failBody[Episode FAIL body_contact]
+  contact -->|tip miss| failTip[Episode FAIL tip_contact_missed]
   contact -->|tip allowed| mark[Recolor message timings]
   mark --> retain{retain after contact?}
   retain -->|no| remove[Remove target from field and world]
@@ -132,7 +140,7 @@ flowchart TD
   remove --> more{More targets?}
   keep --> more
   more -->|yes| leg
-  more -->|no| passEp[Episode PASS]
+  more -->|no| passEp[Episode PASS if non-failed targets tip-contacted]
 ```
 
 Host Isaac path keeps the Phase 7.1 split: **planning process** (cuRobo only)
@@ -238,7 +246,7 @@ See `spec.md` §8 Phase 7.2 for the normative list. Highlights:
 | Targets | One cube per episode | Many numbered targets per episode |
 | Terminal | Positive standoff; contact not commanded | Tip contact commanded / detected |
 | Obstacle field | Single cube | Shrinking or retained multi-target field |
-| Success | Approach metrics + zero prohibited contact | All targets contacted (+ removed if configured) |
+| Success | Approach metrics + zero prohibited contact | Non-failed targets tip-contacted; planning-failed targets ignored for tip |
 
 ## Implementation checklist
 
