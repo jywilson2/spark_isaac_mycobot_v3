@@ -37,8 +37,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     mode.add_argument("--gui", action="store_true", dest="gui")
     parser.set_defaults(gui=False)
     exit_mode = parser.add_mutually_exclusive_group()
-    exit_mode.add_argument("--auto-exit", action="store_true", default=True)
+    exit_mode.add_argument("--auto-exit", action="store_true", dest="auto_exit")
     exit_mode.add_argument("--no-auto-exit", action="store_false", dest="auto_exit")
+    parser.set_defaults(auto_exit=True)
     parser.add_argument("--output-report", type=Path, required=True)
     parser.add_argument("--hold-s", type=float, default=None)
     return parser.parse_args(argv)
@@ -319,16 +320,35 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         )
     dof_names = tuple(str(name) for name in robot.dof_names)
     physics_dt_s = world.get_physics_dt()
+    planned_results = tuple(results)
 
-    for episode_index, result in enumerate(results):
-        if not result.succeeded:
-            print(format_episode_console_row(result, count=len(results)), flush=True)
-            continue
-        episode = result.episode
+    class _PlaybackStopped(Exception):
+        """Raised when the Kit window closes during playback/replay."""
+
+    def _play_one_episode(
+        *,
+        episode_index: int,
+        planned: MultiTargetEpisodeResult,
+        episode_count: int,
+        pass_label: str,
+    ) -> MultiTargetEpisodeResult:
+        playable = any(leg.planning_succeeded and leg.validation_passed for leg in planned.legs)
+        if not playable:
+            print(
+                f"phase7_2_playback: {pass_label} skip episode {episode_index + 1} "
+                "(no validated trajectories)",
+                flush=True,
+            )
+            print(format_episode_console_row(planned, count=episode_count), flush=True)
+            return planned
+
+        episode = planned.episode
         target_paths = {
             target.target_id: f"/World/Phase7_2/Targets/target_{target.target_id}"
             for target in episode.field.targets
         }
+        for path in target_paths.values():
+            remove_prim(stage, path)
         for target in episode.field.targets:
             path = target_paths[target.target_id]
             add_cube_prim(
@@ -349,6 +369,8 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         )
         robot.set_joint_positions(reset_targets)
         world.step(render=args.gui)
+        if not app.is_running():
+            raise _PlaybackStopped()
         monitor = TipBodyContactMonitor()
         monitor.start(
             stage,
@@ -360,11 +382,16 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         contacted: list[str] = []
         removed: list[str] = []
         episode_failed = False
-        failure_category = None
-        failure_reason = None
+        failure_category = planned.failure_category
+        failure_reason = planned.failure_reason
+        # Preserve planning-side episode failures (e.g. max_target_failures) while
+        # still animating any validated legs for visualization / replay.
+        plan_already_failed = not planned.succeeded
         current = reset_targets
         try:
-            for leg in result.legs:
+            for leg in planned.legs:
+                if not app.is_running():
+                    raise _PlaybackStopped()
                 if not leg.planning_succeeded or not leg.validation_passed:
                     updated_legs.append(leg)
                     continue
@@ -386,10 +413,20 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 tip_seen_at: float | None = None
                 waypoint_steps = _physics_steps_for_duration(trajectory.dt_s, physics_dt_s)
                 for waypoint in trajectory.position_rad:
+                    if not app.is_running():
+                        raise _PlaybackStopped()
                     targets = articulation_position_targets(waypoint, dof_names, current)
-                    _drive_targets(robot, targets)
+                    try:
+                        _drive_targets(robot, targets)
+                    except AttributeError as exc:
+                        # Kit teardown after window close leaves articulation views None.
+                        if not app.is_running():
+                            raise _PlaybackStopped() from exc
+                        raise
                     current = targets
                     for _ in range(waypoint_steps):
+                        if not app.is_running():
+                            raise _PlaybackStopped()
                         world.step(render=args.gui)
                         classification = monitor.classify()
                         if (
@@ -405,6 +442,8 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                         break
                 motion_duration_s = time.perf_counter() - motion_started
                 for _ in range(_physics_steps_for_duration(args.hold_s, physics_dt_s)):
+                    if not app.is_running():
+                        raise _PlaybackStopped()
                     world.step(render=args.gui)
                 target_obj = episode.field.target_by_id(leg.to_id)
                 contact = _classify_leg_contact(
@@ -431,7 +470,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                     updated_legs.append(updated)
                     print(
                         format_leg_console_row(
-                            updated, episode_index=episode_index, episode_count=len(results)
+                            updated, episode_index=episode_index, episode_count=episode_count
                         ),
                         flush=True,
                     )
@@ -465,7 +504,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                     updated_legs.append(updated)
                     print(
                         format_leg_console_row(
-                            updated, episode_index=episode_index, episode_count=len(results)
+                            updated, episode_index=episode_index, episode_count=episode_count
                         ),
                         flush=True,
                     )
@@ -487,38 +526,78 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         finally:
             monitor.stop()
 
-        if not episode_failed:
-            # Tip contact is required only for targets that planned successfully.
-            # Planning-failed targets never attempt motion.
-            expected = set(episode.field.contact_order_ids) - set(result.failed_target_ids)
+        if not episode_failed and not plan_already_failed:
+            expected = set(episode.field.contact_order_ids) - set(planned.failed_target_ids)
             if set(contacted) != expected:
                 episode_failed = True
                 failure_category = MultiTargetFailureCategory.TARGETS_INCOMPLETE
                 failure_reason = (
                     f"contacted {sorted(contacted)} != required {sorted(expected)} "
-                    f"(failed_targets={list(result.failed_target_ids)})"
+                    f"(failed_targets={list(planned.failed_target_ids)})"
                 )
-        results[episode_index] = replace(
-            result,
+        if plan_already_failed:
+            episode_failed = True
+            failure_category = planned.failure_category
+            failure_reason = planned.failure_reason
+        updated_result = replace(
+            planned,
             succeeded=not episode_failed,
             failure_category=failure_category if episode_failed else None,
             failure_reason=failure_reason if episode_failed else None,
-            legs=tuple(updated_legs) if updated_legs else result.legs,
+            legs=tuple(updated_legs) if updated_legs else planned.legs,
             contacted_ids=tuple(contacted),
             removed_ids=tuple(removed),
-            failed_target_ids=result.failed_target_ids,
-            planning_failure_count=result.planning_failure_count,
-            target_failure_count=result.target_failure_count,
+            failed_target_ids=planned.failed_target_ids,
+            planning_failure_count=planned.planning_failure_count,
+            target_failure_count=planned.target_failure_count,
         )
-        print(format_episode_console_row(results[episode_index], count=len(results)), flush=True)
+        print(format_episode_console_row(updated_result, count=episode_count), flush=True)
+        return updated_result
 
-    if not args.auto_exit:
-        print(
-            "phase7_2_playback: holding GUI open (--no-auto-exit); close the window to finish",
-            flush=True,
-        )
-        while app.is_running():
-            world.step(render=True)
+    pass_index = 0
+    while True:
+        pass_label = "pass-1" if pass_index == 0 else f"replay-{pass_index}"
+        if pass_index > 0:
+            print(
+                f"phase7_2_playback: replaying episodes ({pass_label}); "
+                "close the Kit window or Ctrl+C to stop",
+                flush=True,
+            )
+        for episode_index, planned in enumerate(planned_results):
+            if pass_index > 0 and not app.is_running():
+                break
+            try:
+                updated = _play_one_episode(
+                    episode_index=episode_index,
+                    planned=planned,
+                    episode_count=len(planned_results),
+                    pass_label=pass_label,
+                )
+            except _PlaybackStopped:
+                print(
+                    "phase7_2_playback: Kit window closed; stopping playback/replay",
+                    flush=True,
+                )
+                pass_index = -1  # signal outer break
+                break
+            if pass_index == 0:
+                results[episode_index] = updated
+        if pass_index < 0:
+            break
+        if args.auto_exit:
+            break
+        if not app.is_running():
+            break
+        pass_index += 1
+        try:
+            # Brief settle between replays so the viewport remains responsive.
+            for _ in range(GUI_VIEWPORT_SETTLE_STEPS):
+                if not app.is_running():
+                    break
+                world.step(render=True)
+        except (KeyboardInterrupt, AttributeError):
+            print("phase7_2_playback: replay settle interrupted; stopping", flush=True)
+            break
 
     summary = aggregate_multi_target_results(results, root_seed=root_seed)
     return {

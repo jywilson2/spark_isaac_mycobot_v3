@@ -2,10 +2,11 @@
 
 ## Status
 
-**Implemented on `wip_phase7_2`.** Two-scope plan-failure counting
+**Complete.** Three-tier failure counting
 (`max_planning_failure_per_target` / `max_target_failures` /
-`max_failed_episodes`) is wired in `mycobot_curobo.multi_target`. Normative
-criteria remain in [`spec.md`](../spec.md) §8 Phase 7.2.
+`max_failed_episodes`), tip-contact-only-for-planned-targets, and
+`--no-auto-exit` continuous replay are landed. Normative criteria remain in
+[`spec.md`](../spec.md) §8 Phase 7.2.
 
 Authoritative acceptance criteria are in [`spec.md`](../spec.md) §8.
 
@@ -55,7 +56,7 @@ orchestration over successive validated plans with an explicit world revision.
 | `MultiTargetEpisodeRunner` | Leg loop: plan → validate → execute/play → contact → retry/advance |
 | `ContactDetector` protocol | Returns tip-allowed / body-prohibited / none (Isaac or HW) |
 | `max_planning_failure_per_target` | Per-target planning-failure ceiling (default **`5`**) |
-| `max_target_failures` | Episode budget on failed targets (default = `floor(target_count / 2)`) |
+| `max_target_failures` | Episode budget on failed targets (default = **`3`**) |
 | `max_failed_episodes` | Suite acceptance budget on failed episodes (default **`0`**) |
 
 ### Placement
@@ -90,7 +91,7 @@ Three tiers:
    `max_planning_failure_per_target` (default **`5`**) → **target failure**.
 2. **Target failure:** increment episode `target_failure_count` and skip to the
    next target. If `target_failure_count` **exceeds** `max_target_failures`
-   (default = `floor(target_count / 2)`) → **episode failure**.
+   (default = **`3`**) → **episode failure**.
 3. **Episode failure:** suite `failed_episodes` must be
    `<= max_failed_episodes` (default **`0`**) for acceptance.
 
@@ -103,7 +104,7 @@ missing tip contact does not fail the episode by itself.
 |------|------|---------|------|
 | `current_count_planning_failure_per_target` | Observed | starts at `0` | Planning failures for the active target (resets on advance) |
 | `max_planning_failure_per_target` | Config | **`5`** | Per-target planning-failure ceiling |
-| `max_target_failures` | Config | `floor(target_count / 2)` | Episode ceiling on failed targets |
+| `max_target_failures` | Config | **`3`** | Episode ceiling on failed targets |
 | `max_failed_episodes` | Config | **`0`** | Suite acceptance ceiling on failed episodes |
 
 
@@ -209,7 +210,7 @@ Validated named YAML (`config/phase7_2_multi_target.yml` and variants):
 - `order` (`shuffle` \| `listed`);
 - `retain_targets_after_contact` (default `false`);
 - `max_planning_failure_per_target` defaulting to **`5`**;
-- `max_target_failures` defaulting to **`floor(target_count / 2)`**;
+- `max_target_failures` defaulting to **`3`**;
 - `max_failed_episodes` defaulting to **`0`**;
 - root seed; tip/EE allow-list link names; body-prohibited policy;
 - planner/validation/scene profiles; lighting; report paths;
@@ -224,6 +225,11 @@ Host CLI overrides (normative detail in `spec.md` §8 / §9):
 ```bash
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 10 --episodes 5
 ```
+
+With `--no-auto-exit`, Kit **replays** episodes indefinitely after the first
+pass (close the window or Ctrl+C). Planning non-zero exit does not skip
+playback when a bundle was written; plan-failed episodes with validated legs
+are still animated.
 
 ## Acceptance criteria (summary)
 
@@ -256,4 +262,4 @@ See `spec.md` §8 Phase 7.2 for the normative list. Highlights:
 - [x] Plan/playback host scripts and smoke gates
 - [x] Console/JSON timing and from→to failure rows
 - [x] Planning / target / episode failure counters and budgets
-- [ ] Landing docs / `main` fast-forward after GUI review
+- [x] Landing docs / `main` fast-forward after GUI review

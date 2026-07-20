@@ -48,6 +48,10 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert 'plan_args+=(--targets "${targets}")' in smoke72
     assert "--episodes" in smoke72
     assert 'plan_args+=(--episodes "${episodes}")' in smoke72
+    assert "plan_status" in smoke72
+    player72 = (ROOT / "isaac_sim" / "play_multi_target_suite.py").read_text(encoding="utf-8")
+    assert "replaying episodes" in player72
+    assert "Kit window closed" in player72
     assert "spark_host_exec.sh" in verification
     assert "SPARK_RUN_ISAAC_GUI_SMOKE" not in verification
     player = PLAYER.read_text(encoding="utf-8")

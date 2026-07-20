@@ -9,7 +9,7 @@ placement: manual
 order: shuffle
 retain_targets_after_contact: false
 # Defaults when omitted: max_planning_failure_per_target=5,
-# max_target_failures=floor(target_count/2), max_failed_episodes=0
+# max_target_failures=3, max_failed_episodes=0
 tip_allow_link_names:
   - joint6_flange
 field_aabb:

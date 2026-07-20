@@ -121,7 +121,7 @@ def test_default_config_loads_and_shuffle_is_deterministic() -> None:
     assert config.retain_targets_after_contact is False
     assert config.max_planning_failure_per_target == 5
     assert config.target_count == 2
-    assert config.max_target_failures == 1  # floor(target_count / 2)
+    assert config.max_target_failures == 3  # fixed default
     assert config.max_failed_episodes == 0
     assert config.tip_allow_link_names == ("joint6_flange",)
     field_a = build_target_field(config, order_seed=123)
@@ -150,7 +150,7 @@ def test_grid_listed_field_builds_four_targets() -> None:
     config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_grid.yml")
     assert config.placement is PlacementPolicy.GRID
     assert config.order is OrderPolicy.LISTED
-    assert config.max_target_failures == 2  # floor(4/2)
+    assert config.max_target_failures == 3  # fixed default
     field = build_target_field(config, order_seed=0)
     assert field.contact_order_ids == ("1", "2", "3", "4")
     assert len(field.targets) == 4
@@ -439,7 +439,7 @@ def test_override_target_count_truncates_manual_list() -> None:
     config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target.yml")
     overridden = override_suite_target_count(config, 1)
     assert overridden.target_count == 1
-    assert overridden.max_target_failures == 0  # floor(1/2); followed default half
+    assert overridden.max_target_failures == 3  # fixed default; not rescaled
     assert overridden.placement is PlacementPolicy.MANUAL
     assert len(overridden.manual_targets) == 1
     assert overridden.manual_targets[0].target_id == "1"
@@ -451,7 +451,7 @@ def test_override_target_count_switches_to_grid_when_manual_too_short() -> None:
     config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target.yml")
     overridden = override_suite_target_count(config, 5)
     assert overridden.target_count == 5
-    assert overridden.max_target_failures == 2  # floor(5/2); followed default half
+    assert overridden.max_target_failures == 3  # fixed default; not rescaled
     assert overridden.placement is PlacementPolicy.GRID
     assert overridden.manual_targets == ()
     field = build_target_field(overridden, order_seed=0)

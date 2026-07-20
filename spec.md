@@ -5,7 +5,11 @@
 **Document status:** Initial implementation specification  
 **Primary robot:** Elephant Robotics MyCobot 280 M5  
 **Exclusive motion planner and motion-planning dependency:** NVIDIA cuRobo **v0.8.0 (cuRoboV2)**\
-**Scope:** Deterministic, collision-aware motion planning with a controlled surface-normal approach. The architecture must expose safe extension points for residual reinforcement learning and hardware integration. Phases 0–6 implement the initial planner; Phases 7–11 cover Isaac Sim validation, unknown-start approach visualization, multi-target tip-contact clearance, bounded residual RL, contact-tool development/evaluation, and physical MyCobot 280 M5 testing (see §8 and `docs/implementation_phases.md`).
+**Scope:** Deterministic, collision-aware motion planning with a controlled surface-normal approach. The architecture must expose safe extension points for residual reinforcement learning and hardware integration. Phases 0–6 implement the initial planner; Phases 7–11 cover Isaac Sim validation, unknown-start approach visualization,
+multi-target tip-contact clearance, optional finer target placement (Phase 7.3,
+under consideration), bounded residual RL, contact-tool
+development/evaluation, and physical MyCobot 280 M5 testing (see §8 and
+`docs/implementation_phases.md`).
 
 ---
 
@@ -1084,7 +1088,7 @@ over successive independently validated plans with an explicit world revision.
     planning/validation attempt for the current target increments
     `current_count_planning_failure_per_target`. When that count **exceeds**
     this limit, the **target** fails.
-  - **`max_target_failures`** (default = **`floor(target_count / 2)`**): when the
+  - **`max_target_failures`** (default = **`3`**): when the
     number of failed targets in an episode **exceeds** this limit, the
     **episode** fails.
   - **`max_failed_episodes`** (default **`0`**): suite / acceptance budget;
@@ -1100,9 +1104,8 @@ over successive independently validated plans with an explicit world revision.
   (positive integer). When the selected YAML uses `placement: manual` and the
   listed poses are fewer than N, the override switches to `placement: grid`
   inside the declared field AABB; when the list is long enough, it is truncated
-  to the first N ids. `max_target_failures` tracks the new count when it
-  previously matched the default half of the YAML `target_count`
-  (`floor(old_count / 2)`).
+  to the first N ids. `max_target_failures` is left unchanged when `--targets`
+  overrides the count (default **3**).
 - Host planning/smoke may override `episode_count` with CLI `--episodes N`
   (positive integer).
 - `max_planning_failure_per_target` (default **`5`**) and
@@ -1124,7 +1127,7 @@ over successive independently validated plans with an explicit world revision.
     `current_count_planning_failure_per_target`; exceed
     `max_planning_failure_per_target` → **target failure**.
   - **Target failures:** count of failed targets in the episode; exceed
-    `max_target_failures` (default `floor(target_count / 2)`) → **episode failure**.
+    `max_target_failures` (default **`3`**) → **episode failure**.
   - **Episode failures:** suite `failed_episodes` must be
     `<= max_failed_episodes` (default **`0`**) for acceptance.
 
@@ -1149,7 +1152,7 @@ An episode **PASS** only when:
 2. Every motion segment that ran was produced by cuRobo and independently
    validated;
 3. Target failures for that episode are `<= max_target_failures` (default
-   `floor(target_count / 2)`);
+   **`3`**);
 4. Zero prohibited body–target contacts;
 5. Required timing and identity fields are finite and logged.
 
@@ -1222,6 +1225,32 @@ pointer (and optional summary diagram).
 - Phase 7 and Phase 7.1 smoke gates remain mandatory for Isaac-path changes.
 - No physical hardware command, alternate planner, Orin SLA claim from sim
   timings, or simulation-derived physical-accuracy claim is introduced.
+
+---
+
+## Phase 7.3 — Controllable target-block placement (under consideration)
+
+### Objective (draft)
+
+Improve operator and suite control over numbered target-block placement used
+by Phase 7.2 multi-target clearance, and repair GitHub Actions CI execution
+issues observed on remote runners. Detailed placement contracts, sampling
+rules, and acceptance criteria are **not yet normative**.
+
+Phase 7.3 uses branch `wip_phase7_3` for planning and specification. Brainstorm
+notes live in `docs/phase7_3_target_placement.md`.
+
+### Current standing
+
+- **Status:** under consideration / brainstorm with Cursor.
+- **Must not yet:** implement new placement APIs on landed Phase 7.2 code paths
+  without accepted §8 requirements; weaken existing Phase 7 / 7.1 / 7.2 gates.
+- **CI:** remote workflow bootstrap and verification failures are in scope for
+  this revision once requirements are written.
+
+### Acceptance criteria
+
+To be defined when Phase 7.3 requirements are finalized.
 
 ---
 
@@ -1490,7 +1519,7 @@ Use a validated named YAML configuration for:
 - `order` (`shuffle` or `listed`);
 - `retain_targets_after_contact` (default `false`);
 - `max_planning_failure_per_target` defaulting to **`5`**;
-- `max_target_failures` defaulting to **`floor(target_count / 2)`**;
+- `max_target_failures` defaulting to **`3`**;
 - `max_failed_episodes` defaulting to **`0`**;
 - root seed; tip/EE allow-list link names; body-contact fail-closed policy;
 - planner/validation/scene profiles and lighting;
@@ -1627,7 +1656,8 @@ For each phase:
 1. Read this specification and applicable `.cursor/rules/*.mdc` files.
 2. Create or continue the phase branch named exactly `wip_phaseN`. Decimal
    phases replace the decimal point with an underscore: Phase 7.1 uses
-   `wip_phase7_1`, Phase 7.2 uses `wip_phase7_2`, and Phase 9.1 uses
+   `wip_phase7_1`, Phase 7.2 uses `wip_phase7_2`, Phase 7.3 uses
+   `wip_phase7_3`, and Phase 9.1 uses
    `wip_phase9_1`.
 3. Create or update a phase checklist in the pull request or working notes.
 4. Inspect the exact cuRobo v0.8.0 source or official documentation before using an unfamiliar API.

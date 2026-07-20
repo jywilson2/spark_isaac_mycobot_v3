@@ -379,10 +379,12 @@ def _grid_layout_shape(count: int) -> tuple[int, int]:
     return rows, columns
 
 
-def default_max_target_failures(target_count: int) -> int:
-    """Return the default episode budget: half of ``target_count`` (floor)."""
+def default_max_target_failures(target_count: int | None = None) -> int:
+    """Return the default episode target-failure budget (fixed at 3)."""
 
-    return _positive_int(target_count, "target_count") // 2
+    if target_count is not None:
+        _positive_int(target_count, "target_count")
+    return 3
 
 
 def override_suite_target_count(
@@ -393,32 +395,23 @@ def override_suite_target_count(
     Manual lists shorter than ``target_count`` switch to grid placement inside
     the declared field AABB so ``--targets N`` stays usable without a new YAML.
     When the listed manual set is long enough, it is truncated to the first N
-    targets in list order. ``max_target_failures`` tracks the new count when it
-    previously matched the default half of the old ``target_count``.
+    targets in list order. ``max_target_failures`` stays at the configured value
+    (default **3**); it does not rescale with ``target_count``.
     """
 
     count = _positive_int(target_count, "target_count")
-    max_targets = (
-        default_max_target_failures(count)
-        if config.max_target_failures == default_max_target_failures(config.target_count)
-        else config.max_target_failures
-    )
     if config.placement is PlacementPolicy.GRID:
-        return replace(
-            config, target_count=count, max_target_failures=max_targets, manual_targets=()
-        )
+        return replace(config, target_count=count, manual_targets=())
     if len(config.manual_targets) >= count:
         return replace(
             config,
             target_count=count,
-            max_target_failures=max_targets,
             manual_targets=config.manual_targets[:count],
         )
     # Not enough explicit poses: fall back to a deterministic grid.
     return replace(
         config,
         target_count=count,
-        max_target_failures=max_targets,
         placement=PlacementPolicy.GRID,
         manual_targets=(),
     )
@@ -571,12 +564,7 @@ def deserialize_episode(payload: dict[str, Any]) -> MultiTargetEpisode:
         planner_profile=str(data["planner_profile"]),
         tip_allow_link_names=tuple(data["tip_allow_link_names"]),
         max_planning_failure_per_target=int(data.get("max_planning_failure_per_target", 5)),
-        max_target_failures=int(
-            data.get(
-                "max_target_failures",
-                default_max_target_failures(len(data["field"]["targets"])),
-            )
-        ),
+        max_target_failures=int(data.get("max_target_failures", default_max_target_failures())),
         max_failed_episodes=int(data.get("max_failed_episodes", 0)),
         scene_revision_prefix=str(data["scene_revision_prefix"]),
         retain_targets_after_contact=bool(data["retain_targets_after_contact"]),

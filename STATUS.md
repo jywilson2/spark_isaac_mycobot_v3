@@ -4,11 +4,12 @@ Last updated: **2026-07-20**
 
 ## Current phase
 
-**Phase 7.1 — Unknown-start normal-approach cube visualization: COMPLETE**
+**Phase 7.2 — Multi-target tip-contact clearance suite: COMPLETE**
 
-**Phase 7.2 — Multi-target tip-contact clearance suite: IMPLEMENTED** on
-`wip_phase7_2` (headless smoke green with three-tier failure budgets:
-planning / target / episode; awaiting GUI review before landing).
+**Phase 7.3 — Controllable target-block placement: UNDER CONSIDERATION**
+(brainstorm / specification on `wip_phase7_3`; also scoped to fix GitHub
+Actions CI execution). See
+[`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–11)  
@@ -30,7 +31,8 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 6 | Randomized benchmark | **Complete** |
 | 7 | Isaac Sim closed-loop viz/validation | **Complete** |
 | 7.1 | Unknown-start cube approach visualization | **Complete** |
-| 7.2 | Multi-target tip-contact clearance suite | **Implemented (GUI review)** |
+| 7.2 | Multi-target tip-contact clearance suite | **Complete** |
+| 7.3 | Controllable target-block placement (+ CI fixes) | **Under consideration** |
 | 8 | Bounded residual RL (sim only) | Planned |
 | 9 | Fabricated contact test tool | Requirements finalized |
 | 9.1 | Contact test tool evaluation | Requirements finalized |
@@ -40,54 +42,39 @@ planning-success claims, or hardware-readiness claims carry forward.
 ## Implemented
 
 - Phase 7.2 multi-target tip-contact suite: `TargetField`,
-  `MultiTargetEpisodeRunner`, tip/body contact classification, plan/play split,
-  and host smoke (`config/phase7_2_multi_target.yml`).
+  `MultiTargetEpisodeRunner`, three-tier failure budgets
+  (`max_planning_failure_per_target` default 5, `max_target_failures` default
+  3, `max_failed_episodes` default 0), tip contact required only for
+  successfully planned targets, plan/play split, host smoke with
+  `--targets` / `--episodes`, and `--no-auto-exit` continuous episode replay.
 - Python 3.10+ `src/` project layout.
 - Exact cuRobo v0.8.0 Git-tag dependency declaration.
-- Phase 0–7 complete (see prior STATUS history and phase reports).
+- Phase 0–7.1 complete (see prior STATUS history and phase reports).
 - Phase 7.1 cube suite: validated config, FK-aligned Mode D goal bank,
   cube-world clearance, Mode C `plan_cspace` relocation, illuminated Isaac
   plan/playback process split, drive-target motion, PhysX prohibited-contact
   evidence, and null/`not_evaluated` tip metrics.
 
-## Acceptance checklist (Phase 7.1)
+## Acceptance checklist (Phase 7.2)
 
-- [x] Default run executes five episodes with Modes A and D.
-- [x] Validation runs exercise all Modes A–D (A/B/C starts + D goals).
-- [x] Unknown starts and 3D goals are seeded and exactly replayable.
-- [x] Core configuration, cube scene geometry, A–D episode scheduler, report
-      serialization, and fail-closed cube clearance evaluator are unit tested.
-- [x] Every PASS satisfies independent geometry, limits/dynamics, and
-      self/world-collision validation; unevaluated cube-scene clearance fails.
-- [x] Isaac reports zero prohibited arm-to-cube/environment contact events on
-      played episodes (headless 5/5; GUI all-modes 4/5 played with 0 contacts).
-- [x] Per-episode results stream live; final console and JSON aggregates agree.
-- [x] Lateral/axis p50 and p95 plus all failure counts are reported.
-- [x] Isaac tip metrics remain null/`not_evaluated`.
-- [x] Container CI (119 unit tests + Ruff), host GPU (8), Phase 7 GUI smoke,
-      and Phase 7.1 headless/GUI smokes pass.
-- [x] No physical command, alternate planner, or physical-accuracy claim is
-      introduced.
-
-### Measured host evidence (2026-07-19)
-
-- Headless seed 123: **5/5** successes, success_rate `1.0`, 0 prohibited
-  contacts, tip null; lateral p50/p95 ≈ `8.8e-5` / `6.7e-4` m.
-- GUI `--all-modes`: A/B/C exercised; **4/5** successes + 1 structured
-  trajopt failure; 0 contacts on played episodes; tip null; smoke exit 0.
-- Simulation metrics only — not physical accuracy evidence.
+- [x] Parameterized `target_count` / `episode_count`; grid and manual;
+      shuffle and listed; retain and remove-after-contact; seeded replay.
+- [x] Flange-normal tip/EE contact; body–target contact fails closed.
+- [x] Per-target planning retries; target/episode/suite budgets as specified.
+- [x] Tip contact not required for planning-failed targets; tip miss after a
+      successful plan aborts the episode.
+- [x] Dual console/JSON timing; host plan/play split; smoke gates wired.
+- [x] Container CI (unit tests + Ruff) green for the landed change set.
+- [x] Host GUI evidence: seed 123, `--targets 10 --episodes 1`, suite accepted
+      `1/1`, tip contacts on non-failed targets, zero body contacts, replay under
+      `--no-auto-exit`.
+- [x] No physical command, alternate planner, or physical-accuracy claim.
 
 ## Next step
 
-GUI-review Phase 7.2 visualization (`smoke_phase7_2_multi_target.sh --gui
---no-auto-exit`), then land `wip_phase7_2` onto `main` per project workflow.
-Three-tier failure budgets are implemented:
-`max_planning_failure_per_target` (default 5), `max_target_failures`
-(default `floor(target_count / 2)`), `max_failed_episodes` (default 0).
-Tip contact is required only for successfully planned targets; tip miss after
-a good plan aborts the episode. Preserve Phase 7/7.1 GUI smoke gates for any
-Isaac-path changes. Phase 8 (`wip_phase8`) follows Phase 7.2 acceptance after
-GUI review.
+Specify Phase 7.3 on `wip_phase7_3` (controllable target placement + GitHub
+CI execution fixes). Preserve Phase 7 / 7.1 / 7.2 smoke gates for Isaac-path
+changes. Phase 8 (`wip_phase8`) follows when residual RL work begins.
 
 ## 2026-07-20 compliance note
 
@@ -102,17 +89,3 @@ USD no longer posts **No lights found… applying 'Default'** or hides UsdLux
 prims. Players force stage lighting via `SetLightingMenuModeCommand` (and
 again after `World.reset` / GUI settle). Use `--gui --no-auto-exit` on the
 host desktop to confirm the Lighting menu shows Stage with no warning toast.
-
-## 2026-07-20 approach-axis sign (tip face)
-
-`tool_approach_sign` is **+1** and Mode D places the cube on the flange tip
-(+Z) side. Prior −1 / −Z placement contacted the cube with the wrong side of
-the EE.
-
-## 2026-07-20 host Mode B chained GUI
-
-`scripts/host/run_phase7_1_chained_gui.sh` runs Mode B chained cube GUI on the
-host (default 20 episodes, keep window open). Pass `--GUI`/`--gui` (default)
-to open Kit after resolving `DISPLAY` via `spark_require_gui_display`. Uses
-`plan_cube_suite.py --chained --episodes N` over the base suite YAML (Mode B
-cannot be a YAML default; loader still requires Mode A by default).

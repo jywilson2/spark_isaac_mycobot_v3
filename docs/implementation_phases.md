@@ -225,7 +225,7 @@ closed. Design a typed multi-target API reusable by later hardware adapters.
 - Core Isaac-free `TargetField`, order policy, retain flag, and
   `MultiTargetEpisodeRunner` with per-target planning retries
   (`max_planning_failure_per_target` default **`5`**),
-  `max_target_failures` defaulting to **`floor(target_count / 2)`**, and
+  `max_target_failures` defaulting to **`3`**, and
   `max_failed_episodes` defaulting to **`0`**;
 - `ContactDetector` protocol (PhysX tip vs body in Isaac; HW later);
 - Numbered viewport labels, tip/body recolor, dual console timing;
@@ -238,6 +238,33 @@ from Spark sim timings; weaken Phase 7/7.1 gates; put Kit visualization into
 the core package.
 
 **Entry criteria:** Phase 7.1 acceptance passes.
+
+**Status (2026-07-20):** Implemented and GUI-reviewed on host. Three-tier
+failure budgets, tip-contact-only-for-planned-targets rule, and
+`--no-auto-exit` continuous replay are in place. Measured host evidence
+(seed 123, `--targets 10 --episodes 1`): suite accepted `1/1`, tip contacts
+on non-failed targets, zero body contacts.
+
+---
+
+## Phase 7.3 — Controllable target-block placement (under consideration)
+
+**Branch:** `wip_phase7_3` (planning / specification)
+
+**Status:** Under consideration — brainstorm with Cursor; requirements TBD.
+
+**Objective (draft):** Provide finer control over Phase 7.2 target-block
+placement than grid AABB / fully manual lists alone. Exact placement
+policies, CLI/GUI controls, and acceptance criteria will be defined later.
+This revision is also expected to fix GitHub Actions CI execution issues on
+remote runners.
+
+**Must not (until requirements land):** Treat brainstorm notes as normative;
+weaken Phase 7 / 7.1 / 7.2 gates; command hardware.
+
+**Entry criteria:** Phase 7.2 acceptance passes.
+
+See [`docs/phase7_3_target_placement.md`](phase7_3_target_placement.md).
 
 ---
 
@@ -269,8 +296,9 @@ exclusive motion planner.
   that maps a target pose to full joint solutions.
 
 **Entry criteria:** Phase 7.2 acceptance passes (Phase 7.1 remains a preserved
-gate for Isaac-path changes); Phase 5 seam stable; Phase 6 baseline metrics
-recorded for comparison.
+gate for Isaac-path changes); Phase 7.3 placement/CI work may proceed in
+parallel on `wip_phase7_3` when scoped; Phase 5 seam stable; Phase 6 baseline
+metrics recorded for comparison.
 
 ---
 

@@ -1,5 +1,42 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-20 — Land Phase 7.2; open Phase 7.3 under consideration
+
+1. Documented Phase 7.2 completion (three-tier failures, tip-contact rule,
+   `--no-auto-exit` continuous replay, host GUI evidence) across STATUS /
+   README / phase report / `spec.md`.
+2. Added Phase 7.3 placeholder (controllable target-block placement + GitHub
+   Actions CI fixes) as **under consideration / brainstorm** on
+   `wip_phase7_3`: `docs/phase7_3_target_placement.md`, roadmap, REFERENCES.
+3. Synced landing docs with unpushed Phase 7.2 implementation commits.
+
+---
+
+## 2026-07-20 — max_target_failures default 3 + indefinite episode replay
+
+1. Changed `max_target_failures` default from `floor(target_count / 2)` to a
+   fixed **`3`** (`--targets` no longer rescales it).
+2. Playback no longer skips plan-failed episodes that still have validated
+   trajectories (so tip-contact motion is visible for review).
+3. With `--no-auto-exit`, episodes **replay continuously** until the Kit window
+   closes or Ctrl+C (not a frozen hold of the last frame).
+4. Closing the Kit window mid-replay stops cleanly (no articulation teardown
+   traceback) and still writes the first-pass report.
+
+---
+
+## 2026-07-20 — Hold GUI indefinitely with --no-auto-exit
+
+1. `play_multi_target_suite.py` keeps stepping the Kit world until the window
+   closes or Ctrl+C when `--no-auto-exit` is set.
+2. `smoke_phase7_2_multi_target.sh` no longer aborts before playback when the
+   planner exits non-zero (bundle still required), so GUI review can run.
+3. With `--no-auto-exit`, the smoke wrapper skips the hard “fully succeeded”
+   gate so the held session is not torn down solely for incomplete clearance;
+   plan/play exit codes are still returned.
+
+---
+
 ## 2026-07-20 — Tip contact required only for planned targets
 
 1. Episode PASS no longer requires tip contact on planning-failed targets

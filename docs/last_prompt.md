@@ -1,11 +1,41 @@
-## BEGIN: 2026-07-20 15:42 -0700
+## BEGIN: 2026-07-20 16:21 -0700
 
-Yes, please commit, but do not push to github.
+Verify that the last few commits since pushing to github are evaluated for updates to the documentation.  Update the documentation as needed.
+
+Create a 7.3 milestone as well that will provide more control over the placement of the target blocks. This will be defined later, and should appear still as under consideration and brainstorm with Cursor. This revision will also fix CI execution issues on github.
+
+Once this is done, commit the documentation changes, and push the branch to github. Rebase the branch and push to github main.
+
+Then change to the new branch mentioned above for planning and specification work.
+
+Well done!
 
 ## END
 
 # Old prompts:
 
+## BEGIN: 2026-07-20 16:16 -0700
+
+Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that.
+
+## END
+## BEGIN: 2026-07-20 15:53 -0700
+
+Reduce the defaullt value of max_target_failures to 3.
+
+The episode did not rerun after completion. Please fix and investigate, then run on the host so that I can see the result.
+
+## END
+## BEGIN: 2026-07-20 15:47 -0700
+
+If not "no-auto-exit" is used, leep the episode to keep running indefinitely.
+
+## END
+## BEGIN: 2026-07-20 15:42 -0700
+
+Yes, please commit, but do not push to github.
+
+## END
 ## BEGIN: 2026-07-20 15:40 -0700
 
 A tip contact need not be successful for failed targets. Essentially an abort can occur early if the tip contact fails for any of the successful targets (i.e. those with successful planning). Tip contact for failed targets can be ignored since arm motion was never attempted.

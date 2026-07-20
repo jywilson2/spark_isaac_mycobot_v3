@@ -18,12 +18,14 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 **Phase 7 — Isaac Sim validated-plan playback: complete. Phase 7.1 —
 unknown-start cube approach suite: complete. Phase 7.2 — multi-target
-tip-contact clearance suite: implemented on `wip_phase7_2` (GUI review
-pending).** See
-[`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md) and
-[`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md).
+tip-contact clearance suite: complete. Phase 7.3 — controllable target-block
+placement: under consideration on `wip_phase7_3` (brainstorm; also scoped to
+fix GitHub Actions CI).** See
+[`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md),
+[`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md),
+and [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 
-Full roadmap (Phases 0–11, including decimal Phases 7.1, 7.2, and 9.1):
+Full roadmap (Phases 0–11, including decimal Phases 7.1–7.3 and 9.1):
 [`docs/implementation_phases.md`](docs/implementation_phases.md).
 
 ```mermaid
@@ -69,13 +71,14 @@ Implemented now:
 - a fail-closed cube-world validation adapter and cuRobo-only joint relocation
   adapter for Mode C;
 - illuminated Isaac Phase 7.1 plan/playback split (cuRobo process then Kit),
-  drive-target motion, PhysX prohibited-contact evidence, and null tip metrics.
+  drive-target motion, PhysX prohibited-contact evidence, and null tip metrics;
+- Phase 7.2 multi-target tip-contact clearance suite (three-tier failure
+  budgets, tip-contact rule, host plan/play smoke, `--no-auto-exit` replay).
 
 Not implemented:
 
-- Phase 7.2 multi-target tip-contact clearance suite (implemented; GUI review
-  pending —
-  [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md));
+- Phase 7.3 controllable target-block placement (under consideration —
+  [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md));
 - generic non-empty-world collision-clearance evaluation beyond the Phase 7.1
   cube adapter (still fails closed);
 - non-zero residual correction (Phase 8);
@@ -370,10 +373,14 @@ count:
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --manual
 ```
 
+`--no-auto-exit` keeps replaying episodes indefinitely after the first pass
+(close the window or Ctrl+C to finish). Playback still runs if planning reports
+incomplete clearance, so you can inspect motion for validated legs.
+
 `--targets N` and `--episodes N` are defined in [`spec.md`](spec.md) §8 Phase 7.2 / §9.
 Failure budgets: per-target planning retries
 (`max_planning_failure_per_target`, default 5), episode target-failure ceiling
-(`max_target_failures`, default `floor(target_count / 2)`), and suite episode ceiling
+(`max_target_failures`, default **`3`**), and suite episode ceiling
 (`max_failed_episodes`, default 0). See
 [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md).
 

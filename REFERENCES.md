@@ -222,6 +222,15 @@ compute-capability warning is retained in that report and is not suppressed.
 - Planning latency logged in 7.2 is sim-host evidence only; Orin AGX budgets
   remain Phases 10–11.
 
+## Phase 7.3 target placement (under consideration)
+
+- **Project brainstorm note** —
+  [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md)
+- Spec placeholder: [`spec.md`](spec.md) §8 Phase 7.3.
+- Branch for planning/specification: `wip_phase7_3`.
+- Also scoped to repair GitHub Actions CI execution on remote runners.
+- Requirements are not yet normative.
+
 ## Phase 8 residual RL (planned)
 
 - Training only in Isaac Lab / Isaac Sim; residual must use Phase 5

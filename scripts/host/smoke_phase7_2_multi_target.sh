@@ -117,8 +117,22 @@ main() {
     plan_args+=(--episodes "${episodes}")
   fi
 
+  # Always attempt playback when a bundle exists, even if planning reported
+  # incomplete episodes, so --gui --no-auto-exit can hold the Kit window.
+  set +e
   spark_host_run_python "${root}/isaac_sim/plan_multi_target_suite.py" \
     "${plan_args[@]}"
+  plan_status=$?
+  set -e
+  if [[ ! -f "${bundle}" ]]; then
+    printf 'ERROR: Phase 7.2 planner did not write bundle: %s (exit %s)\n' \
+      "${bundle}" "${plan_status}" >&2
+    return 1
+  fi
+  if [[ "${plan_status}" -ne 0 ]]; then
+    printf 'WARNING: Phase 7.2 planner exit %s; continuing to playback for visualization\n' \
+      "${plan_status}" >&2
+  fi
 
   set +e
   spark_host_run_python "${root}/isaac_sim/play_multi_target_suite.py" \
@@ -150,6 +164,7 @@ if int(summary.get("total_episodes", 0)) < 1:
     raise SystemExit(f"Phase 7.2 summary missing episodes: {payload}")
 expected_targets = int(sys.argv[3]) if sys.argv[3] else None
 expected_episodes = int(sys.argv[4]) if sys.argv[4] else None
+auto_exit = sys.argv[5] == "--auto-exit"
 if expected_targets is not None:
     results = payload.get("results") or []
     if not results:
@@ -165,13 +180,16 @@ if expected_episodes is not None:
         raise SystemExit(
             f"Phase 7.2 expected {expected_episodes} episodes, found {actual_episodes}: {payload}"
         )
-if int(summary.get("successes", 0)) != int(summary.get("total_episodes", -1)):
+# With --no-auto-exit the operator reviews the held GUI; do not hard-fail the
+# smoke wrapper solely on incomplete tip clearance (play/plan exit codes remain).
+if auto_exit and int(summary.get("successes", 0)) != int(summary.get("total_episodes", -1)):
     raise SystemExit(f"Phase 7.2 suite did not fully succeed: {summary}")
 print(
     json.dumps(
         {
             "lighting_ready": True,
             "suite_status": int(sys.argv[2]),
+            "plan_status": int(sys.argv[6]),
             "targets": expected_targets,
             "episodes": expected_episodes,
             "summary": summary,
@@ -179,7 +197,10 @@ print(
         sort_keys=True,
     )
 )
-' "${report}" "${suite_status}" "${targets:-}" "${episodes:-}"
+' "${report}" "${suite_status}" "${targets:-}" "${episodes:-}" "${auto_exit}" "${plan_status}"
+  if [[ "${plan_status}" -ne 0 && "${suite_status}" -eq 0 ]]; then
+    return "${plan_status}"
+  fi
   return "${suite_status}"
 }
 
