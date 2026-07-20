@@ -1079,21 +1079,45 @@ over successive independently validated plans with an explicit world revision.
 - **`ContactDetector` protocol:** reports `allowed_tip_contact`,
   `prohibited_body_contact`, or `none`. Isaac PhysX and later force/current or
   operator-ack adapters implement the same contract.
-- Default **`max_failed_plans`** for an episode equals that episode’s active
-  `target_count`. Override only via explicit configuration.
+- Default **`max_failed_plans`** equals the episode’s active `target_count`.
+  Override only via explicit configuration. This is the **suite / acceptance**
+  budget: how many planning-failed **episodes** may occur before the overall
+  run fails acceptance. It does **not** set the within-episode retry ceiling.
+- **`max_intra_episode_plan_failures`** (new; default **`10`**) is the
+  within-episode retry ceiling. When observed `intra_episode_plan_failures`
+  exceeds this value, the episode **FAIL**s and that outcome counts as
+  **exactly one** suite planning failure.
+- **`intra_episode_plan_failures`** is the observed within-episode attempt
+  count (starts at `0` each episode; increments on each failed
+  planning/validation attempt).
 
 ### Scene and episode model
 
 - Configure positive integers `target_count` and `episode_count`.
+- `max_intra_episode_plan_failures` (default **`10`**) does not auto-follow
+  `target_count`.
 - An **episode** is one full clearance or contact sequence over the field, or
   an early fail.
 - Contact order follows `shuffle` or `listed` as configured.
 - Terminal approach is opposite the outward face normal and aligned to the
   configured signed TCP approach axis (flange tip / tool approach policy).
 - On structured planning or validation failure for leg `from_id → to_id`,
-  **retry the same leg** until success or the fail budget is exceeded; do not
-  skip to the next target id.
+  **retry the same leg** until success or
+  `max_intra_episode_plan_failures` is exceeded; do not skip to the next
+  target id.
 - Robot self-collision remains a planning/validation failure.
+- **Failure counting (two scopes):**
+  - **Within an episode:** each failed planning or validation attempt increments
+    observed `intra_episode_plan_failures` (starts at `0`). Retries continue
+    until success or **`max_intra_episode_plan_failures`** (default **`10`**)
+    is exceeded; then the episode fails with
+    `max_intra_episode_plan_failures_exceeded`. That episode contributes
+    **exactly one** to the suite planning-failure count.
+  - **Across episodes (overall suite / acceptance):** path-planning failures
+    are counted **once per failed episode** (not per retry). The suite fails
+    acceptance when the number of planning-failed episodes exceeds
+    **`max_failed_plans`** (default **`target_count`**). Do not sum observed
+    `intra_episode_plan_failures` into the suite planning-failure total.
 
 ### Contact policy (hard requirement)
 
@@ -1113,20 +1137,38 @@ An episode **PASS** only when:
    removed when retain is false);
 2. Every motion segment was produced by cuRobo and independently validated;
 3. Failed planning/validation attempts for that episode are
-   `<= max_failed_plans` (default `target_count`);
+   `<= max_intra_episode_plan_failures` (default **`10`**);
 4. Zero prohibited body–target contacts;
 5. Required timing and identity fields are finite and logged.
 
 Otherwise **FAIL**. Taxonomy includes at least `plan_failed`,
-`validation_failed`, `body_contact`, and `max_failed_plans_exceeded`. Failed
-plans must identify the leg as `from_id → to_id` (use `start` when leaving the
-episode start state).
+`validation_failed`, `body_contact`, and
+`max_intra_episode_plan_failures_exceeded`. Failed plans must identify the leg
+as `from_id → to_id` (use `start` when leaving the episode start state).
+
+**Suite aggregation:** overall path-planning failure metrics count **episodes**
+that failed due to exhausting `max_intra_episode_plan_failures`, not individual
+retry attempts. Example: one episode with five failed plan attempts that then
+hits `max_intra_episode_plan_failures` counts as **one** suite planning failure
+and records observed `intra_episode_plan_failures` = 5. The overall acceptance
+run fails when planning-failed episode count exceeds `max_failed_plans`
+(default `target_count`).
 
 ### Timing, visualization, and latency labeling
 
 - Per leg: `planning_duration_s`, `motion_duration_s`, `time_to_contact_s`
-  (plan + motion through first allowed tip contact).
-- Per episode: `episode_duration_s`, success, failure counts, contact counts.
+  (plan + motion through first allowed tip contact); when a leg attempt fails,
+  log the attempt against `intra_episode_plan_failures`.
+- Per episode: `episode_duration_s`, success/fail outcome, contact counts,
+  `intra_episode_plan_failures` (failed planning/validation attempts inside
+  the episode, including retries that later succeed or exhaust the budget).
+- Suite summary: episode pass/fail counts; suite-level planning-failure count
+  equal to the number of episodes whose outcome is
+  `max_intra_episode_plan_failures_exceeded` (or related planning failure) —
+  **not** the sum of `intra_episode_plan_failures`; also report the suite sum
+  (and optionally per-episode values) of `intra_episode_plan_failures`; suite
+  acceptance fails when that episode planning-failure count exceeds
+  `max_failed_plans`.
 - Emit matching live lines to the host terminal and the Isaac Sim console.
 - Numbered viewport labels must match `target_id` in logs and JSON.
 - Planning latency recorded in Phase 7.2 is **simulation host evidence only**.
@@ -1139,7 +1181,7 @@ Phase 7.2 shall document and type the following so Phases 10–11 can reuse the
 same runner with swapped adapters (see also Remaining future adapters below):
 
 - `MultiTargetEpisodeRunner`, `TargetField`, contact-order policy, retain flag,
-  retry-same-leg fail budget;
+  `max_intra_episode_plan_failures` / `max_failed_plans` budgets;
 - `ContactDetector`, optional `TargetPoseSource`, scene-revision / obstacle set,
   `MotionGate`, and leg/episode report schema;
 - Phase 5 execution seam (`RobotStateProvider`, command adapter,
@@ -1162,10 +1204,16 @@ pointer (and optional summary diagram).
 ### Acceptance criteria
 
 - Parameterized `target_count` and `episode_count`; `grid` and `manual`
-  placement; `shuffle` and `listed` order; retain and remove-after-contact
-  modes; seeded exact replay.
+  placement; `shuffle` and
+  `listed` order; retain and remove-after-contact modes; seeded exact replay.
 - Flange-normal tip/EE contact; body–target contact fails closed.
-- Same-leg retry until success or fail budget; dual console/JSON timing.
+- Same-leg retry until success or `max_intra_episode_plan_failures`; dual
+  console/JSON timing.
+- Suite planning-failure counts are episode-scoped (one per episode that
+  exceeds `max_intra_episode_plan_failures`, default **`10`**). Observed
+  `intra_episode_plan_failures` reports within-episode retries separately.
+  Suite acceptance fails when planning-failed episode count exceeds
+  `max_failed_plans` (default `target_count`).
 - Phase 7 and Phase 7.1 smoke gates remain mandatory for Isaac-path changes.
 - No physical hardware command, alternate planner, Orin SLA claim from sim
   timings, or simulation-derived physical-accuracy claim is introduced.
@@ -1436,12 +1484,18 @@ Use a validated named YAML configuration for:
   target list;
 - `order` (`shuffle` or `listed`);
 - `retain_targets_after_contact` (default `false`);
-- `max_failed_plans` defaulting to the episode’s active `target_count`;
+- `max_failed_plans` defaulting to the episode’s active `target_count`
+  (suite / acceptance budget on planning-failed **episode** count);
+- `max_intra_episode_plan_failures` defaulting to **`10`** (within-episode
+  retry ceiling; exceed → one episode failure);
+- observed `intra_episode_plan_failures` (starts at `0` each episode);
 - root seed; tip/EE allow-list link names; body-contact fail-closed policy;
 - planner/validation/scene profiles and lighting;
-- console/report fields, artifact path, and optional
-  `warn_planning_duration_s`; and
+- console/report fields including observed `intra_episode_plan_failures` and
+  episode-scoped suite planning-failure aggregation, artifact path, and
+  optional `warn_planning_duration_s`; and
 - dual host-terminal and Isaac-console timing fields.
+
 
 ### Phase 9 optional tool profile
 

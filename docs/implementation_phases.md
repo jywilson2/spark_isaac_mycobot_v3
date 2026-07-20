@@ -224,7 +224,8 @@ closed. Design a typed multi-target API reusable by later hardware adapters.
 
 - Core Isaac-free `TargetField`, order policy, retain flag, and
   `MultiTargetEpisodeRunner` with same-leg retry and
-  `max_failed_plans == target_count` by default;
+  `max_failed_plans` defaulting to `target_count` (suite episode-failure
+  budget); `max_intra_episode_plan_failures` defaulting to **`10`**;
 - `ContactDetector` protocol (PhysX tip vs body in Isaac; HW later);
 - Numbered viewport labels, tip/body recolor, dual console timing;
 - Seeded replay; host plan/playback split preserved;

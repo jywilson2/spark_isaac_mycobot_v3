@@ -1,5 +1,25 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-20 — Phase 7.2 plan-failure counting (spec)
+
+1. Added observed metric **`intra_episode_plan_failures`** (starts at `0` each
+   episode) for within-episode planning/validation retry attempts.
+2. Added config **`max_intra_episode_plan_failures`** (default **`10`**):
+   within-episode retry ceiling. Exceeding it fails the episode and counts as
+   **exactly one** suite planning failure.
+3. Clarified **`max_failed_plans`** (default `target_count`) as the suite /
+   acceptance budget on the number of planning-failed **episodes**.
+4. Updated `spec.md` §8 Phase 7.2,
+   [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md),
+   and `docs/implementation_phases.md`. Spec-only; no implementation in this
+   change set.
+
+### Review recommended
+
+- Confirm `max_failed_plans` as suite-level episode budget.
+
+---
+
 ## 2026-07-20 — Phase 7.2 requirements and API design
 
 1. Added Phase 7.2 (multi-target tip-contact clearance) to `spec.md` §8,

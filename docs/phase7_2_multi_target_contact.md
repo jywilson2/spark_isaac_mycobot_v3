@@ -2,8 +2,9 @@
 
 ## Status
 
-**Planned on `wip_phase7_2`.** Requirements and API design are documented here
-and in [`spec.md`](../spec.md) §8 Phase 7.2. Implementation has not started.
+**Planned on `wip_phase7_2`.** Requirements and API design (including plan-failure
+counting) are documented here and in [`spec.md`](../spec.md) §8 Phase 7.2.
+Implementation of the new failure metrics is not started in this change set.
 
 Authoritative acceptance criteria are in [`spec.md`](../spec.md) §8.
 
@@ -50,7 +51,9 @@ orchestration over successive validated plans with an explicit world revision.
 | `retain_targets_after_contact` | `false` (default): remove on tip contact; `true`: keep geometry |
 | `MultiTargetEpisodeRunner` | Leg loop: plan → validate → execute/play → contact → retry/advance |
 | `ContactDetector` protocol | Returns tip-allowed / body-prohibited / none (Isaac or HW) |
-| `max_failed_plans` | Default equals the episode’s active `target_count` |
+| `max_failed_plans` | Suite / acceptance budget: max planning-failed **episodes** (default = active `target_count`) |
+| `max_intra_episode_plan_failures` | Within-episode retry ceiling (default **`10`**). Exceed → episode FAIL (counts as one suite planning failure) |
+| `intra_episode_plan_failures` | Observed within-episode attempt count (starts at `0`) |
 
 ### Placement
 
@@ -78,8 +81,22 @@ orchestration over successive validated plans with an explicit world revision.
 
 On a structured planning or validation failure for leg `from_id → to_id`,
 **retry the same leg** (same from/to) until success or
-`failed_plan_count > max_failed_plans`, then episode **FAIL** with taxonomy
-`max_failed_plans_exceeded`. Do not skip to the next target id on plan failure.
+`intra_episode_plan_failures > max_intra_episode_plan_failures` (default
+**`10`**), then episode **FAIL** with taxonomy
+`max_intra_episode_plan_failures_exceeded`. That counts as **one** suite
+planning failure. Do not skip to the next target id on plan failure.
+
+**Variables (do not conflate):**
+
+| Name | Kind | Default | Role |
+|------|------|---------|------|
+| `intra_episode_plan_failures` | Observed metric | starts at `0` | Failed plan/validation **attempts** inside the episode |
+| `max_intra_episode_plan_failures` | Config | **`10`** | Within-episode retry ceiling; exceed → episode FAIL (one suite failure) |
+| `max_failed_plans` | Config | `target_count` | Suite / acceptance budget on count of planning-failed **episodes** |
+| Suite planning-failure count | Aggregate | — | Number of episodes that failed planning; acceptance fails if this exceeds `max_failed_plans` |
+
+Suite success rate and `failure_category_counts` must use episode outcomes, not
+the sum of observed `intra_episode_plan_failures`.
 
 ### Flange-normal approach
 
@@ -98,9 +115,9 @@ flowchart TD
   ep --> leg[Next to_id from remaining or uncontacted]
   leg --> world[Build scene revision from active obstacles]
   world --> plan[cuRobo plan_grasp flange-normal]
-  plan -->|fail| retry{failed_plans less than max?}
+  plan -->|fail| retry{intra failures less than max_intra?}
   retry -->|yes| plan
-  retry -->|no| failEp[Episode FAIL max_failed_plans]
+  retry -->|no| failEp[Episode FAIL max_intra_episode_plan_failures]
   plan -->|ok| val[Independent validation]
   val -->|fail| retry
   val -->|ok| exec[Playback or execution seam]
@@ -128,13 +145,20 @@ then **playback process** (Kit only). Core orchestration must not import Kit.
 - Dual logging: bash terminal and Isaac Sim console for per-leg and episode
   timings.
 - Failed plans logged as `plan_failed from_id→to_id` (use `start` when leaving
-  the episode start state).
+  the episode start state); each failed attempt increments
+  `intra_episode_plan_failures`.
+- Suite summaries report episode-scoped planning failures separately from the
+  sum of `intra_episode_plan_failures`.
 
 ## Timing and Orin AGX note
 
 Record per-leg `planning_duration_s`, `motion_duration_s`,
 `time_to_contact_s` (= plan + motion through first allowed tip contact), and
-per-episode `episode_duration_s`.
+per-episode `episode_duration_s` plus `intra_episode_plan_failures`.
+
+Suite rollups include episode pass/fail counts, an episode-scoped planning
+failure total (one per planning-failed episode), and a distinct aggregate of
+`intra_episode_plan_failures` (retry attempts).
 
 These are **Spark host / sim GPU evidence** for trend review (for example
 planning cost as remaining obstacles change). They do **not** establish Orin
@@ -166,15 +190,19 @@ swapped adapters (see also `spec.md` “Remaining future adapters”):
 Isaac-only (not core): viewport labels, recolor, Kit messages, PhysX
 subscription details, USD spawn/despawn.
 
-## Planned configuration
+## Configuration
 
-Validated named YAML (path TBD, e.g. `config/phase7_2_multi_target.yml`):
+Validated named YAML (`config/phase7_2_multi_target.yml` and variants):
 
 - `target_count`, `episode_count` (positive integers);
 - `placement`, optional manual target list;
 - `order` (`shuffle` \| `listed`);
 - `retain_targets_after_contact` (default `false`);
-- `max_failed_plans` defaulting to active `target_count`;
+- `max_failed_plans` defaulting to active `target_count` (suite budget on
+  planning-failed episode count);
+- `max_intra_episode_plan_failures` defaulting to **`10`** (within-episode
+  retry ceiling);
+- observed `intra_episode_plan_failures` (starts at `0`);
 - root seed; tip/EE allow-list link names; body-prohibited policy;
 - planner/validation/scene profiles; lighting; report paths;
 - optional `warn_planning_duration_s`.
@@ -187,6 +215,11 @@ See `spec.md` §8 Phase 7.2 for the normative list. Highlights:
   retain or remove; seeded replay.
 - Flange-normal tip contact; body–target contact fails closed.
 - Retry same leg until success or fail budget.
+- Episode-scoped suite planning failures: exceeding
+  `max_intra_episode_plan_failures` (default **`10`**) → one episode failure;
+  observed `intra_episode_plan_failures` is the attempt count. Suite acceptance
+  fails when planning-failed episodes exceed `max_failed_plans` (default
+  `target_count`).
 - Dual console timing; no Orin SLA claim from sim timings.
 - Phase 7 / 7.1 smoke gates remain mandatory for Isaac-path changes.
 - No hardware command, alternate planner, or physical-accuracy claim.
@@ -207,4 +240,5 @@ See `spec.md` §8 Phase 7.2 for the normative list. Highlights:
 - [ ] Isaac visualizer + tip/body `ContactDetector`
 - [ ] Plan/playback host scripts and smoke gates
 - [ ] Console/JSON timing and from→to failure rows
+- [ ] `intra_episode_plan_failures` / `max_intra_episode_plan_failures` metrics
 - [ ] Landing docs updated after acceptance evidence

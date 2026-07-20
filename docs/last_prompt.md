@@ -1,3 +1,106 @@
+## BEGIN: 2026-07-20 14:28 -0700
+
+Commit these spec changes on the branch. Do not yet push to github.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-20 14:24 -0700
+
+Still not correct. If max_intra_episode_plan_failures (default of 10) is exceeded this counts as one episode failure. This latter should be new variable, I think.
+
+## END
+
+## BEGIN: 2026-07-20 14:13 -0700
+
+Only max_failed_plans should gate retries and cause the acceptance test to fail.
+
+## END
+
+## BEGIN: 2026-07-20 14:10 -0700
+
+intra_episode_plan_failures should default to 10, but the default for max_failed_plans should not be changed
+
+## END
+
+## BEGIN: 2026-07-20 14:07 -0700
+
+Can you specify a default value of intra_episode_plan_failures of 10?
+
+## END
+
+## BEGIN: 2026-07-20 13:55 -0700
+
+Add the following to the 7.2 spec:
+
+Path planning failures are only counted between episodes. So repeated failures in a particular episode that reaches the maximum allowed number of retries, would only count as one failure for the overall test.
+
+A new path planning failure metric should be created for retries within an episode.
+
+Let me read the specificaiton before you build it.
+
+## END
+
+## BEGIN: 2026-07-20 13:50 -0700
+
+Add this option to the appropriate documentation, perhaps @spec.md .
+
+## END
+
+## BEGIN: 2026-07-20 13:49 -0700
+
+Yes, create the --targets smoke option.
+
+## END
+
+## BEGIN: 2026-07-20 13:46 -0700
+
+What is the command to test with 5 targets?
+
+## END
+
+## BEGIN: 2026-07-20 10:54 -0700
+
+The "isaac-ros activate" command should already be running as jywilson. Doesn't this implement item 1?
+
+## END
+
+## BEGIN: 2026-07-20 10:51 -0700
+
+Would it make sense for the container agent to make it's changes as jywilson, perhaps using a script?
+
+## END
+
+
+## BEGIN: 2026-07-20 10:47 -0700
+
+It seems that when new phases are implemented the permissions of many files must be changed before the Agent can begin work.
+
+Do you know why?
+
+## END
+
+
+## BEGIN: 2026-07-20 10:43 -0700
+
+Begin the implementation of Phase 7.2 and continue until all tests have passed.
+
+I will review the GUI visualization before landing these changes.
+
+## END
+
+
+## BEGIN: 2026-07-20 10:40 -0700
+
+What does the tool "Ruff" do?
+
+Is the most recent 7.1 branch included in 7.2? If not then rebase 7.2.
+
+Do not implement the changes from 7.2, just yet.
+
+## END
+
 ## BEGIN: 2026-07-20 10:29 -0700
 
 Land 7.1 changes, without including any of the recent specification changes.
@@ -11,8 +114,6 @@ When I say "Land" does this nomenclature imply that the main branch is rebased?
 I will let you know when to begin implementation of 7.2.
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-20 10:26 -0700
 
