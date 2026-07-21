@@ -15,6 +15,9 @@ tip_allow_link_names:
 field_aabb:
   minimum_m: [0.10, -0.24, 0.12]
   maximum_m: [0.28, 0.02, 0.20]
+# Declared arm vertical envelope (vendor working_radius_m). Grid Z band width
+# is 50% of this value centered on field AABB mid-Z (manual placement ignores it).
+arm_z_motion_range_m: 0.28
 target_edge_m: 0.014
 outward_normal_base: [0.0, 0.0, 1.0]
 flange_diameter_assumption_m: 0.031

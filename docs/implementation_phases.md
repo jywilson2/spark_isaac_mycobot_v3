@@ -43,6 +43,8 @@ flowchart LR
   P6 --> P7[Phase 7 Isaac Sim]
   P7 --> P71[Phase 7.1 cube suite]
   P71 --> P72[Phase 7.2 multi-target]
+  P72 --> P11s[Phase 1.1 spheres review]
+  P72 --> P73[Phase 7.3 placement]
   P72 --> P8[Phase 8 Residual RL]
   P8 --> P9[Phase 9 contact tool]
   P9 --> P91[Phase 9.1 tool evaluation]
@@ -70,6 +72,24 @@ flowchart LR
 **Deliverables:** `config/robots/mycobot_280_m5.yml`, sphere set, inspect script, FK tests.
 
 **Must not:** Treat v2 URDF copies as accepted without license/revision review.
+
+---
+
+## Phase 1.1 — Target-scale collision-sphere coverage
+
+**Branch:** `wip_phase7_3`
+
+**Status:** Implemented — mesh DAE cover → committed overlay (128 spheres for
+`E = 0.014 m`). See [`spec.md`](../spec.md) §8 Phase 1.1 and
+[`docs/phase1_1_target_scale_collision_spheres.md`](phase1_1_target_scale_collision_spheres.md).
+
+**Objective:** Offline, mesh-constrained, sparse static spheres so cuRobo
+detects cuboid obstacles of edge ≥ Phase 7.2 `target_edge_m` (default 14 mm)
+without using PhysX as the planner collision oracle.
+
+**Must not:** Animate spheres; import PhysX into core planning.
+
+**Entry criteria:** Phase 1 complete; Phase 7.2 collision policy landed.
 
 ---
 

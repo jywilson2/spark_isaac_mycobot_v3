@@ -67,6 +67,13 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "enable_viewport_stage_lighting" in scene_setup
     assert "SetLightingMenuModeCommand" in scene_setup
     assert "autoLightRig/enabled" in scene_setup
+    assert "label_digit_segment_boxes" in scene_setup
+    assert "label_parent_local_offset_m" in scene_setup
+    assert "PENDING_CONTACT_COLOR_RGBA" in scene_setup
+    assert "TIP_CONTACT_FAILED_COLOR_RGBA" in scene_setup
+    assert "add_target_label" in player72
+    assert "PENDING_CONTACT_COLOR_RGBA" in player72
+    assert "TIP_CONTACT_FAILED_COLOR_RGBA" in player72
 
 
 def test_chained_gui_host_script_wires_mode_b_and_episodes() -> None:

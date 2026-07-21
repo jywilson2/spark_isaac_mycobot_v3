@@ -26,7 +26,7 @@ def test_inspection_cli_emits_cpu_model_json(capsys) -> None:
     assert payload["tcp_link"] == "tcp_link"
     assert len(payload["joint_names"]) == 6
     assert payload["gpu_checked"] is False
-    assert sum(payload["collision_sphere_count_by_link"].values()) == 32
+    assert sum(payload["collision_sphere_count_by_link"].values()) == 128
 
 
 def test_host_wrapper_uses_isaac_python_and_gpu_mode() -> None:

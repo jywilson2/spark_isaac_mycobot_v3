@@ -1,3 +1,126 @@
+## BEGIN: 2026-07-20 21:03 -0700
+
+Mark STATUS.md with a the following to allow me to pick up where I left off after a long delay.
+
+Collision spheres don't seem to be working and it is not clear to me that the path was actually planned since I don't see the usual messages. Determine if a test exists to verify valid spheres, perhaps in the headless sim test.
+
+Commit to the branch, and push to github.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-20 20:55 -0700
+
+Change the color of the numbers to something more visible. Red would be good.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-20 20:47 -0700
+
+This looks good. Add to the spcification as worded, and implement this change.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-20 20:44 -0700
+
+Okay, create a specification entry that defines the creation of spheres to accomodate detection of obstacles the size of the target or larger. The spheres should be arranged in a sparse manner, as dictated by the size and geometry of the target.
+
+Let me review the details of the spec before the feature is built.
+
+## END
+
+## BEGIN: 2026-07-20 20:14 -0700
+
+Is there any way that cuRobo can use the same body contact data produced by PhysX? I am concerned that the spheres are redundant, and will add significant overhead.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-20 20:11 -0700
+
+Would denser mesh-fit spheres be enough for the planner to register the collision with block 1?
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-20 20:07 -0700
+
+Tip contact with block 5, was blocked by arm contact with block 1.
+
+Why isn't cuRobo planning a path around block 1?
+
+## END
+
+## BEGIN: 2026-07-20 20:03 -0700
+
+Build the changes just described.
+
+## END
+
+## BEGIN: 2026-07-20 20:01 -0700
+
+Implement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself.
+
+To-do's from the plan have already been created. Do not create them again. Mark them as in_progress as you work, starting with the first one. Don't stop until you have completed all the to-dos.
+
+Plan: Target highlight colors + tip clearance around blockers — yellow/green/red cube highlights, white labels, empty disable_collision_links while stripping only the active contact cube, update spec/docs.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-20 20:00 -0700
+
+Can you highlight the block that is the current target: make it yellow to indicate that contact is pending, green to indicate that contact has already occured, and red to indicate that tip contact failed. Upate the @spec.md to indicate this.
+
+Is there a way that block can be registered with cuRobot as an obstacle? What can we do to assure that paths are generated around near block, higher in Z, preventing access to farther blocks lower in Z?
+
+## END
+
+## BEGIN: 2026-07-20 19:57 -0700
+
+Implement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself.
+
+To-do's from the plan have already been created. Do not create them again. Mark them as in_progress as you work, starting with the first one. Don't stop until you have completed all the to-dos.
+
+Plan: Phase 7.2 smoke routing vs labels — fix add_target_label parent-local offset, unit coverage, docs note on double-transform; leave tip-collision policy unchanged.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-20 19:51 -0700
+
+In the last smoke test in IsaacSim a block was positioned close to the arm and prevented tip access to blocks that wer further away. Why didn't cuRobo route around this block when formulating a movement plan?
+
+Also, the numbers are not yet visible on the blocks.
+
+## END
+
+## BEGIN: 2026-07-20 19:43 -0700
+
+Increase the variability of the "mid-Z" within a distance that is 50% of the range of Z motion possible for the robotic arm.
+
+## END
+
+
+## BEGIN: 2026-07-20 19:37 -0700
+
+Implement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself.
+
+To-do's from the plan have already been created. Do not create them again. Mark them as in_progress as you work, starting with the first one. Don't stop until you have completed all the to-dos.
+
+Plan: Grid placement, visible IDs, and CI pytest — fix CI workflow (SPARK_PYTEST_PYTHON + CPU-safe deps), make Isaac target ID labels viewport-visible with digit geometry, update landing docs. Leave grid XY mid-Z as Phase 7.2 behavior.
+
+## END
+
 ## BEGIN: 2026-07-20 16:21 -0700
 
 Verify that the last few commits since pushing to github are evaluated for updates to the documentation.  Update the documentation as needed.
@@ -11,8 +134,6 @@ Then change to the new branch mentioned above for planning and specification wor
 Well done!
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-20 16:16 -0700
 

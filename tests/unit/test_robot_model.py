@@ -50,7 +50,9 @@ def test_every_collision_link_has_static_spheres() -> None:
         "joint6",
         "joint6_flange",
     }
-    assert all(count >= 4 for count in spec.collision_sphere_count_by_link.values())
+    assert all(count >= 1 for count in spec.collision_sphere_count_by_link.values())
+    assert sum(spec.collision_sphere_count_by_link.values()) == 128
+    assert spec.min_detectable_obstacle_edge_m == pytest.approx(0.014)
 
 
 def test_limits_are_finite_consistent_and_in_si_units() -> None:

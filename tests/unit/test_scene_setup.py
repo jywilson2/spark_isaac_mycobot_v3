@@ -91,9 +91,24 @@ def test_phase7_2_color_constants_are_valid() -> None:
     from isaac_sim.scene_setup import (
         BODY_CONTACT_COLOR_RGBA,
         DEFAULT_TARGET_COLOR_RGBA,
+        LABEL_COLOR_RGBA,
+        PENDING_CONTACT_COLOR_RGBA,
         TIP_CONTACT_COLOR_RGBA,
+        TIP_CONTACT_FAILED_COLOR_RGBA,
     )
 
-    for color in (TIP_CONTACT_COLOR_RGBA, BODY_CONTACT_COLOR_RGBA, DEFAULT_TARGET_COLOR_RGBA):
+    for color in (
+        TIP_CONTACT_COLOR_RGBA,
+        BODY_CONTACT_COLOR_RGBA,
+        TIP_CONTACT_FAILED_COLOR_RGBA,
+        PENDING_CONTACT_COLOR_RGBA,
+        DEFAULT_TARGET_COLOR_RGBA,
+        LABEL_COLOR_RGBA,
+    ):
         assert len(color) == 4
         assert all(0.0 <= component <= 1.0 for component in color)
+    assert TIP_CONTACT_FAILED_COLOR_RGBA == BODY_CONTACT_COLOR_RGBA
+    assert PENDING_CONTACT_COLOR_RGBA[0] > PENDING_CONTACT_COLOR_RGBA[2]  # yellow-ish
+    assert LABEL_COLOR_RGBA[0] > 0.9
+    assert LABEL_COLOR_RGBA[1] < 0.3
+    assert LABEL_COLOR_RGBA[2] < 0.3

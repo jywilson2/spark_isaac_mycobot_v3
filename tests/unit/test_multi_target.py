@@ -13,6 +13,7 @@ from mycobot_curobo.errors import ConfigurationError
 from mycobot_curobo.multi_target import (
     ContactEvent,
     ContactKind,
+    GRID_Z_VARIABILITY_FRACTION,
     MultiTargetEpisodeRunner,
     MultiTargetFailureCategory,
     OptimisticTipContactDetector,
@@ -130,8 +131,36 @@ def test_default_config_loads_and_shuffle_is_deterministic() -> None:
     assert field_a.contact_order_ids == field_b.contact_order_ids
     assert field_a.contact_order_ids != field_c.contact_order_ids
     assert set(field_a.contact_order_ids) == {"1", "2"}
-    centers = build_grid_centers(4, config.field_minimum_m, config.field_maximum_m)
+    centers = build_grid_centers(
+        4,
+        config.field_minimum_m,
+        config.field_maximum_m,
+        arm_z_motion_range_m=config.arm_z_motion_range_m,
+    )
     assert len(centers) == 4
+
+
+def test_grid_z_varies_across_half_arm_range() -> None:
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_grid.yml")
+    assert config.arm_z_motion_range_m == pytest.approx(0.28)
+    assert GRID_Z_VARIABILITY_FRACTION == pytest.approx(0.5)
+    centers = build_grid_centers(
+        config.target_count,
+        config.field_minimum_m,
+        config.field_maximum_m,
+        arm_z_motion_range_m=config.arm_z_motion_range_m,
+    )
+    zs = [center[2] for center in centers]
+    mid_z = 0.5 * (config.field_minimum_m[2] + config.field_maximum_m[2])
+    half_band = 0.5 * GRID_Z_VARIABILITY_FRACTION * config.arm_z_motion_range_m
+    assert min(zs) == pytest.approx(mid_z - half_band + half_band / config.target_count)
+    assert max(zs) == pytest.approx(mid_z + half_band - half_band / config.target_count)
+    assert max(zs) - min(zs) == pytest.approx(
+        GRID_Z_VARIABILITY_FRACTION
+        * config.arm_z_motion_range_m
+        * (1.0 - 1.0 / config.target_count)
+    )
+    assert len(set(round(z, 9) for z in zs)) == config.target_count
 
 
 def test_manual_listed_retain_config() -> None:
@@ -208,6 +237,51 @@ def test_runner_retries_same_target_until_planning_budget_then_target_fails() ->
     assert result.failed_target_ids == (episode.field.contact_order_ids[0],)
     assert all(leg.to_id == episode.field.contact_order_ids[0] for leg in result.legs)
     assert all(leg.from_id == "start" for leg in result.legs)
+
+
+def test_leg_keeps_tip_collision_and_strips_only_contact_cube() -> None:
+    """Other targets stay cuboid obstacles; tip links are not globally disabled."""
+
+    episodes = sample_multi_target_episodes(
+        load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_manual.yml"),
+        root_seed=7,
+    )
+    episode = episodes[0]
+    first_id = episode.field.contact_order_ids[0]
+    contact_name = episode.field.target_by_id(first_id).cube_geometry.name
+    other_names = {
+        target.cube_geometry.name
+        for target in episode.field.targets
+        if target.target_id != first_id
+    }
+    captured: list[tuple[Any, dict[str, Any]]] = []
+
+    def planner_factory(seed: int, scene_model: dict, links: tuple[str, ...]) -> Any:
+        del seed, links
+
+        class _Planner:
+            def plan(self, request: Any) -> PlanningOutcome:
+                captured.append((request, scene_model))
+                return PlanningOutcome(
+                    plan=_plan(request.request_id, request.random_seed),
+                    failure=None,
+                )
+
+        return _Planner()
+
+    runner = MultiTargetEpisodeRunner(
+        planner_factory=planner_factory,
+        validator=lambda plan, request, clearance: _validated(plan),
+        contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lambda _line: None,
+    )
+    runner.run((episode,))
+    assert captured
+    request, scene_model = captured[0]
+    assert request.disable_collision_links == ()
+    cuboids = set(scene_model["cuboid"])
+    assert contact_name not in cuboids
+    assert other_names <= cuboids
 
 
 def test_suite_counts_failed_episodes_against_max_failed_episodes() -> None:

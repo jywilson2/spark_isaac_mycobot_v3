@@ -11,6 +11,12 @@ Last updated: **2026-07-20**
 Actions CI execution). See
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 
+**Phase 1.1 — Target-scale collision-sphere coverage: IMPLEMENTED**
+Sparse mesh-constrained spheres (128 total for `E = 0.014 m`) via overlay
+`config/robots/mycobot_280_m5_phase1_1_spheres.yml`. See [`spec.md`](spec.md)
+§8 Phase 1.1 and
+[`docs/phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md).
+
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–11)  
 Phase 7.2 design: [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md)
@@ -24,6 +30,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 |-------|-------|--------|
 | 0 | Env / version guard | **Complete** |
 | 1 | Robot model + spheres | **Complete** |
+| 1.1 | Target-scale collision-sphere coverage | **Complete** |
 | 2 | Task frames / roll goals | **Complete** |
 | 3 | `plan_grasp` nominal planning | **Complete** |
 | 4 | Independent validation | **Complete** |
@@ -41,6 +48,14 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Implemented
 
+- Phase 1.1 target-scale collision spheres: DAE mesh cover overlay (128 spheres
+  for `E = 0.014 m`); suite rejects `target_edge_m < E`.
+- Phase 7.3 (partial, on `wip_phase7_3`): GitHub Actions CI interpreter/deps
+  fix; viewport-visible multi-target ID labels (red 7-segment geometry with
+  parent-local Z offset); yellow/green/red contact-state cube highlights; tip
+  collision left enabled vs non-contact targets; grid mid-Z variability over
+  `0.5 * arm_z_motion_range_m`. Broader placement APIs remain under
+  consideration.
 - Phase 7.2 multi-target tip-contact suite: `TargetField`,
   `MultiTargetEpisodeRunner`, three-tier failure budgets
   (`max_planning_failure_per_target` default 5, `max_target_failures` default
@@ -70,11 +85,32 @@ planning-success claims, or hardware-readiness claims carry forward.
       `--no-auto-exit`.
 - [x] No physical command, alternate planner, or physical-accuracy claim.
 
-## Next step
+## Next step / resume after delay (2026-07-20)
 
-Specify Phase 7.3 on `wip_phase7_3` (controllable target placement + GitHub
-CI execution fixes). Preserve Phase 7 / 7.1 / 7.2 smoke gates for Isaac-path
-changes. Phase 8 (`wip_phase8`) follows when residual RL work begins.
+**Open investigation (do this next):**
+
+1. **Phase 1.1 collision spheres may not be effective in Isaac GUI smoke.**
+   Near-blocker / body-contact behavior still looked wrong; confirm the
+   planning process actually loads the overlay
+   (`config/robots/mycobot_280_m5_phase1_1_spheres.yml`, 128 spheres,
+   `min_detectable_obstacle_edge_m: 0.014`) via `load_curobo_robot_config`.
+2. **Planning console messages were missing or atypical** in the last GUI
+   run — verify the host plan step ran (`plan_multi_target_suite` / smoke
+   script) and that tip/body / plan_failed lines still print.
+3. **Existing sphere / clearance tests to consult first:**
+   - Unit: `tests/unit/test_collision_sphere_cover.py`,
+     `tests/unit/test_robot_model.py` (overlay count / `E`),
+     `tests/unit/test_inspect_robot_model.py`
+   - GPU / headless-style: `tests/integration/test_phase7_1_cube_suite_gpu.py`
+     (`test_phase7_1_cube_scene_plan_validates_with_evaluated_world_clearance`)
+   - GPU multi-target: `tests/integration/test_phase7_2_multi_target_gpu.py`
+   There is **no** dedicated headless Isaac test yet that asserts Phase 1.1
+   spheres reject a body-clipping trajectory against a target-sized cuboid;
+   add one if GPU gates still pass while GUI body-contacts persist.
+
+Continue Phase 7.3 placement brainstorm on `wip_phase7_3` only after the
+sphere / planning-message investigation. Preserve Phase 7 / 7.1 / 7.2 smoke
+gates for Isaac-path changes.
 
 ## 2026-07-20 compliance note
 

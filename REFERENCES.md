@@ -54,6 +54,11 @@ compute-capability warning is retained in that report and is not suppressed.
 
 ## Phase 1 asset sources
 
+- **Phase 1.1 target-scale sphere coverage**  
+  [`docs/phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md)
+  — sparse mesh-constrained spheres for obstacles ≥ Phase 7.2 `target_edge_m`;
+  overlay `config/robots/mycobot_280_m5_phase1_1_spheres.yml`.
+
 - **Elephant Robotics `mycobot_ros2`**  
   <https://github.com/elephantrobotics/mycobot_ros2>  
   Vendor URDF + meshes pinned for Phase 1 to `humble` commit
@@ -228,8 +233,10 @@ compute-capability warning is retained in that report and is not suppressed.
   [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md)
 - Spec placeholder: [`spec.md`](spec.md) §8 Phase 7.3.
 - Branch for planning/specification: `wip_phase7_3`.
-- Also scoped to repair GitHub Actions CI execution on remote runners.
-- Requirements are not yet normative.
+- Also scoped to repair GitHub Actions CI execution on remote runners
+  (CPU-safe deps + `SPARK_PYTEST_PYTHON` in `.github/workflows/pytest.yml`
+  landed on this branch).
+- Requirements for finer placement APIs are not yet normative.
 
 ## Phase 8 residual RL (planned)
 

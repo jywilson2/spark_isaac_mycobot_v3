@@ -19,8 +19,8 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 **Phase 7 — Isaac Sim validated-plan playback: complete. Phase 7.1 —
 unknown-start cube approach suite: complete. Phase 7.2 — multi-target
 tip-contact clearance suite: complete. Phase 7.3 — controllable target-block
-placement: under consideration on `wip_phase7_3` (brainstorm; also scoped to
-fix GitHub Actions CI).** See
+placement: under consideration on `wip_phase7_3` (brainstorm; GitHub Actions
+CI interpreter/deps fix and viewport-visible target IDs landed).** See
 [`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md),
 [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md),
 and [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
@@ -363,8 +363,11 @@ not `bash -lc '...'`):
 ## Phase 7.2 multi-target tip-contact suite
 
 Phase 7.2 clears a numbered multi-target field with flange-normal tip contact.
-Default YAML uses two FK-reachable manual targets; host smoke can override the
-count:
+Playback highlights the current target yellow (pending), green on tip contact,
+and red on tip-miss or body contact. Other remaining targets stay cuRobo
+obstacles for tip and body (only the active contact cube is stripped from the
+planning world). Default YAML uses two FK-reachable manual targets; host smoke
+can override the count:
 
 ```bash
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit

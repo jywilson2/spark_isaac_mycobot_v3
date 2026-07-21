@@ -1,5 +1,119 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-20 — STATUS resume note + push Phase 1.1 / 7.2 viz work
+
+1. `STATUS.md` Next step documents the open investigation: Phase 1.1 spheres
+   may not be biting in GUI smoke; planning messages looked missing; lists
+   existing unit/GPU sphere tests and the gap (no headless Isaac test that
+   asserts Phase 1.1 rejects body-clipping paths).
+2. Bundles uncommitted Phase 7.3-branch work: CI pytest, red ID labels, tip
+   clearance vs other targets, highlight colors, Phase 1.1 sphere overlay.
+
+### Review recommended
+
+- On resume: run Phase 7.2 GPU / host smoke and confirm overlay load + console
+  plan lines; add a headless sphere-vs-cuboid regression if needed.
+
+---
+
+## 2026-07-20 — Red target ID labels
+
+1. Multi-target viewport digit labels use bright red
+   (`LABEL_COLOR_RGBA`) instead of white for higher contrast on blue/yellow
+   cubes.
+
+---
+
+## 2026-07-20 — Phase 1.1 target-scale collision spheres implemented
+
+1. Kept [`spec.md`](spec.md) §8 Phase 1.1 wording; marked implemented.
+2. Added `mycobot_curobo.collision_sphere_cover` (COLLADA positions + unit scale,
+   sparse greedy cover for obstacle edge `E`) and host regenerator
+   `scripts/host/regenerate_target_scale_collision_spheres.py`.
+3. Committed overlay
+   `config/robots/mycobot_280_m5_phase1_1_spheres.yml` (**128** spheres for
+   `E = 0.014 m`; was 32 Phase 1 scaffolding). Robot YAML declares
+   `min_detectable_obstacle_edge_m` + overlay path; load merges into cuRobo
+   config.
+4. Multi-target suite load fails closed when `target_edge_m < E`.
+5. Unit tests: cover invariants, overlay counts, edge mismatch.
+
+### Review recommended
+
+- Host GUI smoke: fewer false-clear body contacts vs near blockers; watch
+  planning time with denser spheres.
+
+---
+
+## 2026-07-20 — Target highlight colors + tip clearance vs blockers
+
+1. Playback highlights: yellow pending current target, green on tip contact,
+   red on tip-miss / body contact; white 7-segment ID labels for contrast.
+2. Multi-target `plan_grasp` no longer globally disables tip/flange world
+   collision; only the active contact cube is stripped from the planning world
+   so other remaining targets force tip detours around near blockers.
+3. Spec / phase docs updated for highlight colors and collision policy.
+
+### Review recommended
+
+- Host GUI smoke: yellow→green/red transitions; tip routes around a near
+  high-Z blocker toward a farther target (expect more plan skips if the field
+  is dense).
+
+---
+
+## 2026-07-20 — Fix viewport label double-transform
+
+1. `add_target_label` now applies a **parent-local** Z offset
+   (`label_parent_local_offset_m`) under the translated cube prim. The prior
+   world `center_m` translate on the child double-counted the parent pose and
+   placed digits far from the blocks (looked “missing” in GUI smoke).
+2. Unit coverage for the local-offset contract in `test_target_labels.py`.
+3. Tip/world collision policy unchanged: Phase 7.2 still disables
+   `joint6_flange` vs all world cuboids so tip contact remains feasible.
+
+### Review recommended
+
+- Re-run Phase 7.2 Isaac GUI smoke and confirm yellow IDs sit above each cube.
+
+---
+
+## 2026-07-20 — Grid mid-Z variability (50% of arm Z range)
+
+1. Grid placement spaces target Z evenly in a band of width
+   `0.5 * arm_z_motion_range_m` centered on the field AABB mid-Z (XY lattice
+   unchanged). Band is not clipped to the thin AABB Z span.
+2. Suites must declare `arm_z_motion_range_m` (configs use vendor
+   `working_radius_m` = 0.28 m as the declared envelope magnitude).
+3. Unit coverage in `test_grid_z_varies_across_half_arm_range`; docs/spec
+   updated.
+
+### Review recommended
+
+- Confirm host planning success rates with taller Z spread (`--targets` grid
+  fallback and `phase7_2_multi_target_grid.yml`).
+
+---
+
+## 2026-07-20 — CI pytest fix + viewport target IDs (Phase 7.3 branch)
+
+1. GitHub Actions [`.github/workflows/pytest.yml`](.github/workflows/pytest.yml):
+   install CPU-safe deps + `--no-deps -e .`; set `SPARK_PYTEST_PYTHON` to the
+   setup-python interpreter so `run_verification.sh ci` finds pytest (was
+   defaulting to system `/usr/bin/python3`).
+2. `add_target_label` now spawns high-contrast 7-segment digit geometry above
+   each multi-target cube (metadata-only Xform was invisible in the viewport).
+3. Documented Phase 7.2 `grid` as an **XY mid-Z** lattice (not a 3D volume);
+   volumetric layouts remain Phase 7.3 brainstorm.
+4. Unit tests: `tests/unit/test_target_labels.py` + viz/CI contract asserts.
+
+### Review recommended
+
+- Confirm digit size/contrast in Isaac GUI smoke on DGX Spark.
+- Confirm GitHub Actions matrix (3.10 / 3.12) goes green after push.
+
+---
+
 ## 2026-07-20 — Land Phase 7.2; open Phase 7.3 under consideration
 
 1. Documented Phase 7.2 completion (three-tier failures, tip-contact rule,

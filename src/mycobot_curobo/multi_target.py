@@ -200,6 +200,10 @@ class MultiTargetSuiteConfig:
     tip_allow_link_names: tuple[str, ...]
     field_minimum_m: tuple[float, float, float]
     field_maximum_m: tuple[float, float, float]
+    # Declared vertical envelope magnitude for grid Z variability (meters).
+    # Vendor MyCobot 280 working radius is the usual declared value; not a
+    # measured dexterous-workspace claim.
+    arm_z_motion_range_m: float
     target_edge_m: float
     outward_normal_base: tuple[float, float, float]
     manual_targets: tuple[NumberedTarget, ...]
@@ -284,9 +288,26 @@ def load_multi_target_suite_config(
     maximum_m = _tuple3(field["maximum_m"], "field_aabb.maximum_m")
     if any(lo >= hi for lo, hi in zip(minimum_m, maximum_m)):
         raise ConfigurationError("field_aabb maximum_m must be strictly greater than minimum_m")
+    arm_z_raw = payload.get("arm_z_motion_range_m")
+    if arm_z_raw is None:
+        raise ConfigurationError(
+            "arm_z_motion_range_m must be declared explicitly "
+            "(meters; typically vendor working_radius_m)"
+        )
+    arm_z_motion_range_m = float(arm_z_raw)
+    if not math.isfinite(arm_z_motion_range_m) or arm_z_motion_range_m <= 0.0:
+        raise ConfigurationError("arm_z_motion_range_m must be positive and finite")
     edge = float(payload["target_edge_m"])
     if not math.isfinite(edge) or edge <= 0.0:
         raise ConfigurationError("target_edge_m must be positive and finite")
+    from mycobot_curobo.robot_model import load_robot_model_spec
+
+    robot_edge = load_robot_model_spec().min_detectable_obstacle_edge_m
+    if edge + 1.0e-12 < robot_edge:
+        raise ConfigurationError(
+            "target_edge_m must be >= robot min_detectable_obstacle_edge_m "
+            f"(target_edge_m={edge}, min_detectable_obstacle_edge_m={robot_edge})"
+        )
     normal = _tuple3(payload["outward_normal_base"], "outward_normal_base")
     start = tuple(float(item) for item in payload["start_joint_position_rad"])
     if len(start) != len(JOINT_NAMES) or not all(math.isfinite(item) for item in start):
@@ -354,6 +375,7 @@ def load_multi_target_suite_config(
         tip_allow_link_names=tip_links,
         field_minimum_m=minimum_m,
         field_maximum_m=maximum_m,
+        arm_z_motion_range_m=arm_z_motion_range_m,
         target_edge_m=edge,
         outward_normal_base=normal,
         manual_targets=tuple(manual),
@@ -417,25 +439,47 @@ def override_suite_target_count(
     )
 
 
+# Fraction of declared arm Z-motion range used as the total grid Z band width
+# centered on the field AABB mid-Z.
+GRID_Z_VARIABILITY_FRACTION = 0.5
+
+
 def build_grid_centers(
     count: int,
     minimum_m: Sequence[float],
     maximum_m: Sequence[float],
+    *,
+    arm_z_motion_range_m: float,
 ) -> tuple[tuple[float, float, float], ...]:
-    """Place ``count`` evenly spaced centres inside a declared AABB (XY grid)."""
+    """Place ``count`` centres on an XY lattice with mid-Z band variability.
+
+    X/Y follow an evenly spaced grid inside the declared AABB. Z is centered on
+    the AABB mid-height and spaced evenly across a band whose width is
+    ``GRID_Z_VARIABILITY_FRACTION * arm_z_motion_range_m`` (50% of the declared
+    arm vertical envelope). The band is **not** clipped to the thin field AABB
+    Z span so variability is not silently zeroed.
+    """
 
     if count < 1:
         raise ConfigurationError("grid count must be positive")
+    if not math.isfinite(arm_z_motion_range_m) or arm_z_motion_range_m <= 0.0:
+        raise ConfigurationError("arm_z_motion_range_m must be positive and finite")
     lo = _tuple3(minimum_m, "minimum_m")
     hi = _tuple3(maximum_m, "maximum_m")
     rows, columns = _grid_layout_shape(count)
-    z = 0.5 * (lo[2] + hi[2])
+    mid_z = 0.5 * (lo[2] + hi[2])
+    half_band = 0.5 * GRID_Z_VARIABILITY_FRACTION * arm_z_motion_range_m
     centers: list[tuple[float, float, float]] = []
     for index in range(count):
         row = index // columns
         col = index % columns
         x = lo[0] if columns == 1 else lo[0] + (col + 0.5) * (hi[0] - lo[0]) / columns
         y = lo[1] if rows == 1 else lo[1] + (row + 0.5) * (hi[1] - lo[1]) / rows
+        if count == 1:
+            z = mid_z
+        else:
+            # Even spacing across [mid - half_band, mid + half_band].
+            z = (mid_z - half_band) + (index + 0.5) * (2.0 * half_band) / count
         centers.append((float(x), float(y), float(z)))
     return tuple(centers)
 
@@ -449,7 +493,10 @@ def build_target_field(config: MultiTargetSuiteConfig, *, order_seed: int) -> Ta
             raise ConfigurationError("manual target count must match target_count")
     else:
         centers = build_grid_centers(
-            config.target_count, config.field_minimum_m, config.field_maximum_m
+            config.target_count,
+            config.field_minimum_m,
+            config.field_maximum_m,
+            arm_z_motion_range_m=config.arm_z_motion_range_m,
         )
         targets = tuple(
             NumberedTarget(
@@ -980,7 +1027,8 @@ class MultiTargetEpisodeRunner:
         target = episode.field.target_by_id(to_id)
         geometries = episode.field.active_geometries(removed_ids=state.removed_ids)
         # Exclude the contact target from cuRobo world geometry so the tip can
-        # reach the face. Other obstacles remain; Isaac verifies tip vs body.
+        # reach the face. Other remaining targets stay as cuboid obstacles for
+        # tip and body (disable_collision_links stays empty).
         planning_geometries = tuple(
             geometry for geometry in geometries if geometry.name != target.cube_geometry.name
         )
@@ -998,10 +1046,12 @@ class MultiTargetEpisodeRunner:
             planner_profile=episode.planner_profile,
             random_seed=episode.episode_seed + attempt,
             request_id=request_id,
-            disable_collision_links=episode.tip_allow_link_names,
+            disable_collision_links=(),
         )
         # Independent world clearance excludes the contact target so tip penetration
         # at the face centre does not fail closed; other obstacles remain checked.
+        # Tip/world collision stays enabled against remaining targets (empty
+        # disable_collision_links) so near blockers force tip detours.
         clearance_geometries = tuple(
             geometry for geometry in geometries if geometry.name != target.cube_geometry.name
         )

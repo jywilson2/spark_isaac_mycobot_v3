@@ -7,7 +7,8 @@
 **Exclusive motion planner and motion-planning dependency:** NVIDIA cuRobo **v0.8.0 (cuRoboV2)**\
 **Scope:** Deterministic, collision-aware motion planning with a controlled surface-normal approach. The architecture must expose safe extension points for residual reinforcement learning and hardware integration. Phases 0–6 implement the initial planner; Phases 7–11 cover Isaac Sim validation, unknown-start approach visualization,
 multi-target tip-contact clearance, optional finer target placement (Phase 7.3,
-under consideration), bounded residual RL, contact-tool
+under consideration), target-scale collision-sphere coverage (Phase 1.1,
+specified for review), bounded residual RL, contact-tool
 development/evaluation, and physical MyCobot 280 M5 testing (see §8 and
 `docs/implementation_phases.md`).
 
@@ -165,7 +166,11 @@ A cuRobo success result is necessary but not sufficient. Every returned terminal
 
 ### 4.4 No moving collision spheres for path shaping
 
-Collision spheres describe robot geometry and safety margins. They must not be moved dynamically to force a desired approach path.
+Collision spheres describe robot geometry and safety margins. They must not be
+moved dynamically to force a desired approach path. Coverage density may be
+regenerated offline (see Phase 1.1) so that world obstacles at least as large
+as the configured multi-target cube are detectable in cuRobo; regeneration is
+not path shaping.
 
 ### 4.5 No planner switching
 
@@ -498,6 +503,119 @@ Create a validated cuRobo v0.8.0 robot configuration for the exact MyCobot 280 M
 - FK results are repeatable and within the test tolerance.
 - Self-collision checking can be executed for the default configuration.
 - No physical robot command is issued.
+
+---
+
+## Phase 1.1 — Target-scale collision-sphere coverage
+
+**Status:** Implemented on `wip_phase7_3`. Design notes:
+[`docs/phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md).
+
+### Objective
+
+Replace the Phase 1 reduced (four-spheres-per-link) set with a **static,
+version-controlled, mesh-constrained** collision-sphere cover that lets cuRobo
+planning and independent world-clearance validation detect axis-aligned cuboid
+obstacles of edge length **at least** the Phase 7.2 target size
+(`target_edge_m`, default **0.014 m**), while keeping the sphere set **as sparse
+as that obstacle size and link geometry allow**.
+
+PhysX contact remains playback evidence only. It must not become the planner’s
+collision oracle (plan/play split unchanged).
+
+### Motivation
+
+Sparse spheres can report non-negative clearance against a target-sized cube
+while Isaac mesh–cube body contact still occurs. Phase 1.1 closes that gap for
+obstacles ≥ the declared target edge without requiring a dense sphere cloud.
+
+### Normative inputs
+
+| Symbol | Meaning | Default / source |
+|--------|---------|------------------|
+| `E` / `min_detectable_obstacle_edge_m` | Smallest AABB edge that must be detectable | Suite `target_edge_m` (Phase 7.2 default **0.014 m**) |
+| Link meshes | Vendor collision / visual meshes used for covering | Authoritative MyCobot assets already in-tree |
+| `collision_sphere_buffer` | Existing cuRobo buffer on spheres | Keep configurable; do not use buffer alone as the detection guarantee |
+
+When a multi-target suite declares `target_edge_m`, the committed robot sphere
+set used for that suite must satisfy Phase 1.1 for
+`min_detectable_obstacle_edge_m <= target_edge_m` (typically equality).
+
+### Covering and sparsity rules
+
+1. **Offline generation only.** Produce spheres with a host/offline procedure
+   from link meshes; commit the result under `config/robots/`. Do not fit,
+   move, or densify spheres at planning time to shape a path (§4.4).
+2. **Mesh-constrained.** Every sphere centre must lie on or inside a documented
+   mesh-derived envelope for its link (fit / medial / surface cover). Spheres
+   must not be placed in free space solely to block an approach corridor.
+3. **Detectability (primary guarantee).** For every collision link, the sphere
+   set (including `collision_sphere_buffer`) must be such that **no**
+   axis-aligned cube of edge `E` can intersect that link’s mesh envelope
+   without also having **non-positive** signed clearance against at least one
+   of that link’s collision spheres when evaluated with the project’s
+   sphere–AABB clearance helper (same math as independent world clearance).
+4. **Sparsity (secondary objective).** Minimize the number of spheres per link
+   subject to (3). Prefer fewer, larger spheres whose spacing and radii are
+   dictated by `E` and the link’s local thickness/curvature — not a uniform
+   fine grid. Neighboring sphere **surface** gaps along the cover must not
+   leave a pocket that admits an edge-`E` cube against the mesh without a
+   sphere hit (rule 3).
+5. **Self-collision policy unchanged.** Keep explicit adjacent-link ignore maps
+   and self-collision buffers; regenerating world-cover spheres must not
+   silently alter self-collision semantics without an explicit YAML change and
+   tests.
+6. **Still format 2.0.** Output remains cuRobo robot-config `collision_spheres`
+   with per-link lists; inspection script continues to report counts by link.
+
+### Non-goals
+
+- Using PhysX contacts inside `plan_grasp` or as a substitute for spheres.
+- Claiming hardware safety margins or sub-millimetre real-world accuracy from
+  sim sphere covers.
+- Inflating spheres at runtime, animating spheres, or disabling tip links to
+  invent clearance.
+- Guaranteeing detection of obstacles **smaller** than `E`.
+
+### Tasks (when implementation is authorized)
+
+1. Document the covering algorithm and parameters in
+   `docs/phase1_1_target_scale_collision_spheres.md`.
+2. Add a host regeneration script (deterministic seed / inputs) that writes
+   updated `collision_spheres` into the robot YAML (or a layered override file
+   loaded by the adapter).
+3. Set `min_detectable_obstacle_edge_m` explicitly in robot or suite config;
+   fail closed if a suite `target_edge_m` is smaller than the committed cover’s
+   `E`.
+4. Unit tests: packing/gap invariants for synthetic link envelopes; rejection
+   when `target_edge_m < E`.
+5. GPU / host regression: at least one fixture where a cube of edge `E`
+   intersecting a link envelope yields planning or validation world-collision
+   failure with the new spheres, and passes falsely with the Phase 1 reduced
+   set (or an explicit under-covered baseline).
+6. Re-run Phase 7.2 unit gates; host GUI smoke remains review evidence for
+   body-contact rates vs the prior sphere set.
+
+### Acceptance criteria
+
+- Committed spheres satisfy detectability for `E` equal to the default Phase
+  7.2 `target_edge_m` unless a different `E` is explicitly declared.
+- Sphere count is justified by sparsity under that `E` (report before/after
+  counts by link in the phase report): Phase 1 scaffolding **32** → Phase 1.1
+  cover **128** for `E = 0.014 m`.
+- Suite configs fail closed when `target_edge_m < min_detectable_obstacle_edge_m`.
+- Core package remains Isaac-free; PhysX is not imported into planning.
+- No physical robot command is issued.
+
+### Relationship to other phases
+
+- **Phase 1:** remains the base robot model; Phase 1.1 revises only collision
+  sphere coverage for target-scale world obstacles.
+- **Phase 7.2:** continues to strip only the active contact cube from the
+  planning world and keep tip collision enabled vs other targets; better
+  spheres improve body (and tip) detection of those cuboids.
+- **Phase 7.3:** placement keep-outs remain optional and complementary; they
+  do not replace Phase 1.1 coverage.
 
 ---
 
@@ -1068,9 +1186,11 @@ live in `docs/phase7_2_multi_target_contact.md`.
 over successive independently validated plans with an explicit world revision.
 
 - **`TargetField`:** numbered `SurfaceTarget` set with placement and order policy.
-- **`placement: grid | manual`:** deterministic evenly spaced grid in a declared
-  `g_base` AABB, or a caller-supplied list of numbered targets (no position
-  sampling when manual).
+- **`placement: grid | manual`:** deterministic evenly spaced **XY** grid in a
+  declared `g_base` AABB, with Z centres spaced evenly in a band of width
+  `0.5 * arm_z_motion_range_m` centered on the AABB mid-Z (declared arm
+  vertical envelope; typically vendor `working_radius_m`), or a
+  caller-supplied list of numbered targets (no position sampling when manual).
 - **`order: shuffle | listed`:** seeded permutation of active target ids
   (replayable), or preserve enumeration / list order.
 - **`retain_targets_after_contact` (bool, default `false`):** when `false`,
@@ -1140,6 +1260,12 @@ over successive independently validated plans with an explicit world revision.
   **FAIL** immediately (`body_contact`), even if tip contact also occurs.
 - Zero prohibited body–target contacts is required simulation evidence and does
   not replace cuRobo planning or independent validation.
+- **Planning world:** remaining non-contact targets are cuRobo cuboid obstacles
+  for **tip and body**. Only the active contact target is omitted from the
+  planning/clearance world so tip face contact remains feasible. Do **not**
+  globally disable tip/flange links against the multi-target field
+  (`disable_collision_links` stays empty on multi-target `plan_grasp`).
+  `tip_allow_link_names` is for Isaac tip-vs-body contact classification only.
 
 ### Success and failure
 
@@ -1181,7 +1307,14 @@ increments `failed_episodes` by one.
   `total_planning_failures`, `total_target_failures`; acceptance requires
   `failed_episodes <= max_failed_episodes`.
 - Emit matching live lines to the host terminal and the Isaac Sim console.
-- Numbered viewport labels must match `target_id` in logs and JSON.
+- Numbered viewport labels must match `target_id` in logs and JSON (bright red
+  7-segment digits for contrast on colored cubes).
+- **Target cube highlight colors (playback):**
+  - Non-current remaining targets: default blue until selected as current.
+  - Current target with contact pending (validated leg about to move): yellow.
+  - Successful allowed tip contact: green.
+  - Tip contact missed after a successful plan: red.
+  - Prohibited body contact: red.
 - Planning latency recorded in Phase 7.2 is **simulation host evidence only**.
   It does not establish Orin AGX real-time budgets (Phases 10–11). An optional
   advisory `warn_planning_duration_s` may warn without failing the suite.

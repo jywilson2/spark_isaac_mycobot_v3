@@ -60,6 +60,11 @@ robot_cfg:
       - joint6
       - joint6_flange
     collision_sphere_buffer: 0.003
+    # Phase 1.1: smallest cuboid edge the committed cover must detect (meters).
+    # Overlay replaces collision_spheres at load; regenerate with
+    # scripts/host/regenerate_target_scale_collision_spheres.py
+    min_detectable_obstacle_edge_m: 0.014
+    collision_sphere_overlay_path: config/robots/mycobot_280_m5_phase1_1_spheres.yml
     self_collision_buffer:
       g_base: 0.0
       joint1: 0.0

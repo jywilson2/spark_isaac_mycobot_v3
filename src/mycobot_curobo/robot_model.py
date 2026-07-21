@@ -72,6 +72,7 @@ class RobotModelSpec:
     tcp_fixed_transform_xyz_wxyz: np.ndarray
     collision_sphere_count_by_link: dict[str, int]
     limits: JointLimits
+    min_detectable_obstacle_edge_m: float
 
 
 @dataclass(frozen=True)
@@ -232,6 +233,20 @@ def _resolve_repo_path(config_path: Path, relative_path: str) -> Path:
     return (root / relative_path).resolve()
 
 
+def _resolve_overlay_path(config_path: Path, relative_path: str) -> Path:
+    """Resolve a sphere overlay, preferring the real repo when tests use copies."""
+
+    primary = _resolve_repo_path(config_path, relative_path)
+    if primary.is_file():
+        return primary
+    for parent in config_path.resolve().parents:
+        candidate = (parent / relative_path).resolve()
+        package = parent / "src" / "mycobot_curobo"
+        if candidate.is_file() and package.is_dir():
+            return candidate
+    return primary
+
+
 def _parse_urdf(
     urdf_path: Path, base_link: str, flange_link: str
 ) -> tuple[tuple[_UrdfJoint, ...], JointLimits]:
@@ -312,6 +327,38 @@ def _expand_limit(value: object, label: str) -> np.ndarray:
     return np.full(len(JOINT_NAMES), scalar, dtype=float)
 
 
+def apply_collision_sphere_overlay(kinematics: dict[str, Any], config_path: Path) -> float:
+    """Merge Phase 1.1 sphere overlay into kinematics; return detectable edge ``E``."""
+
+    edge_raw = kinematics.get("min_detectable_obstacle_edge_m")
+    if edge_raw is None:
+        raise ConfigurationError("min_detectable_obstacle_edge_m must be declared explicitly")
+    edge = float(edge_raw)
+    if not math.isfinite(edge) or edge <= 0.0:
+        raise ConfigurationError("min_detectable_obstacle_edge_m must be positive finite")
+    overlay_raw = kinematics.get("collision_sphere_overlay_path")
+    if overlay_raw is None:
+        return edge
+    overlay_path = _resolve_overlay_path(config_path, str(overlay_raw))
+    if not overlay_path.is_file():
+        raise ConfigurationError(f"collision sphere overlay not found: {overlay_path}")
+    overlay = _load_yaml_mapping(overlay_path)
+    overlay_edge = float(overlay.get("min_detectable_obstacle_edge_m", edge))
+    if not math.isfinite(overlay_edge) or overlay_edge <= 0.0:
+        raise ConfigurationError("overlay min_detectable_obstacle_edge_m must be positive finite")
+    if abs(overlay_edge - edge) > 1.0e-12:
+        raise ConfigurationError(
+            "robot min_detectable_obstacle_edge_m must match collision sphere overlay E "
+            f"(robot={edge}, overlay={overlay_edge})"
+        )
+    spheres = overlay.get("collision_spheres")
+    if not isinstance(spheres, dict) or not spheres:
+        raise ConfigurationError("collision sphere overlay must define collision_spheres")
+    kinematics["collision_spheres"] = spheres
+    kinematics["min_detectable_obstacle_edge_m"] = overlay_edge
+    return overlay_edge
+
+
 def load_robot_model_spec(
     config_path: Path | str = Path("config/robots/mycobot_280_m5.yml"),
 ) -> RobotModelSpec:
@@ -324,6 +371,7 @@ def load_robot_model_spec(
         cspace = kinematics["cspace"]
     except (KeyError, TypeError) as exc:
         raise ConfigurationError("robot config must define robot_cfg.kinematics.cspace") from exc
+    detectable_edge_m = apply_collision_sphere_overlay(kinematics, path)
     if float(kinematics.get("format_version", -1.0)) != 2.0:
         raise ConfigurationError("cuRobo robot config format_version must be 2.0")
 
@@ -385,6 +433,7 @@ def load_robot_model_spec(
         tcp_fixed_transform_xyz_wxyz=tcp_transform,
         collision_sphere_count_by_link=counts,
         limits=limits,
+        min_detectable_obstacle_edge_m=detectable_edge_m,
     )
 
 
@@ -404,6 +453,7 @@ def load_curobo_robot_config(
     # Validate every Phase 1 invariant before handing data to CUDA code.
     load_robot_model_spec(path)
     kinematics = payload["robot_cfg"]["kinematics"]
+    apply_collision_sphere_overlay(kinematics, path)
     kinematics["asset_root_path"] = str(
         _resolve_repo_path(path, str(kinematics["asset_root_path"]))
     )

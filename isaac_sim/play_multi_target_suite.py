@@ -110,7 +110,9 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
     from isaac_sim.scene_setup import (
         BODY_CONTACT_COLOR_RGBA,
         DEFAULT_TARGET_COLOR_RGBA,
+        PENDING_CONTACT_COLOR_RGBA,
         TIP_CONTACT_COLOR_RGBA,
+        TIP_CONTACT_FAILED_COLOR_RGBA,
         IsaacLightingConfig,
         add_cube_prim,
         add_target_label,
@@ -409,6 +411,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                     break
                 monitor.reset()
                 trajectory = trajectories[leg.request_id]
+                set_cube_color(stage, target_paths[leg.to_id], PENDING_CONTACT_COLOR_RGBA)
                 motion_started = time.perf_counter()
                 tip_seen_at: float | None = None
                 waypoint_steps = _physics_steps_for_duration(trajectory.dt_s, physics_dt_s)
@@ -510,6 +513,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                     )
                     continue
                 message = f"TIP CONTACT MISSED {leg.from_id}->{leg.to_id}"
+                set_cube_color(stage, target_paths[leg.to_id], TIP_CONTACT_FAILED_COLOR_RGBA)
                 post_message(message)
                 updated = replace(
                     leg,

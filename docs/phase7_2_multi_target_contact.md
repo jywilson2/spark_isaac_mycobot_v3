@@ -61,9 +61,13 @@ orchestration over successive validated plans with an explicit world revision.
 
 ### Placement
 
-- **`grid`:** build an evenly spaced grid inside a declared `g_base` AABB.
-  Geometry is deterministic from config; only contact **order** is shuffled
-  when `order: shuffle`.
+- **`grid`:** build an evenly spaced **XY** lattice inside a declared `g_base`
+  AABB. Z centres are spaced evenly in a band of width
+  `0.5 * arm_z_motion_range_m` centered on the AABB mid-height
+  (`(z_min + z_max) / 2`). `arm_z_motion_range_m` is an explicit declared
+  vertical envelope (typically the vendor working radius); the Z band is not
+  clipped to the thin field AABB Z span. Geometry is deterministic from
+  config; only contact **order** is shuffled when `order: shuffle`.
 - **`manual`:** caller provides the full numbered target list (id, position,
   normal, roll policy). No position sampling.
 
@@ -115,6 +119,15 @@ configured signed TCP approach axis (bare-flange tip / tool +Z with
 `tool_approach_sign: +1` unless explicitly reconfigured). Allowed contact is
 tip/EE allow-list only.
 
+### Planning obstacles
+
+Each leg strips only the **active contact** cube from the cuRobo world (and from
+independent world clearance) so the tip can occupy the face centre. All other
+remaining targets stay as cuboid obstacles for **tip and body**. Multi-target
+`plan_grasp` uses empty `disable_collision_links`; `tip_allow_link_names` is for
+Isaac PhysX tip-vs-body classification only. Near blockers therefore force tip
+detours rather than tip paths through other cubes.
+
 ## Call and control flow
 
 ```mermaid
@@ -149,7 +162,14 @@ then **playback process** (Kit only). Core orchestration must not import Kit.
 
 ## Isaac host consumer
 
-- Visible numbered labels matching `target_id` in logs/JSON.
+- Visible numbered labels matching `target_id` in logs/JSON: high-contrast
+  bright red 7-segment digit geometry (non-colliding cubes) above each target via
+  `add_target_label`, plus `target_id` custom data for cross-checks. Labels are
+  parented under each cube with a **local** Z offset only (world `center_m` on
+  the child would double-count the parent translate and hide digits off-camera).
+- Target cube highlight colors: default blue (idle); **yellow** when the current
+  validated leg is pending tip contact; **green** on allowed tip contact;
+  **red** on tip-contact miss or prohibited body contact.
 - Tip-contact recolor + viewport message with `planning_duration_s`,
   `motion_duration_s`, and `time_to_contact_s`.
 - Distinct body-contact recolor and fail message.

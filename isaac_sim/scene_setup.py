@@ -271,7 +271,83 @@ def stage_lighting_mode_active() -> bool:
 
 TIP_CONTACT_COLOR_RGBA = (0.15, 0.85, 0.25, 1.0)
 BODY_CONTACT_COLOR_RGBA = (0.9, 0.15, 0.1, 1.0)
+TIP_CONTACT_FAILED_COLOR_RGBA = BODY_CONTACT_COLOR_RGBA
+PENDING_CONTACT_COLOR_RGBA = (1.0, 0.85, 0.0, 1.0)
 DEFAULT_TARGET_COLOR_RGBA = (0.2, 0.6, 0.9, 1.0)
+# Bright red digits for viewport contrast on blue / yellow / green cubes.
+LABEL_COLOR_RGBA = (1.0, 0.12, 0.08, 1.0)
+
+# Seven-segment masks for digits 0-9 (a,b,c,d,e,f,g).
+_DIGIT_SEGMENTS: dict[str, tuple[str, ...]] = {
+    "0": ("a", "b", "c", "d", "e", "f"),
+    "1": ("b", "c"),
+    "2": ("a", "b", "g", "e", "d"),
+    "3": ("a", "b", "g", "c", "d"),
+    "4": ("f", "g", "b", "c"),
+    "5": ("a", "f", "g", "c", "d"),
+    "6": ("a", "f", "g", "e", "c", "d"),
+    "7": ("a", "b", "c"),
+    "8": ("a", "b", "c", "d", "e", "f", "g"),
+    "9": ("a", "b", "c", "d", "f", "g"),
+}
+
+
+def label_digit_segment_boxes(
+    target_id: str,
+    *,
+    digit_height_m: float = 0.022,
+    digit_width_m: float = 0.014,
+    stroke_m: float = 0.003,
+    digit_gap_m: float = 0.004,
+    depth_m: float = 0.003,
+) -> tuple[tuple[tuple[float, float, float], tuple[float, float, float]], ...]:
+    """Return local (center_xyz_m, size_xyz_m) boxes for viewport digit labels.
+
+    Layout is a classic 7-segment glyph per digit in the local XZ plane
+    (Z up, X across digits, Y thin depth) so labels stand upright above
+    cubes. Multi-digit ids are laid out left to right. Pure geometry helper
+    — no USD/Kit dependency.
+    """
+
+    if not target_id.strip():
+        raise ValueError("target_id must be non-empty")
+    if any(
+        not math.isfinite(value) or value <= 0.0
+        for value in (digit_height_m, digit_width_m, stroke_m, digit_gap_m, depth_m)
+    ):
+        raise ValueError("digit geometry sizes must be positive finite")
+    digits = tuple(character for character in target_id.strip() if character.isdigit())
+    if not digits:
+        raise ValueError("target_id must contain at least one digit for a visible label")
+    pitch = digit_width_m + digit_gap_m
+    origin_x = -0.5 * (len(digits) - 1) * pitch
+    half_w = 0.5 * digit_width_m
+    half_h = 0.5 * digit_height_m
+    boxes: list[tuple[tuple[float, float, float], tuple[float, float, float]]] = []
+    # Per-digit face in XZ: (local_x, local_z), (size_x, size_z); Y is depth.
+    segment_local = {
+        "a": ((0.0, half_h), (digit_width_m, stroke_m)),
+        "b": ((half_w, 0.5 * half_h), (stroke_m, half_h)),
+        "c": ((half_w, -0.5 * half_h), (stroke_m, half_h)),
+        "d": ((0.0, -half_h), (digit_width_m, stroke_m)),
+        "e": ((-half_w, -0.5 * half_h), (stroke_m, half_h)),
+        "f": ((-half_w, 0.5 * half_h), (stroke_m, half_h)),
+        "g": ((0.0, 0.0), (digit_width_m, stroke_m)),
+    }
+    for index, digit in enumerate(digits):
+        segments = _DIGIT_SEGMENTS.get(digit)
+        if segments is None:
+            raise ValueError(f"unsupported digit {digit!r} in target_id")
+        digit_x = origin_x + index * pitch
+        for name in segments:
+            (local_x, local_z), (size_x, size_z) = segment_local[name]
+            boxes.append(
+                (
+                    (float(digit_x + local_x), 0.0, float(local_z)),
+                    (float(size_x), float(depth_m), float(size_z)),
+                )
+            )
+    return tuple(boxes)
 
 
 def set_cube_color(stage: Any, prim_path: str, color_rgba: Sequence[float]) -> None:
@@ -298,6 +374,53 @@ def remove_prim(stage: Any, prim_path: str) -> None:
         stage.RemovePrim(prim_path)
 
 
+def _add_visual_box(
+    stage: Any,
+    *,
+    prim_path: str,
+    center_m: Sequence[float],
+    size_m: Sequence[float],
+    color_rgba: Sequence[float],
+) -> str:
+    """Define a non-colliding display cube (label stroke geometry)."""
+
+    from pxr import Gf, UsdGeom
+
+    center = _finite_vector(center_m, "center_m", 3)
+    size = _finite_vector(size_m, "size_m", 3)
+    color = _finite_vector(color_rgba, "color_rgba", 4)
+    if any(component <= 0.0 for component in size):
+        raise ValueError("size_m components must be positive")
+    if any(component < 0.0 or component > 1.0 for component in color):
+        raise ValueError("color_rgba components must be in [0, 1]")
+    # UsdGeom.Cube size is a single edge; scale non-uniformly via xform scale.
+    edge = max(size)
+    cube = UsdGeom.Cube.Define(stage, prim_path)
+    cube.CreateSizeAttr(edge)
+    cube.CreateDisplayColorAttr([Gf.Vec3f(*color[:3])])
+    cube.CreateDisplayOpacityAttr([float(color[3])])
+    xformable = UsdGeom.Xformable(cube.GetPrim())
+    translate = xformable.AddTranslateOp()
+    translate.Set(Gf.Vec3d(*center))
+    scale = xformable.AddScaleOp()
+    scale.Set(Gf.Vec3f(size[0] / edge, size[1] / edge, size[2] / edge))
+    return prim_path
+
+
+def label_parent_local_offset_m(height_offset_m: float = 0.03) -> tuple[float, float, float]:
+    """Return the label Xform translate in the parent cube's local frame.
+
+    Labels are parented under the translated cube prim, so only a local Z lift
+    is applied. Using world ``center_m`` here would double-count the parent
+    translate and place digits far from the block.
+    """
+
+    offset = float(height_offset_m)
+    if not math.isfinite(offset):
+        raise ValueError("height_offset_m must be finite")
+    return (0.0, 0.0, offset)
+
+
 def add_target_label(
     stage: Any,
     *,
@@ -305,19 +428,34 @@ def add_target_label(
     target_id: str,
     center_m: Sequence[float],
     height_offset_m: float = 0.03,
+    color_rgba: Sequence[float] = LABEL_COLOR_RGBA,
 ) -> str:
-    """Add a numbered label prim above a target for viewport identity matching."""
+    """Add a viewport-visible numbered label above a target.
+
+    Creates high-contrast 7-segment digit geometry (non-colliding cubes) parented
+    under the target prim, plus ``target_id`` custom data for log cross-checks.
+    The label Xform uses a parent-local Z offset only; ``center_m`` is validated
+    for call-site consistency but must not be applied as a second world translate.
+    """
 
     from pxr import Gf, UsdGeom
 
-    center = _finite_vector(center_m, "center_m", 3)
+    _finite_vector(center_m, "center_m", 3)
     if not prim_path.startswith("/") or not target_id.strip():
         raise ValueError("prim_path must be absolute and target_id non-empty")
     label_path = f"{prim_path.rstrip('/')}/label_{target_id}"
     xform = UsdGeom.Xform.Define(stage, label_path)
     xformable = UsdGeom.Xformable(xform.GetPrim())
     translate = xformable.AddTranslateOp()
-    translate.Set(Gf.Vec3d(center[0], center[1], center[2] + height_offset_m))
-    # Store the identity as custom data so playback logs can cross-check labels.
+    local_offset = label_parent_local_offset_m(height_offset_m)
+    translate.Set(Gf.Vec3d(*local_offset))
     xform.GetPrim().SetCustomDataByKey("target_id", str(target_id))
+    for index, (local_center, size) in enumerate(label_digit_segment_boxes(target_id)):
+        _add_visual_box(
+            stage,
+            prim_path=f"{label_path}/seg_{index}",
+            center_m=local_center,
+            size_m=size,
+            color_rgba=color_rgba,
+        )
     return label_path
