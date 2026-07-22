@@ -153,13 +153,17 @@ robot_cfg:
           radius: 0.010
         - center: [-0.00863, 0.03510, 0.04752]
           radius: 0.008
+      # Cover assumed bare-flange Ø31 mm (see flange_diameter_assumption_m).
+      # Prior r=0.008 scaffolding left ~7.5 mm of rim invisible to cuRobo, so
+      # transit paths could graze neighbor cubes with the physical flange edge.
+      # Central r=0.014 (+ collision_sphere_buffer 0.003) ≈ 31 mm envelope.
       joint6_flange:
-        - center: [0.00337, -0.00497, 0.01037]
+        - center: [0.00000, 0.00000, 0.00200]
+          radius: 0.014
+        - center: [0.01000, 0.00000, 0.00200]
           radius: 0.008
-        - center: [-0.00373, 0.01877, 0.00026]
+        - center: [-0.00500, 0.00866, 0.00200]
           radius: 0.008
-        - center: [-0.01801, -0.00422, 0.01370]
-          radius: 0.008
-        - center: [0.01765, -0.00752, 0.01332]
+        - center: [-0.00500, -0.00866, 0.00200]
           radius: 0.008
   load_dynamics: false

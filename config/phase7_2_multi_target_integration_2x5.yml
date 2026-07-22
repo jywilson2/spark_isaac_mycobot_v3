@@ -42,7 +42,8 @@ validation_profile: simulation_initial
 scene_revision_prefix: phase7_2-integration-2x5
 artifact_path: artifacts/phase7_2
 minimum_self_collision_clearance_m: 0.0
-minimum_world_collision_clearance_m: 0.004
+# Flange rim anti-graze vs remaining cubes (pairs with Ø31 mm flange spheres).
+minimum_world_collision_clearance_m: 0.006
 lighting:
   dome_intensity: 400.0
   distant_intensity: 1000.0

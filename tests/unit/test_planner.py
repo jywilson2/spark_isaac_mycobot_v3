@@ -166,8 +166,8 @@ def test_planning_high_effort_profile_loads_with_higher_budget() -> None:
     # Planner success must not exceed Phase 4 terminal/roll rejection thresholds.
     assert high.orientation_tolerance_rad <= validation.max_terminal_orientation_error_rad
     assert high.orientation_tolerance_rad <= validation.max_roll_error_rad
-    assert high.optimizer_collision_activation_distance_m == pytest.approx(0.01)
-    assert bench.optimizer_collision_activation_distance_m == pytest.approx(0.01)
+    assert high.optimizer_collision_activation_distance_m == pytest.approx(0.012)
+    assert bench.optimizer_collision_activation_distance_m == pytest.approx(0.012)
 
 
 def test_success_maps_segments_roll_and_exact_plan_grasp_options() -> None:

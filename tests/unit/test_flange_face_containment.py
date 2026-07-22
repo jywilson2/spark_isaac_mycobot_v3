@@ -9,6 +9,7 @@ import pytest
 from mycobot_curobo.cube_scene import (
     CubeGeometry,
     flange_disk_collides_contact_face,
+    flange_disk_cube_clearance_m,
     flange_disk_face_overhang_m,
 )
 from mycobot_curobo.multi_target import load_multi_target_suite_config
@@ -50,3 +51,17 @@ def test_integration_suite_requires_flange_face_containment() -> None:
     )
     assert config.require_flange_face_containment is True
     assert config.target_edge_m + 1.0e-12 >= config.flange_diameter_assumption_m
+
+
+def test_flange_disk_cube_clearance_detects_neighbor_graze() -> None:
+    """TCP above a neighbor cube with flange radius past the face → negative clear."""
+
+    cube = CubeGeometry((0.2, 0.0, 0.15), 0.031, name="neighbor")
+    # TCP laterally overlapping the cube top, Z just above the top face.
+    top_z = 0.15 + 0.5 * 0.031
+    tcp = (0.2, 0.0, top_z + 0.001)
+    clear = flange_disk_cube_clearance_m(tcp, 0.031, cube)
+    assert clear < 0.0
+    # Far lateral TCP is clear.
+    clear_far = flange_disk_cube_clearance_m((0.4, 0.0, top_z + 0.001), 0.031, cube)
+    assert clear_far > 0.0

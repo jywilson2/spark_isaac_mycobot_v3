@@ -75,8 +75,9 @@ def test_integration_2x5_packs_under_rim_with_reproducible_planner() -> None:
     assert config.field_minimum_m == pytest.approx((-0.24, -0.24, 0.12))
     assert config.field_maximum_m == pytest.approx((0.24, 0.24, 0.22))
     assert len(config.keep_outs) == 1
-    assert config.minimum_world_collision_clearance_m == pytest.approx(0.004)
+    assert config.minimum_world_collision_clearance_m == pytest.approx(0.006)
     assert config.pre_approach_distance_m == pytest.approx(0.01)
+    assert config.layout.radius_m == pytest.approx(0.20)
     episodes = sample_multi_target_episodes(config)
     assert len(episodes) == 2
     keep = config.keep_outs[0]

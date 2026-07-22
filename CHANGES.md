@@ -1,5 +1,28 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-22 — Flange-rim anti-graze on transit
+
+1. Root cause: `joint6_flange` collision spheres were r=0.008 while the assumed
+   flange is Ø31 mm, so ~7.5 mm of rim was invisible to cuRobo and could skim
+   neighbor cubes during tip-to-tip transit.
+2. Flange spheres: central r=0.014 (+ `collision_sphere_buffer` 0.003 ≈ Ø31 mm
+   envelope) with three rim helpers; count stays 32.
+3. Multi-target validation: `flange_disk_cube_clearance_m` fails closed on
+   flange-sphere penetration of non-contact cubes (`flange_neighbor_clearance`).
+4. Planner activation `0.01 → 0.012` m; integration world clearance `0.006` m.
+
+### Review recommended
+
+- Confirm GUI transit no longer shows flange-edge skims on remaining cubes.
+- If graze returns on denser packs, prefer more spacing over further sphere growth.
+
+### Verification
+
+- `./scripts/run_verification.sh ci` — 195 passed.
+- Headless + GUI integration 2×5 — exit 0, 2/2, 10 tip contacts, 0 plan fails.
+
+---
+
 ## 2026-07-22 — Surround open-arc integration 2×5 (multi-quadrant)
 
 1. Root cause of “one quadrant” clustering: integration `field_aabb` was

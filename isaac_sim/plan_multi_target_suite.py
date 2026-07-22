@@ -22,6 +22,7 @@ from mycobot_curobo.config import load_app_config  # noqa: E402
 from mycobot_curobo.cube_scene import (  # noqa: E402
     CubeGeometry,
     batch_sphere_cube_clearance_m,
+    flange_disk_cube_clearance_m,
     flange_disk_face_overhang_m,
 )
 from mycobot_curobo.errors import ConfigurationError  # noqa: E402
@@ -182,38 +183,74 @@ def plan_and_validate(
             robot_spec=robot_spec,
             task_frame_config=app.task_frame,
         )
-        if (
-            not require_flange_face_containment
-            or not validated.report.valid
-            or flange_diameter is None
-        ):
+        if not validated.report.valid or flange_diameter is None:
             return validated
-        geometry = evaluator.evaluate(plan.terminal_trajectory.position_rad)
-        tcp = geometry.tcp_position_m[-1]
-        overhang = flange_disk_face_overhang_m(
-            tcp,
-            request.surface_target.surface_normal_base,
-            flange_diameter,
-            contact_cube,
-        )
-        if overhang <= overhang_tol:
+
+        violations: list[ValidationViolation] = []
+        # Transit anti-graze: flange-radius sphere at every TCP vs neighbor cubes.
+        if clearance_geometries:
+            combined = plan.combined_trajectory
+            geom_all = evaluator.evaluate(combined.position_rad)
+            min_clear = float("inf")
+            min_wp = 0
+            min_name = clearance_geometries[0].name
+            for wp_index, tcp in enumerate(geom_all.tcp_position_m):
+                for cube in clearance_geometries:
+                    clear = flange_disk_cube_clearance_m(tcp, flange_diameter, cube)
+                    if clear < min_clear:
+                        min_clear = float(clear)
+                        min_wp = int(wp_index)
+                        min_name = cube.name
+            # Penetration-only for the conservative flange-sphere model; robot
+            # sphere world clearance already enforces the suite margin.
+            world_tol = 0.0
+            if min_clear < world_tol:
+                violations.append(
+                    ValidationViolation(
+                        metric="flange_neighbor_clearance",
+                        waypoint_index=min_wp,
+                        measured=min_clear,
+                        threshold=world_tol,
+                        reason=(
+                            "flange disk grazes/penetrates a non-contact target "
+                            f"(cube={min_name}; clearance_m={min_clear:.4f}; "
+                            f"tol_m={world_tol:.4f}; flange_diameter_m={flange_diameter})"
+                        ),
+                    )
+                )
+
+        if require_flange_face_containment:
+            geometry = evaluator.evaluate(plan.terminal_trajectory.position_rad)
+            tcp = geometry.tcp_position_m[-1]
+            overhang = flange_disk_face_overhang_m(
+                tcp,
+                request.surface_target.surface_normal_base,
+                flange_diameter,
+                contact_cube,
+            )
+            if overhang > overhang_tol:
+                violations.append(
+                    ValidationViolation(
+                        metric="flange_face_containment",
+                        waypoint_index=int(plan.terminal_trajectory.sample_count - 1),
+                        measured=float(overhang),
+                        threshold=overhang_tol,
+                        reason=(
+                            "flange disk overhangs the contact face "
+                            f"(overhang_m={overhang:.4f}; tol_m={overhang_tol:.4f}; "
+                            f"edge_m={contact_cube.edge_m}; "
+                            f"flange_diameter_m={flange_diameter})"
+                        ),
+                    )
+                )
+
+        if not violations:
             return validated
-        violation = ValidationViolation(
-            metric="flange_face_containment",
-            waypoint_index=int(plan.terminal_trajectory.sample_count - 1),
-            measured=float(overhang),
-            threshold=overhang_tol,
-            reason=(
-                "flange disk overhangs the contact face "
-                f"(overhang_m={overhang:.4f}; tol_m={overhang_tol:.4f}; "
-                f"edge_m={contact_cube.edge_m}; flange_diameter_m={flange_diameter})"
-            ),
-        )
         report = ValidationReport(
             request_id=request.request_id,
             profile_name=validated.report.profile_name,
             valid=False,
-            violations=validated.report.violations + (violation,),
+            violations=validated.report.violations + tuple(violations),
             metrics=validated.report.metrics,
         )
         return ValidatedPlan(

@@ -1424,6 +1424,10 @@ over successive independently validated plans with an explicit world revision.
   `flange_face_overhang_tolerance_m` (default `0.005` m). Suites that enable
   this should use `target_edge_m >= flange_diameter_assumption_m` (integration
   2×5 uses `0.031` m) so containment is geometrically achievable.
+- **Flange-rim transit clearance:** collision spheres on `joint6_flange` must
+  cover the assumed flange diameter so TrajOpt sees the rim. Multi-target
+  validation may also reject plans whose flange-radius TCP sphere penetrates a
+  non-contact target (`flange_neighbor_clearance`).
 
 ### Success and failure
 

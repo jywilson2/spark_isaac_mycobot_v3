@@ -38,7 +38,8 @@ profiles:
     orientation_tolerance_rad: 0.05
     use_cuda_graph: false
     random_seed: 123
-    optimizer_collision_activation_distance_m: 0.01
+    # Activate early enough for flange-sphere anti-graze without over-constraining.
+    optimizer_collision_activation_distance_m: 0.012
     max_batch_size: 1
     multi_env: false
     max_goalset: 8
@@ -58,7 +59,7 @@ profiles:
     orientation_tolerance_rad: 0.05
     use_cuda_graph: false
     random_seed: 123
-    optimizer_collision_activation_distance_m: 0.01
+    optimizer_collision_activation_distance_m: 0.012
     max_batch_size: 1
     multi_env: false
     max_goalset: 8

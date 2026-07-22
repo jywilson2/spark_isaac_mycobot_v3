@@ -232,3 +232,28 @@ def flange_disk_collides_contact_face(
         )
         > tol
     )
+
+
+def flange_disk_cube_clearance_m(
+    tcp_position_m: Sequence[float],
+    flange_diameter_m: float,
+    cube: CubeGeometry,
+) -> float:
+    """Signed clearance of a flange-radius sphere at TCP versus a cube AABB.
+
+    Conservative transit check: models the assumed flange disk as a sphere of
+    radius ``flange_diameter_m / 2`` at the TCP. Positive means clear; negative
+    means the flange volume intersects the cube.
+    """
+
+    diameter = float(flange_diameter_m)
+    if not math.isfinite(diameter) or diameter <= 0.0:
+        raise ConfigurationError("flange_diameter_m must be positive finite")
+    radius = 0.5 * diameter
+    tcp = _vector3(tcp_position_m, "tcp_position_m")
+    return sphere_aabb_clearance_m(
+        tcp.reshape(1, 3),
+        np.asarray([radius], dtype=float),
+        cube.center_m,
+        (0.5 * float(cube.edge_m),) * 3,
+    )

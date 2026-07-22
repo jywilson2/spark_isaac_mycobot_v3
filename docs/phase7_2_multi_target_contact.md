@@ -312,10 +312,11 @@ are still animated.
   some shuffle seeds; the open arc is the accepted integration trade-off.
 - GUI framing: `compute_viewport_framing` from arm envelope ∪ all target
   bounds (closest view that keeps content in frame; defaults remain fallback).
-- Anti-graze: `optimizer_collision_activation_distance_m: 0.01` on
-  `benchmark_reproducible` / `planning_high_effort`; suite
-  `minimum_world_collision_clearance_m: 0.004`. Keep `pre_approach_distance_m:
-  0.01` (A/B: `0.025` forced start→target `plan_failed`).
+- Anti-graze: flange spheres cover assumed Ø31 mm (central r=0.014);
+  `optimizer_collision_activation_distance_m: 0.012`; suite
+  `minimum_world_collision_clearance_m: 0.006`; validation
+  `flange_neighbor_clearance` rejects flange-sphere penetration of non-contact
+  cubes. Keep `pre_approach_distance_m: 0.01`.
 - One-knob A/B (1 ep × 2 targets, packing-safe baseline field): baseline PASS;
   rolls PASS. Root cause of prior `planning_high_effort` `plan_failed` on
   `2→1`: **`num_ik_seeds: 64`** (grasp segment; not validation). Fixed profile

@@ -16,8 +16,8 @@ content-aware GUI framing (`compute_viewport_framing`), TrajOpt collision
 activation `0.01` m on benchmark/high-effort, tip-classify hardening,
 measured +Z tip-contact workspace artifact, `planning_high_effort` IK seeds
 **32**, and integration 2×5 **flange-face containment** with flange-sized cubes on a
-multi-quadrant open arc (`placement: layout` / `arc`, span ~240°) rather than
-a forward-only grid. Integration stays on `benchmark_reproducible`.
+multi-quadrant open arc, plus flange-rim anti-graze (Ø31 mm flange spheres +
+neighbor clearance). Integration stays on `benchmark_reproducible`.
 See `spec.md` §8 Phase 7.2.
 
 **Phase 7.3 — Controllable target-block placement: IMPLEMENTED**
