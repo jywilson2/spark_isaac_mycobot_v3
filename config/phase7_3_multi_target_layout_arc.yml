@@ -6,19 +6,19 @@ frame: g_base
 placement: layout
 order: shuffle
 retain_targets_after_contact: false
-# Uses EE-clearance floor (target_edge_m + flange_diameter_assumption_m).
+# Uses approach-plane EE floor (edge + flange + ee_approach_clearance).
 layout:
   name: arc
-  radius_m: 0.08
+  radius_m: 0.14
   span_rad: 1.8
-  center_xy_m: [0.20, -0.09]
+  center_xy_m: [0.20, -0.10]
   z_m: 0.16
   start_angle_rad: -0.9
 tip_allow_link_names:
   - joint6_flange
 field_aabb:
-  minimum_m: [0.10, -0.22, 0.12]
-  maximum_m: [0.30, 0.04, 0.20]
+  minimum_m: [0.06, -0.28, 0.12]
+  maximum_m: [0.36, 0.06, 0.20]
 arm_z_motion_range_m: 0.28
 target_edge_m: 0.014
 outward_normal_base: [0.0, 0.0, 1.0]
@@ -31,8 +31,8 @@ artifact_path: artifacts/phase7_3
 minimum_self_collision_clearance_m: 0.0
 minimum_world_collision_clearance_m: 0.0
 lighting:
-  dome_intensity: 1000.0
-  distant_intensity: 3000.0
+  dome_intensity: 400.0
+  distant_intensity: 1000.0
   distant_angle_deg: [45.0, -30.0, 0.0]
   color: [1.0, 1.0, 1.0]
 pre_approach_distance_m: 0.01

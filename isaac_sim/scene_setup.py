@@ -40,11 +40,21 @@ class IsaacLightingConfig:
 
 
 DEFAULT_LIGHTING = IsaacLightingConfig(
-    dome_intensity=1000.0,
-    distant_intensity=3000.0,
+    dome_intensity=400.0,
+    distant_intensity=1000.0,
     distant_angle_deg=(45.0, -30.0, 0.0),
     color=(1.0, 1.0, 1.0),
 )
+
+# Closer than Kit's default far perspective: look from +Y at the arm / field.
+DEFAULT_VIEWPORT_EYE_M = (0.28, 0.55, 0.32)
+DEFAULT_VIEWPORT_TARGET_M = (0.14, -0.08, 0.14)
+# Conservative MyCobot reach envelope in g_base for content-aware framing.
+DEFAULT_ARM_ENVELOPE_MIN_M = (-0.05, -0.12, 0.0)
+DEFAULT_ARM_ENVELOPE_MAX_M = (0.32, 0.12, 0.36)
+DEFAULT_VIEWPORT_VERTICAL_FOV_DEG = 35.0
+DEFAULT_VIEWPORT_ASPECT = 16.0 / 9.0
+DEFAULT_VIEWPORT_MARGIN = 0.12
 
 # Kit viewport lighting menubar (omni.kit.viewport.menubar.lighting).
 _AUTO_LIGHT_RIG_ENABLED = (
@@ -195,6 +205,179 @@ def prepare_illuminated_stage(
     paths = add_scene_lighting(stage, config, root_path=root_path)
     enable_viewport_stage_lighting()
     return paths, lighting_ready(stage, paths)
+
+
+def union_aabb_m(
+    first_min_m: Sequence[float],
+    first_max_m: Sequence[float],
+    second_min_m: Sequence[float],
+    second_max_m: Sequence[float],
+) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+    """Return the axis-aligned union of two AABBs in metres."""
+
+    a_min = _finite_vector(first_min_m, "first_min_m", 3)
+    a_max = _finite_vector(first_max_m, "first_max_m", 3)
+    b_min = _finite_vector(second_min_m, "second_min_m", 3)
+    b_max = _finite_vector(second_max_m, "second_max_m", 3)
+    if any(a_max[i] < a_min[i] or b_max[i] < b_min[i] for i in range(3)):
+        raise ValueError("AABB maximum_m must be >= minimum_m on each axis")
+    return (
+        (min(a_min[0], b_min[0]), min(a_min[1], b_min[1]), min(a_min[2], b_min[2])),
+        (max(a_max[0], b_max[0]), max(a_max[1], b_max[1]), max(a_max[2], b_max[2])),
+    )
+
+
+def content_aabb_from_field(
+    field_minimum_m: Sequence[float],
+    field_maximum_m: Sequence[float],
+    *,
+    target_edge_m: float,
+    arm_minimum_m: Sequence[float] = DEFAULT_ARM_ENVELOPE_MIN_M,
+    arm_maximum_m: Sequence[float] = DEFAULT_ARM_ENVELOPE_MAX_M,
+) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+    """Union of field cubes (expanded by half-edge) with a fixed arm envelope."""
+
+    field_min = _finite_vector(field_minimum_m, "field_minimum_m", 3)
+    field_max = _finite_vector(field_maximum_m, "field_maximum_m", 3)
+    edge = float(target_edge_m)
+    if not math.isfinite(edge) or edge <= 0.0:
+        raise ValueError("target_edge_m must be positive finite")
+    half = 0.5 * edge
+    expanded_min = (field_min[0] - half, field_min[1] - half, field_min[2] - half)
+    expanded_max = (field_max[0] + half, field_max[1] + half, field_max[2] + half)
+    return union_aabb_m(expanded_min, expanded_max, arm_minimum_m, arm_maximum_m)
+
+
+def compute_viewport_framing(
+    content_minimum_m: Sequence[float],
+    content_maximum_m: Sequence[float],
+    *,
+    vertical_fov_deg: float = DEFAULT_VIEWPORT_VERTICAL_FOV_DEG,
+    aspect: float = DEFAULT_VIEWPORT_ASPECT,
+    margin: float = DEFAULT_VIEWPORT_MARGIN,
+    fallback_eye_m: Sequence[float] = DEFAULT_VIEWPORT_EYE_M,
+    fallback_target_m: Sequence[float] = DEFAULT_VIEWPORT_TARGET_M,
+) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+    """Closest eye/target on the default view ray that keeps content in frame.
+
+    Primary metric: maximize closeness subject to arm + all targets remaining
+    in view (approx. perspective FOV with ``margin`` padding). Degenerate or
+    non-finite bounds fall back to ``fallback_*``.
+    """
+
+    fallback_eye = _finite_vector(fallback_eye_m, "fallback_eye_m", 3)
+    fallback_target = _finite_vector(fallback_target_m, "fallback_target_m", 3)
+    try:
+        c_min = _finite_vector(content_minimum_m, "content_minimum_m", 3)
+        c_max = _finite_vector(content_maximum_m, "content_maximum_m", 3)
+    except ValueError:
+        return fallback_eye, fallback_target
+    if any(c_max[i] < c_min[i] for i in range(3)):
+        return fallback_eye, fallback_target
+    span = tuple(c_max[i] - c_min[i] for i in range(3))
+    if max(span) <= 1.0e-9:
+        return fallback_eye, fallback_target
+    if (
+        not math.isfinite(vertical_fov_deg)
+        or vertical_fov_deg <= 0.0
+        or vertical_fov_deg >= 179.0
+        or not math.isfinite(aspect)
+        or aspect <= 0.0
+        or not math.isfinite(margin)
+        or margin < 0.0
+    ):
+        return fallback_eye, fallback_target
+
+    target = (
+        0.5 * (c_min[0] + c_max[0]),
+        0.5 * (c_min[1] + c_max[1]),
+        0.5 * (c_min[2] + c_max[2]),
+    )
+    view = tuple(fallback_eye[i] - fallback_target[i] for i in range(3))
+    view_norm = math.sqrt(sum(component * component for component in view))
+    if view_norm <= 1.0e-12:
+        return fallback_eye, fallback_target
+    forward = tuple(component / view_norm for component in view)
+    # Camera "up" preference; fall back if nearly parallel to the view ray.
+    world_up = (0.0, 0.0, 1.0)
+    up_dot = sum(forward[i] * world_up[i] for i in range(3))
+    up_proj = tuple(world_up[i] - up_dot * forward[i] for i in range(3))
+    up_norm = math.sqrt(sum(component * component for component in up_proj))
+    if up_norm <= 1.0e-9:
+        world_up = (0.0, 1.0, 0.0)
+        up_dot = sum(forward[i] * world_up[i] for i in range(3))
+        up_proj = tuple(world_up[i] - up_dot * forward[i] for i in range(3))
+        up_norm = math.sqrt(sum(component * component for component in up_proj))
+        if up_norm <= 1.0e-9:
+            return fallback_eye, fallback_target
+    up = tuple(component / up_norm for component in up_proj)
+    right = (
+        forward[1] * up[2] - forward[2] * up[1],
+        forward[2] * up[0] - forward[0] * up[2],
+        forward[0] * up[1] - forward[1] * up[0],
+    )
+    right_norm = math.sqrt(sum(component * component for component in right))
+    if right_norm <= 1.0e-12:
+        return fallback_eye, fallback_target
+    right = tuple(component / right_norm for component in right)
+
+    corners: list[tuple[float, float, float]] = []
+    for ix in (0, 1):
+        for iy in (0, 1):
+            for iz in (0, 1):
+                corners.append(
+                    (
+                        c_min[0] if ix == 0 else c_max[0],
+                        c_min[1] if iy == 0 else c_max[1],
+                        c_min[2] if iz == 0 else c_max[2],
+                    )
+                )
+    max_right = 0.0
+    max_up = 0.0
+    for corner in corners:
+        delta = tuple(corner[i] - target[i] for i in range(3))
+        max_right = max(max_right, abs(sum(delta[i] * right[i] for i in range(3))))
+        max_up = max(max_up, abs(sum(delta[i] * up[i] for i in range(3))))
+    half_vfov = math.radians(vertical_fov_deg) * 0.5
+    half_hfov = math.atan(math.tan(half_vfov) * aspect)
+    # Distance so the padded half-extents fit in both FOV axes.
+    pad = 1.0 + margin
+    dist_v = (max_up * pad) / math.tan(half_vfov) if max_up > 0.0 else 0.0
+    dist_h = (max_right * pad) / math.tan(half_hfov) if max_right > 0.0 else 0.0
+    distance = max(dist_v, dist_h, 0.25)
+    eye = tuple(target[i] + forward[i] * distance for i in range(3))
+    return (
+        (float(eye[0]), float(eye[1]), float(eye[2])),
+        (float(target[0]), float(target[1]), float(target[2])),
+    )
+
+
+def frame_viewport_on_arm(
+    *,
+    eye_m: Sequence[float] = DEFAULT_VIEWPORT_EYE_M,
+    target_m: Sequence[float] = DEFAULT_VIEWPORT_TARGET_M,
+) -> bool:
+    """Zoom the active perspective camera onto the arm / target field.
+
+    Kit's default perspective is often too far for MyCobot + 14 mm cubes.
+    Fail closed (return False) when Kit viewport helpers are unavailable
+    (unit tests / headless without viewport utility).
+    """
+
+    eye = _finite_vector(eye_m, "eye_m", 3)
+    target = _finite_vector(target_m, "target_m", 3)
+    try:
+        from isaacsim.core.utils.viewports import set_camera_view
+    except ImportError:
+        try:
+            from omni.isaac.core.utils.viewports import set_camera_view  # type: ignore
+        except ImportError:
+            return False
+    try:
+        set_camera_view(eye=eye, target=target)
+        return True
+    except (RuntimeError, AttributeError, TypeError, ValueError):
+        return False
 
 
 def add_cube_prim(
@@ -449,6 +632,10 @@ def add_target_label(
     translate = xformable.AddTranslateOp()
     local_offset = label_parent_local_offset_m(height_offset_m)
     translate.Set(Gf.Vec3d(*local_offset))
+    # Digits are authored in local XZ with +Y as the glyph face. Rotate 180°
+    # about Z so they are right-reading from the default +Y viewport camera.
+    rotate_z = xformable.AddRotateZOp()
+    rotate_z.Set(180.0)
     xform.GetPrim().SetCustomDataByKey("target_id", str(target_id))
     for index, (local_center, size) in enumerate(label_digit_segment_boxes(target_id)):
         _add_visual_box(

@@ -245,7 +245,7 @@ closed. Design a typed multi-target API reusable by later hardware adapters.
 
 - Core Isaac-free `TargetField`, order policy, retain flag, and
   `MultiTargetEpisodeRunner` with per-target planning retries
-  (`max_planning_failure_per_target` default **`5`**), deferral /
+  (`max_planning_failure_per_target` default **`3`**), deferral /
   reconsider (`max_reconsider_passes` default **`target_count`**), and
   `max_failed_episodes` defaulting to **`0`**;
 - `ContactDetector` protocol (PhysX tip vs body in Isaac; HW later);

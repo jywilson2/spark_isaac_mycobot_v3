@@ -38,10 +38,30 @@ profiles:
     orientation_tolerance_rad: 0.05
     use_cuda_graph: false
     random_seed: 123
-    optimizer_collision_activation_distance_m: 0.001
+    optimizer_collision_activation_distance_m: 0.01
     max_batch_size: 1
     multi_env: false
     max_goalset: 8
     warmup_iterations: 2
     enable_graph_warmup: false
     max_plan_grasp_attempts: 2
+  # Higher trajopt/attempt budget than benchmark_reproducible for hard suite poses.
+  # Keep num_ik_seeds at 32: raising to 64 regresses packing-safe 2→1 plan_grasp
+  # (cuRobo "Planning to grasp pose failed" / no success) on host GPU.
+  # Orientation tolerance must stay <= Phase 4 validation terminal/roll limits.
+  # Not a substitute for mid-reach placement; still fail-closed on infeasibility.
+  planning_high_effort:
+    self_collision_check: true
+    num_ik_seeds: 32
+    num_trajopt_seeds: 8
+    position_tolerance_m: 0.005
+    orientation_tolerance_rad: 0.05
+    use_cuda_graph: false
+    random_seed: 123
+    optimizer_collision_activation_distance_m: 0.01
+    max_batch_size: 1
+    multi_env: false
+    max_goalset: 8
+    warmup_iterations: 2
+    enable_graph_warmup: false
+    max_plan_grasp_attempts: 4

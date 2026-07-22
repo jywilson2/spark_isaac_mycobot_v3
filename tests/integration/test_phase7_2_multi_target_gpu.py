@@ -26,6 +26,9 @@ def test_phase7_2_default_suite_plans_full_episode() -> None:
         episodes,
         validation_profile_name=config.validation_profile,
         warn_planning_duration_s=config.warn_planning_duration_s,
+        flange_diameter_assumption_m=config.flange_diameter_assumption_m,
+        require_flange_face_containment=config.require_flange_face_containment,
+        flange_face_overhang_tolerance_m=config.flange_face_overhang_tolerance_m,
     )
     assert len(results) == 1
     assert results[0].succeeded, results[0].failure_reason
@@ -38,5 +41,5 @@ def test_phase7_2_default_suite_plans_full_episode() -> None:
     }
     assert set(trajectories) == successful_ids
     assert results[0].planning_failure_count >= 0
-    assert results[0].episode.max_planning_failure_per_target == 5
+    assert results[0].episode.max_planning_failure_per_target == 3
     assert results[0].episode.max_failed_episodes == 0

@@ -15,17 +15,59 @@ GRID_Z_VARIABILITY_FRACTION = 0.5
 
 
 def ee_clearance_min_center_separation_m(
-    edge_m: float, flange_diameter_assumption_m: float
+    edge_m: float,
+    flange_diameter_assumption_m: float,
+    ee_approach_clearance_m: float | None = None,
 ) -> float:
-    """Minimum centre distance for tip/EE clearance (edge + flange diameter)."""
+    """Approach-plane centre floor: edge + flange + approach clearance."""
 
     edge = float(edge_m)
     flange = float(flange_diameter_assumption_m)
+    clearance = flange if ee_approach_clearance_m is None else float(ee_approach_clearance_m)
     if not math.isfinite(edge) or edge <= 0.0:
         raise ConfigurationError("target_edge_m must be positive finite")
     if not math.isfinite(flange) or flange <= 0.0:
         raise ConfigurationError("flange_diameter_assumption_m must be positive finite")
-    return edge + flange
+    if not math.isfinite(clearance) or clearance < 0.0:
+        raise ConfigurationError("ee_approach_clearance_m must be finite and >= 0")
+    return edge + flange + clearance
+
+
+def approach_plane_separation_m(
+    first_m: Sequence[float],
+    second_m: Sequence[float],
+    outward_normal_base: Sequence[float],
+) -> float:
+    """Pairwise centre distance in the plane perpendicular to ``outward_normal``."""
+
+    normal = np.asarray(outward_normal_base, dtype=float).reshape(3)
+    norm = float(np.linalg.norm(normal))
+    if not math.isfinite(norm) or norm <= 1.0e-12:
+        raise ConfigurationError("outward_normal_base must be a non-zero finite vector")
+    unit = normal / norm
+    first = np.asarray(first_m, dtype=float).reshape(3)
+    second = np.asarray(second_m, dtype=float).reshape(3)
+    delta = first - second
+    planar = delta - float(np.dot(delta, unit)) * unit
+    return float(np.linalg.norm(planar))
+
+
+def center_violates_rim(
+    center_m: Sequence[float],
+    *,
+    edge_m: float,
+    max_target_radial_m: float | None,
+) -> bool:
+    """True when cube extent exceeds the optional radial working envelope."""
+
+    if max_target_radial_m is None:
+        return False
+    radial_limit = float(max_target_radial_m)
+    if not math.isfinite(radial_limit) or radial_limit <= 0.0:
+        raise ConfigurationError("max_target_radial_m must be positive finite when set")
+    point = np.asarray(center_m, dtype=float).reshape(3)
+    extent = math.hypot(float(point[0]), float(point[1])) + 0.5 * float(edge_m)
+    return extent > radial_limit + 1.0e-12
 
 
 class LayoutName(str, Enum):
@@ -191,8 +233,10 @@ def validate_centers_separation(
     min_center_separation_m: float,
     edge_m: float,
     keep_outs: Sequence[KeepOutAabb] = (),
+    outward_normal_base: Sequence[float] = (0.0, 0.0, 1.0),
+    max_target_radial_m: float | None = None,
 ) -> None:
-    """Fail closed when centres are too close or intersect keep-outs."""
+    """Fail closed on approach-plane spacing, keep-outs, or optional rim."""
 
     if not math.isfinite(min_center_separation_m) or min_center_separation_m <= 0.0:
         raise ConfigurationError("min_center_separation_m must be positive finite")
@@ -202,12 +246,18 @@ def validate_centers_separation(
             raise ConfigurationError("target centres must be finite")
         if center_violates_keep_outs(point, edge_m, keep_outs):
             raise ConfigurationError("target centre intersects a keep_out AABB")
+        if center_violates_rim(point, edge_m=edge_m, max_target_radial_m=max_target_radial_m):
+            raise ConfigurationError(
+                "target centre violates max_target_radial_m rim guard "
+                f"(limit={max_target_radial_m})"
+            )
     for index, first in enumerate(points):
         for second in points[index + 1 :]:
-            if float(np.linalg.norm(first - second)) + 1.0e-12 < min_center_separation_m:
+            separation = approach_plane_separation_m(first, second, outward_normal_base)
+            if separation + 1.0e-12 < min_center_separation_m:
                 raise ConfigurationError(
-                    "target centres violate min_center_separation_m "
-                    f"(required>={min_center_separation_m})"
+                    "target centres violate approach-plane min_center_separation_m "
+                    f"(required>={min_center_separation_m}, observed={separation})"
                 )
 
 
@@ -222,6 +272,8 @@ def build_random_centers(
     keep_outs: Sequence[KeepOutAabb] = (),
     placement_seed: int,
     max_placement_attempts: int = 1000,
+    outward_normal_base: Sequence[float] = (0.0, 0.0, 1.0),
+    max_target_radial_m: float | None = None,
 ) -> tuple[tuple[float, float, float], ...]:
     """Sample ``count`` centres with separation and keep-out constraints."""
 
@@ -244,9 +296,10 @@ def build_random_centers(
         )
         if center_violates_keep_outs(candidate, edge_m, keep_outs):
             continue
-        point = np.asarray(candidate, dtype=float)
+        if center_violates_rim(candidate, edge_m=edge_m, max_target_radial_m=max_target_radial_m):
+            continue
         if any(
-            float(np.linalg.norm(point - np.asarray(existing, dtype=float))) + 1.0e-12
+            approach_plane_separation_m(candidate, existing, outward_normal_base) + 1.0e-12
             < min_center_separation_m
             for existing in chosen
         ):
@@ -262,6 +315,8 @@ def build_random_centers(
         min_center_separation_m=min_center_separation_m,
         edge_m=edge_m,
         keep_outs=keep_outs,
+        outward_normal_base=outward_normal_base,
+        max_target_radial_m=max_target_radial_m,
     )
     return tuple(chosen)
 
@@ -277,6 +332,8 @@ def build_layout_centers(
     min_center_separation_m: float,
     keep_outs: Sequence[KeepOutAabb] = (),
     placement_seed: int | None = None,
+    outward_normal_base: Sequence[float] = (0.0, 0.0, 1.0),
+    max_target_radial_m: float | None = None,
 ) -> tuple[tuple[float, float, float], ...]:
     """Build centres for a named layout; optional seed rotates/phases the set."""
 
@@ -345,5 +402,7 @@ def build_layout_centers(
         min_center_separation_m=min_center_separation_m,
         edge_m=edge_m,
         keep_outs=keep_outs,
+        outward_normal_base=outward_normal_base,
+        max_target_radial_m=max_target_radial_m,
     )
     return tuple(centers)

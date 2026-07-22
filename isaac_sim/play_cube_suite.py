@@ -120,6 +120,7 @@ def _play_validated_episodes(
         IsaacLightingConfig,
         add_cube_prim,
         configure_kit_for_stage_lighting,
+        frame_viewport_on_arm,
         prepare_illuminated_stage,
         stage_lighting_mode_active,
     )
@@ -219,10 +220,12 @@ def _play_validated_episodes(
             world.step(render=True)
         # Viewport may exist only after settle; re-assert stage lighting mode.
         prepare_illuminated_stage(stage, lighting_config)
+        framed = frame_viewport_on_arm()
         print(
             "phase7_1_playback: GUI viewport settled "
             f"(DISPLAY={os.environ.get('DISPLAY', '')!r} "
-            f"stage_lighting_mode={stage_lighting_mode_active()})",
+            f"stage_lighting_mode={stage_lighting_mode_active()} "
+            f"framed={framed})",
             flush=True,
         )
     dof_names = tuple(str(name) for name in robot.dof_names)

@@ -236,8 +236,16 @@ class MultiTargetSuiteConfig:
     fixed_roll_rad: float | None
     warn_planning_duration_s: float | None
     flange_diameter_assumption_m: float
+    # When true, terminal tip TCP must keep the flange disk inside the contact
+    # face (fail closed on overhang / flange-edge collision).
+    require_flange_face_containment: bool
+    # Allowed flange overhang (m); typically matches planner position tolerance
+    # so small lateral IK error does not fail containment on edge≈flange faces.
+    flange_face_overhang_tolerance_m: float
     # Phase 7.3 placement controls (defaults preserve Phase 7.2 behaviour).
     min_center_separation_m: float
+    ee_approach_clearance_m: float
+    max_target_radial_m: float | None = None
     keep_outs: tuple[KeepOutAabb, ...] = ()
     max_placement_attempts: int = 1000
     layout: LayoutSpec | None = None
@@ -288,7 +296,7 @@ def load_multi_target_suite_config(
     retain = bool(payload.get("retain_targets_after_contact", False))
     max_planning_raw = payload.get("max_planning_failure_per_target")
     max_planning_failure_per_target = (
-        5
+        3
         if max_planning_raw is None
         else _positive_int(max_planning_raw, "max_planning_failure_per_target")
     )
@@ -395,7 +403,23 @@ def load_multi_target_suite_config(
     flange_diameter_assumption_m = float(payload["flange_diameter_assumption_m"])
     if not math.isfinite(flange_diameter_assumption_m) or flange_diameter_assumption_m <= 0.0:
         raise ConfigurationError("flange_diameter_assumption_m must be positive finite")
-    ee_floor = ee_clearance_min_center_separation_m(edge, flange_diameter_assumption_m)
+    clearance_raw = payload.get("ee_approach_clearance_m")
+    ee_approach_clearance_m = (
+        flange_diameter_assumption_m if clearance_raw is None else float(clearance_raw)
+    )
+    if not math.isfinite(ee_approach_clearance_m) or ee_approach_clearance_m < 0.0:
+        raise ConfigurationError("ee_approach_clearance_m must be finite and >= 0")
+    radial_raw = payload.get("max_target_radial_m")
+    max_target_radial_m = None if radial_raw is None else float(radial_raw)
+    if max_target_radial_m is not None and (
+        not math.isfinite(max_target_radial_m) or max_target_radial_m <= 0.0
+    ):
+        raise ConfigurationError("max_target_radial_m must be positive finite when set")
+    ee_floor = ee_clearance_min_center_separation_m(
+        edge,
+        flange_diameter_assumption_m,
+        ee_approach_clearance_m=ee_approach_clearance_m,
+    )
     sep_raw = payload.get("min_center_separation_m")
     if sep_raw is None:
         min_center_separation_m = ee_floor
@@ -407,10 +431,19 @@ def load_multi_target_suite_config(
             raise ConfigurationError(
                 "min_center_separation_m is below EE clearance floor "
                 f"(min_center_separation_m={min_center_separation_m}, "
-                f"floor={ee_floor}=target_edge_m+flange_diameter_assumption_m)"
+                f"floor={ee_floor}=edge+flange+ee_approach_clearance_m)"
             )
     attempts_raw = payload.get("max_placement_attempts", 1000)
     max_placement_attempts = _positive_int(attempts_raw, "max_placement_attempts")
+    overhang_tol_raw = payload.get("flange_face_overhang_tolerance_m")
+    flange_face_overhang_tolerance_m = (
+        0.005 if overhang_tol_raw is None else float(overhang_tol_raw)
+    )
+    if (
+        not math.isfinite(flange_face_overhang_tolerance_m)
+        or flange_face_overhang_tolerance_m < 0.0
+    ):
+        raise ConfigurationError("flange_face_overhang_tolerance_m must be finite and >= 0")
     warn = payload.get("warn_planning_duration_s")
     warn_s = None if warn is None else float(warn)
     if warn_s is not None and (not math.isfinite(warn_s) or warn_s <= 0.0):
@@ -448,7 +481,13 @@ def load_multi_target_suite_config(
         fixed_roll_rad=fixed,
         warn_planning_duration_s=warn_s,
         flange_diameter_assumption_m=flange_diameter_assumption_m,
+        require_flange_face_containment=bool(
+            payload.get("require_flange_face_containment", False)
+        ),
+        flange_face_overhang_tolerance_m=flange_face_overhang_tolerance_m,
         min_center_separation_m=min_center_separation_m,
+        ee_approach_clearance_m=ee_approach_clearance_m,
+        max_target_radial_m=max_target_radial_m,
         keep_outs=keep_outs,
         max_placement_attempts=max_placement_attempts,
         layout=layout,
@@ -612,6 +651,8 @@ def build_target_field(
             min_center_separation_m=config.min_center_separation_m,
             edge_m=config.target_edge_m,
             keep_outs=config.keep_outs,
+            outward_normal_base=config.outward_normal_base,
+            max_target_radial_m=config.max_target_radial_m,
         )
     elif config.placement is PlacementPolicy.RANDOM:
         if placement_seed is None:
@@ -626,6 +667,8 @@ def build_target_field(
             keep_outs=config.keep_outs,
             placement_seed=placement_seed,
             max_placement_attempts=config.max_placement_attempts,
+            outward_normal_base=config.outward_normal_base,
+            max_target_radial_m=config.max_target_radial_m,
         )
         targets = _targets_from_centers(config, centers)
     elif config.placement is PlacementPolicy.LAYOUT:
@@ -641,22 +684,45 @@ def build_target_field(
             min_center_separation_m=config.min_center_separation_m,
             keep_outs=config.keep_outs,
             placement_seed=placement_seed,
+            outward_normal_base=config.outward_normal_base,
+            max_target_radial_m=config.max_target_radial_m,
         )
         targets = _targets_from_centers(config, centers)
     else:
-        centers = build_grid_centers(
-            config.target_count,
-            config.field_minimum_m,
-            config.field_maximum_m,
-            arm_z_motion_range_m=config.arm_z_motion_range_m,
-            placement_seed=placement_seed,
-        )
-        validate_centers_separation(
-            centers,
-            min_center_separation_m=config.min_center_separation_m,
-            edge_m=config.target_edge_m,
-            keep_outs=config.keep_outs,
-        )
+        # Phase-shifted grids can land a lattice point in a base keep-out; search
+        # deterministic seed offsets so surround-capable fields stay valid.
+        max_grid_seed_offsets = 64 if config.keep_outs else 1
+        last_error: ConfigurationError | None = None
+        centers: tuple[tuple[float, float, float], ...] | None = None
+        for offset in range(max_grid_seed_offsets):
+            seed = None if placement_seed is None else int(placement_seed) + offset
+            candidate = build_grid_centers(
+                config.target_count,
+                config.field_minimum_m,
+                config.field_maximum_m,
+                arm_z_motion_range_m=config.arm_z_motion_range_m,
+                placement_seed=seed,
+            )
+            try:
+                validate_centers_separation(
+                    candidate,
+                    min_center_separation_m=config.min_center_separation_m,
+                    edge_m=config.target_edge_m,
+                    keep_outs=config.keep_outs,
+                    outward_normal_base=config.outward_normal_base,
+                    max_target_radial_m=config.max_target_radial_m,
+                )
+            except ConfigurationError as exc:
+                last_error = exc
+                continue
+            centers = candidate
+            break
+        if centers is None:
+            raise ConfigurationError(
+                "grid placement could not satisfy keep_outs / separation / rim "
+                f"after {max_grid_seed_offsets} seed offsets"
+                + ("" if last_error is None else f" (last: {last_error})")
+            )
         targets = _targets_from_centers(config, centers)
     listed_ids = tuple(target.target_id for target in targets)
     if config.order is OrderPolicy.LISTED:
@@ -762,7 +828,7 @@ def deserialize_episode(payload: dict[str, Any]) -> MultiTargetEpisode:
         start_position_rad=tuple(data["start_position_rad"]),
         planner_profile=str(data["planner_profile"]),
         tip_allow_link_names=tuple(data["tip_allow_link_names"]),
-        max_planning_failure_per_target=int(data.get("max_planning_failure_per_target", 5)),
+        max_planning_failure_per_target=int(data.get("max_planning_failure_per_target", 3)),
         max_target_failures=int(data.get("max_target_failures", default_max_target_failures())),
         max_reconsider_passes=int(
             data.get("max_reconsider_passes", len(target_field.contact_order_ids))
@@ -985,7 +1051,8 @@ class MultiTargetEpisodeRunner:
 
     Args:
         planner_factory: Builds a planner for ``(seed, scene_model, disable_links)``.
-        validator: Independently validates a plan; third arg is non-contact clearance cubes.
+        validator: Independently validates a plan; third arg is non-contact
+            clearance cubes; fourth arg is the active contact cube.
         contact_detector_factory: Builds a ``ContactDetector`` for ``(episode, to_id)``.
         motion_executor: Optional playback hook returning motion duration seconds.
         warn_planning_duration_s: Advisory planning-latency threshold (log only).
@@ -996,7 +1063,8 @@ class MultiTargetEpisodeRunner:
         *,
         planner_factory: Callable[[int, dict[str, Any], tuple[str, ...]], Any],
         validator: Callable[
-            [NominalPlan, PlanningRequest, tuple[CubeGeometry, ...]], ValidatedPlan
+            [NominalPlan, PlanningRequest, tuple[CubeGeometry, ...], CubeGeometry],
+            ValidatedPlan,
         ],
         contact_detector_factory: Callable[[MultiTargetEpisode, str], ContactDetector],
         motion_executor: Callable[[MultiTargetEpisode, MultiTargetLegResult], float] | None = None,
@@ -1028,10 +1096,17 @@ class MultiTargetEpisodeRunner:
 
         while to_do or deferred:
             if not to_do:
-                if not progress_in_pass and state.reconsider_pass > 0:
+                # Reconsider only helps after tip-contact progress shrinks the
+                # obstacle set. A pass that deferred everyone with no tip
+                # contact (including the first pass) must fail closed — do not
+                # replan the same full field for max_reconsider_passes rounds.
+                if deferred and not progress_in_pass:
                     state.failed_target_ids = list(deferred)
                     state.deferred_target_ids = list(deferred)
-                    reason = f"unplanned targets after reconsider: {sorted(deferred)}"
+                    reason = (
+                        "unplanned targets after pass with no tip-contact progress: "
+                        f"{sorted(deferred)}"
+                    )
                     return self._fail_episode(
                         episode,
                         legs,
@@ -1196,9 +1271,10 @@ class MultiTargetEpisodeRunner:
     ) -> MultiTargetLegResult:
         self._record_planning_failure(state)
         final_category = category
+        # Defer when the failure count *reaches* the budget (not budget+1).
         if (
             state.current_count_planning_failure_per_target
-            > episode.max_planning_failure_per_target
+            >= episode.max_planning_failure_per_target
         ):
             final_category = MultiTargetFailureCategory.MAX_PLANNING_FAILURE_PER_TARGET_EXCEEDED
         return MultiTargetLegResult(
@@ -1297,7 +1373,9 @@ class MultiTargetEpisodeRunner:
                 scene_revision=scene_revision,
                 planning_succeeded=False,
             )
-        validated = self._validator(outcome.plan, request, clearance_geometries)
+        validated = self._validator(
+            outcome.plan, request, clearance_geometries, target.cube_geometry
+        )
         if not validated.report.valid:
             return self._planning_failure_leg(
                 episode=episode,

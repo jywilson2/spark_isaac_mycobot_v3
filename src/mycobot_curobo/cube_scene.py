@@ -175,3 +175,60 @@ def batch_sphere_cube_clearance_m(
         ],
         dtype=float,
     )
+
+
+def flange_disk_face_overhang_m(
+    tcp_position_m: Sequence[float],
+    face_outward_normal_base: Sequence[float],
+    flange_diameter_m: float,
+    cube: CubeGeometry,
+) -> float:
+    """Return how far a flange disk extends past the selected cube face (metres).
+
+    The flange is modeled as a circle of diameter ``flange_diameter_m`` in the
+    plane through ``tcp_position_m`` perpendicular to ``face_outward_normal_base``.
+    For an identity-oriented AABB, the selected face is the face whose outward
+    normal matches ``face_outward_normal_base``. Zero means the disk is contained
+    in the face square; positive means flange/face collision (overhang) at tip
+    contact.
+    """
+
+    diameter = float(flange_diameter_m)
+    if not math.isfinite(diameter) or diameter <= 0.0:
+        raise ConfigurationError("flange_diameter_m must be positive finite")
+    radius = 0.5 * diameter
+    tcp = _vector3(tcp_position_m, "tcp_position_m")
+    outward = _normal(face_outward_normal_base)
+    axis = int(np.argmax(np.abs(outward)))
+    sign = 1.0 if outward[axis] >= 0.0 else -1.0
+    half = 0.5 * float(cube.edge_m)
+    face_center = np.asarray(cube.center_m, dtype=float).copy()
+    face_center[axis] = face_center[axis] + sign * half
+    planar = tcp - face_center
+    planar = planar - float(np.dot(planar, outward)) * outward
+    other_axes = tuple(i for i in range(3) if i != axis)
+    overhang = 0.0
+    for face_axis in other_axes:
+        overhang = max(overhang, abs(float(planar[face_axis])) + radius - half)
+    return float(max(0.0, overhang))
+
+
+def flange_disk_collides_contact_face(
+    tcp_position_m: Sequence[float],
+    face_outward_normal_base: Sequence[float],
+    flange_diameter_m: float,
+    cube: CubeGeometry,
+    *,
+    overhang_tolerance_m: float = 1.0e-4,
+) -> bool:
+    """True when the flange disk overhangs the contact face beyond tolerance."""
+
+    tol = float(overhang_tolerance_m)
+    if not math.isfinite(tol) or tol < 0.0:
+        raise ConfigurationError("overhang_tolerance_m must be finite and >= 0")
+    return (
+        flange_disk_face_overhang_m(
+            tcp_position_m, face_outward_normal_base, flange_diameter_m, cube
+        )
+        > tol
+    )

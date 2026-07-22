@@ -21,11 +21,13 @@ GitHub Actions CI execution for this repository.
 
 Shared controls:
 
-- `min_center_separation_m` (default / floor:
-  `target_edge_m + flange_diameter_assumption_m` for EE tip/flange clearance;
-  must not fall back to `2 * target_edge_m` alone when the flange is larger
-  than the cube edge)
+- `min_center_separation_m` (default / floor, **approach-plane** metric:
+  `target_edge_m + flange_diameter_assumption_m + ee_approach_clearance_m`,
+  with `ee_approach_clearance_m` defaulting to `flange_diameter_assumption_m`)
 - `keep_outs` — optional AABB list; target cubes may not intersect
+  (grid placement retries seed offsets when a phase would violate)
+- EE-clearance floor is a **lower bound** on centre spacing (not a packing
+  density target); fields may use the radial envelope with keep-outs
 - `max_placement_attempts` — random sampling budget (default 1000)
 
 Core module: `mycobot_curobo.target_placement`.
@@ -47,6 +49,27 @@ Core module: `mycobot_curobo.target_placement`.
 - Viewport 7-segment target ID labels (parent-local Z offset)
 - Grid mid-Z variability (`0.5 * arm_z_motion_range_m`)
 - Contact-state cube highlights; tip collision vs non-contact targets
+
+## Measured tip-contact workspace map (candidate region)
+
+Before expanding integration `field_aabb` further, measure +Z tip-face
+`plan_grasp` reachability under the radial rim / keep-outs:
+
+```bash
+./scripts/host/spark_host_exec.sh python \
+  scripts/host/measure_tip_contact_workspace.py \
+  --grid-step-m 0.06 --z-layers 2 \
+  --output artifacts/workspace/tip_contact_workspace_v1.json
+```
+
+Artifact declaration: `measured_tip_contact_candidate_region_v1`. Host GPU
+evidence (2026-07-22): **86/114** successes; success AABB roughly
+`[-0.22,-0.22,0.10]…[0.26,0.26,0.22]` m in `g_base`. This is **not** a claim
+that the full geometric disk is dexterous. Integration 2×5 later consumed a
+forward-biased subset of that region with flange-sized cubes
+(`target_edge_m: 0.031`, rim `0.36`) under flange-face containment.
+
+CPU unit coverage: `tests/unit/test_tip_contact_workspace.py`.
 
 ## Related
 

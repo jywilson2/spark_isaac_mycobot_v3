@@ -120,7 +120,7 @@ def test_default_config_loads_and_shuffle_is_deterministic() -> None:
     assert config.placement is PlacementPolicy.MANUAL
     assert config.order is OrderPolicy.SHUFFLE
     assert config.retain_targets_after_contact is False
-    assert config.max_planning_failure_per_target == 5
+    assert config.max_planning_failure_per_target == 3
     assert config.target_count == 2
     assert config.max_target_failures == 3  # deprecated; retained for YAML compat
     assert config.max_reconsider_passes == config.target_count
@@ -222,19 +222,65 @@ def test_episodes_replay_exactly() -> None:
     assert surface.position_base_m.shape == (3,)
 
 
-def test_runner_retries_same_target_until_budget_then_defers_and_fails_unplanned() -> None:
+def test_planning_budget_defers_on_exactly_max_failures() -> None:
+    """Budget N means N failed attempts, then defer (not N+1)."""
+
     config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_manual.yml")
     episode = sample_multi_target_episodes(config, root_seed=11)[0]
     episode = replace(
         episode,
-        max_planning_failure_per_target=2,
+        max_planning_failure_per_target=3,
         max_reconsider_passes=1,
     )
     fail = PlanningOutcome(
         plan=None,
         failure=PlanningFailure("planning_infeasible", "no path", "failed"),
     )
-    # Both targets always fail planning → defer all → reconsider once → unplanned.
+    plan = _plan("ok", 1)
+    first_id = episode.field.contact_order_ids[0]
+    second_id = episode.field.contact_order_ids[1]
+    # 3 fails on first -> defer; second succeeds; reconsider first: 3 fails -> unplanned.
+    outcomes = [fail, fail, fail, PlanningOutcome(plan=plan, failure=None), fail, fail, fail]
+    planner = _FakePlanner(outcomes)
+
+    def planner_factory(seed: int, scene_model: dict, links: tuple[str, ...]) -> _FakePlanner:
+        del seed, scene_model, links
+        return planner
+
+    runner = MultiTargetEpisodeRunner(
+        planner_factory=planner_factory,
+        validator=lambda plan, request, clearance, contact_cube=None: _validated(plan),
+        contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lambda _line: None,
+    )
+    result = runner.run((episode,))[0]
+    first_legs = [
+        leg for leg in result.legs if leg.to_id == first_id and not leg.planning_succeeded
+    ]
+    # First pass: exactly 3 failed attempts ending in budget exceeded.
+    first_pass = first_legs[:3]
+    assert len(first_pass) == 3
+    assert first_pass[-1].failure_category is (
+        MultiTargetFailureCategory.MAX_PLANNING_FAILURE_PER_TARGET_EXCEEDED
+    )
+    assert first_pass[-1].attempt_index == 3
+    assert second_id in result.planned_target_ids
+
+
+def test_runner_retries_same_target_until_budget_then_defers_and_fails_unplanned() -> None:
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_manual.yml")
+    episode = sample_multi_target_episodes(config, root_seed=11)[0]
+    episode = replace(
+        episode,
+        max_planning_failure_per_target=2,
+        max_reconsider_passes=5,  # must not burn these when first pass has no tip progress
+    )
+    fail = PlanningOutcome(
+        plan=None,
+        failure=PlanningFailure("planning_infeasible", "no path", "failed"),
+    )
+    # Both targets always fail → defer all with no tip contact → episode fails
+    # immediately (no futile reconsider of the same obstacle field).
     outcomes = [fail] * 20
     planner = _FakePlanner(outcomes)
 
@@ -244,18 +290,20 @@ def test_runner_retries_same_target_until_budget_then_defers_and_fails_unplanned
 
     runner = MultiTargetEpisodeRunner(
         planner_factory=planner_factory,
-        validator=lambda plan, request, clearance: _validated(plan),
+        validator=lambda plan, request, clearance, contact_cube=None: _validated(plan),
         contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
         console_log=lambda _line: None,
     )
     result = runner.run((episode,))[0]
     assert result.succeeded is False
-    assert result.failure_category in {
-        MultiTargetFailureCategory.TARGETS_UNPLANNED,
-        MultiTargetFailureCategory.MAX_RECONSIDER_PASSES_EXCEEDED,
-    }
+    assert result.failure_category is MultiTargetFailureCategory.TARGETS_UNPLANNED
+    assert "no tip-contact progress" in (result.failure_reason or "")
     assert set(result.failed_target_ids) == set(episode.field.contact_order_ids)
     assert result.planned_target_ids == ()
+    # Exactly one pass: 2 targets × budget 2 (no second pass over deferred ids).
+    failed_legs = [leg for leg in result.legs if not leg.planning_succeeded]
+    assert len(failed_legs) == 2 * episode.max_planning_failure_per_target
+    assert planner.calls == 2 * episode.max_planning_failure_per_target
 
 
 def test_leg_keeps_tip_collision_and_strips_only_contact_cube() -> None:
@@ -290,7 +338,7 @@ def test_leg_keeps_tip_collision_and_strips_only_contact_cube() -> None:
 
     runner = MultiTargetEpisodeRunner(
         planner_factory=planner_factory,
-        validator=lambda plan, request, clearance: _validated(plan),
+        validator=lambda plan, request, clearance, contact_cube=None: _validated(plan),
         contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
         console_log=lambda _line: None,
     )
@@ -376,7 +424,12 @@ def test_runner_removes_targets_when_retain_false() -> None:
 
     scenes_seen: list[int] = []
 
-    def validator(plan: NominalPlan, request: Any, clearance: tuple) -> ValidatedPlan:
+    def validator(
+        plan: NominalPlan,
+        request: Any,
+        clearance: tuple,
+        contact_cube=None,
+    ) -> ValidatedPlan:
         del clearance
         scenes_seen.append(1)
         return _validated(plan)
@@ -413,9 +466,8 @@ def test_deferred_target_replans_after_blocker_removed() -> None:
     )
     plan_a = _plan("a", 1)
     plan_b = _plan("b", 2)
-    # First: two fails -> defer. Second: success (removes). Reconsider first: success.
+    # First: one fail (budget=1) -> defer. Second: success. Reconsider first: success.
     outcomes = [
-        fail,
         fail,
         PlanningOutcome(plan=plan_b, failure=None),
         PlanningOutcome(plan=plan_a, failure=None),
@@ -430,7 +482,7 @@ def test_deferred_target_replans_after_blocker_removed() -> None:
 
     runner = MultiTargetEpisodeRunner(
         planner_factory=planner_factory,
-        validator=lambda plan, request, clearance: _validated(plan),
+        validator=lambda plan, request, clearance, contact_cube=None: _validated(plan),
         contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
         console_log=lambda _line: None,
     )
@@ -466,12 +518,10 @@ def test_episode_fails_when_deferred_target_remains_unplanned() -> None:
         failure=PlanningFailure("planning_infeasible", "no path", "failed"),
     )
     plan = _plan("ok", 1)
-    # First target: two fails -> defer. Second: success. Reconsider first: two fails again.
+    # First target: one fail (budget=1) -> defer. Second: success. Reconsider: one fail.
     outcomes = [
         fail,
-        fail,
         PlanningOutcome(plan=plan, failure=None),
-        fail,
         fail,
     ]
     planner = _FakePlanner(outcomes)
@@ -480,7 +530,12 @@ def test_episode_fails_when_deferred_target_remains_unplanned() -> None:
         del seed, scene_model, links
         return planner
 
-    def validator(plan: NominalPlan, request: Any, clearance: tuple) -> ValidatedPlan:
+    def validator(
+        plan: NominalPlan,
+        request: Any,
+        clearance: tuple,
+        contact_cube=None,
+    ) -> ValidatedPlan:
         del clearance
         return _validated(plan)
 
@@ -514,7 +569,12 @@ def test_tip_miss_after_successful_plan_aborts_episode() -> None:
 
         return _Planner()
 
-    def validator(plan: NominalPlan, request: Any, clearance: tuple) -> ValidatedPlan:
+    def validator(
+        plan: NominalPlan,
+        request: Any,
+        clearance: tuple,
+        contact_cube=None,
+    ) -> ValidatedPlan:
         del request, clearance
         return _validated(plan)
 
@@ -551,7 +611,12 @@ def test_body_contact_fails_closed() -> None:
 
         return _Planner()
 
-    def validator(plan: NominalPlan, request: Any, clearance: tuple) -> ValidatedPlan:
+    def validator(
+        plan: NominalPlan,
+        request: Any,
+        clearance: tuple,
+        contact_cube=None,
+    ) -> ValidatedPlan:
         del request, clearance
         return _validated(plan)
 

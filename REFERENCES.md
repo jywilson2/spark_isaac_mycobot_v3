@@ -219,7 +219,8 @@ compute-capability warning is retained in that report and is not suppressed.
 - Normative acceptance: [`spec.md`](spec.md) §8 Phase 7.2.
 - Core orchestration stays Isaac-free (`TargetField`, order/retain policies,
   `MultiTargetEpisodeRunner`, `ContactDetector` protocol). Isaac host code
-  implements visualization and PhysX tip/body classification only.
+  implements visualization and PhysX tip/body classification only
+  (`isaac_sim/tip_body_contact.py`).
 - Failure model: planning failures (per-target retry budget) → target
   failures (episode budget) → episode failures (suite `max_failed_episodes`).
 - Hardware transfer surfaces align with remaining adapters: perception as
@@ -227,6 +228,9 @@ compute-capability warning is retained in that report and is not suppressed.
   as scene-revision feed (Phases 10–11).
 - Planning latency logged in 7.2 is sim-host evidence only; Orin AGX budgets
   remain Phases 10–11.
+- High-effort bisect helper:
+  `scripts/host/bisect_high_effort_profile.py` (one-knob profile variants;
+  does not rewrite repo YAML).
 
 ## Phase 7.3 target placement
 
@@ -236,7 +240,14 @@ compute-capability warning is retained in that report and is not suppressed.
 - CI bootstrap: CPU-safe deps + `SPARK_PYTEST_PYTHON` in
   `.github/workflows/pytest.yml`
   landed on this branch).
-- Requirements for finer placement APIs are not yet normative.
+- Measured +Z tip-contact workspace map (candidate region, not a dexterous
+  claim): `src/mycobot_curobo/tip_contact_workspace.py`,
+  `scripts/host/measure_tip_contact_workspace.py`, artifact
+  `artifacts/workspace/tip_contact_workspace_v1.json`.
+- Flange-face containment: `flange_disk_face_overhang_m` in
+  `src/mycobot_curobo/cube_scene.py`; suite keys
+  `require_flange_face_containment` /
+  `flange_face_overhang_tolerance_m`.
 
 ## Phase 8 residual RL (planned)
 

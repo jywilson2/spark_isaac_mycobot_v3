@@ -18,9 +18,9 @@ The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 
 **Phase 7 — Isaac Sim validated-plan playback: complete. Phase 7.1 —
 unknown-start cube approach suite: complete. Phase 7.2 — multi-target
-tip-contact clearance suite: complete. Phase 7.3 — controllable target-block
-placement: under consideration on `wip_phase7_3` (brainstorm; GitHub Actions
-CI interpreter/deps fix and viewport-visible target IDs landed).** See
+tip-contact clearance suite: complete (widened forward-biased integration
+2×5 field, content-aware GUI framing, TrajOpt activation 0.01 m). Phase 7.3 —
+controllable target-block placement: implemented on `wip_phase7_3`.** See
 [`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md),
 [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md),
 and [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
@@ -219,6 +219,12 @@ planner = NominalPlanner(
 outcome = planner.plan(request)
 ```
 
+Named profiles live in `config/planner_profiles.yml`
+(`development_fast`, `validation_strict`, `benchmark_reproducible`,
+`planning_high_effort` — higher trajopt/attempt budget with IK seeds held at
+benchmark `32`; orientation tolerance must stay ≤ Phase 4 validation; not
+currently the integration 2×5 profile).
+
 This reliability-first lifecycle includes construction and warmup in request
 wall time. Returned nominal plans remain `executable=False` until Phase 4
 independently validates every waypoint. See
@@ -374,7 +380,7 @@ can override the count:
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 5
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 10 --episodes 5
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --manual
-# Integration-only (2 episodes × 5 targets, distinct placement/paths per episode):
+# Integration-only (2×5; forward-biased field AABB + base keep-out):
 ./scripts/host/smoke_phase7_2_integration_2x5.sh --gui --auto-exit
 ./scripts/run_verification.sh spark --with-integration-smoke
 ```
@@ -382,11 +388,18 @@ can override the count:
 `--no-auto-exit` keeps replaying episodes indefinitely after the first pass
 (close the window or Ctrl+C to finish). Playback still runs if planning reports
 incomplete clearance, so you can inspect motion for validated legs. The
-integration 2×5 smoke is opt-in (not the default spark gate).
+integration 2×5 smoke is opt-in (not the default spark gate); see
+[`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md)
+§ Placement / viewport / anti-graze for the current field and framing.
+Measured +Z tip-contact candidate map (before further field expand):
+`scripts/host/measure_tip_contact_workspace.py` →
+`artifacts/workspace/tip_contact_workspace_v1.json`.
+Integration 2×5 enables `require_flange_face_containment` with flange-sized
+cubes (`target_edge_m: 0.031`) so tip contact does not overhang the face.
 
 `--targets N` and `--episodes N` are defined in [`spec.md`](spec.md) §8 Phase 7.2 / §9.
 Failure budgets: per-target planning retries
-(`max_planning_failure_per_target`, default 5), then deferral / reconsider
+(`max_planning_failure_per_target`, default 3), then deferral / reconsider
 (`max_reconsider_passes`, default `target_count`); suite episode ceiling
 (`max_failed_episodes`, default 0). Episodes FAIL if any target remains
 unplanned. See

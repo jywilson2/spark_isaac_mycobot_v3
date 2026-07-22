@@ -147,6 +147,29 @@ def test_signed_pre_approach_offset(sign: int, expected: float) -> None:
     assert signed_pre_approach_offset_m(0.04, sign) == expected
 
 
+def test_planning_high_effort_profile_loads_with_higher_budget() -> None:
+    """Suite high-effort raises trajopt/attempts; IK seeds stay at benchmark."""
+
+    from mycobot_curobo.validation import load_validation_profile
+
+    path = ROOT / "config" / "planner_profiles.yml"
+    high = load_planner_profile("planning_high_effort", path)
+    bench = load_planner_profile("benchmark_reproducible", path)
+    validation = load_validation_profile(
+        "simulation_initial", ROOT / "config" / "validation_profiles.yml"
+    )
+    # num_ik_seeds=64 regresses packing-safe 2→1 grasp planning on host GPU.
+    assert high.num_ik_seeds == bench.num_ik_seeds
+    assert high.num_trajopt_seeds > bench.num_trajopt_seeds
+    assert high.max_plan_grasp_attempts > bench.max_plan_grasp_attempts
+    assert high.orientation_tolerance_rad >= bench.orientation_tolerance_rad
+    # Planner success must not exceed Phase 4 terminal/roll rejection thresholds.
+    assert high.orientation_tolerance_rad <= validation.max_terminal_orientation_error_rad
+    assert high.orientation_tolerance_rad <= validation.max_roll_error_rad
+    assert high.optimizer_collision_activation_distance_m == pytest.approx(0.01)
+    assert bench.optimizer_collision_activation_distance_m == pytest.approx(0.01)
+
+
 def test_success_maps_segments_roll_and_exact_plan_grasp_options() -> None:
     planner, backends = _planner(FakeResult())
 

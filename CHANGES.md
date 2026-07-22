@@ -1,5 +1,185 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-22 — Flange-face containment validation; flange-sized integration cubes
+
+1. Added CPU flange-disk vs contact-face overhang metric
+   (`flange_disk_face_overhang_m` / `flange_disk_collides_contact_face`) and
+   suite flag `require_flange_face_containment` wired through multi-target
+   validation (`flange_face_containment` violation). Tolerance
+   `flange_face_overhang_tolerance_m` (default `0.005`) absorbs planner
+   lateral IK error when edge ≈ flange Ø.
+2. Integration 2×5: `target_edge_m: 0.031` (≥ flange), containment **on**,
+   field `[0.02,-0.22]…[0.30,0.22]`, rim `0.36`, EE floor `0.093`. No more
+   expected flange-edge clip on undersized 14 mm faces.
+3. Unit tests: `tests/unit/test_flange_face_containment.py`.
+
+### Review recommended
+
+- Default (non-integration) suites still use 14 mm cubes without containment;
+  enable the flag only when packing allows edge ≥ flange.
+- GUI smoke still saw a few deferred plan retries (3) before full clearance.
+
+### Verification
+
+- `./scripts/run_verification.sh ci` — 194 passed.
+- Headless integration 2×5 — exit 0, 2/2, 10 tip contacts, 0 plan fails.
+- GUI integration 2×5 — exit 0, 2/2, 10 tip contacts, `framed=True`.
+
+---
+
+## 2026-07-22 — Flange tip classify; workspace map; high-effort IK-seed fix
+
+1. Tip/body classification: path-prefix target match + tip-link segment match;
+   `merge_contact_events(..., active_target_id=...)` so flange overhang on the
+   **active** contact cube stays `ALLOWED_TIP_CONTACT` (Isaac solid cube still
+   present; cuRobo already omits it). Documented: with `target_edge_m` (14 mm)
+   < flange Ø (31 mm) tip contact implies ~8.5 mm face overhang — not a cube
+   grow this pass (would break 2×5 packing).
+2. Measured +Z tip-contact workspace sampler:
+   `mycobot_curobo.tip_contact_workspace` +
+   `scripts/host/measure_tip_contact_workspace.py` →
+   `artifacts/workspace/tip_contact_workspace_v1.json` (candidate region;
+   **not** a full dexterous claim). Integration AABB **not** expanded from map.
+3. High-effort one-knob bisect on packing-safe 1×2: sole regressor is
+   `num_ik_seeds: 64` (grasp segment `plan_failed`). Fixed
+   `planning_high_effort` to keep IK seeds at **32**, retain trajopt 8 /
+   attempts 4 / orient tol 0.05. Confirmed PASS; integration stays on
+   `benchmark_reproducible` until a deliberate 2×5 re-enable.
+
+### Review recommended
+
+- Consume success AABB from the v1 workspace artifact before any field expand.
+- Optional later: suite mode with `target_edge_m >= flange_diameter_assumption_m`
+  once spacing allows.
+
+### Verification
+
+- Host GPU bisect: `num_ik_seeds=64` FAIL; trajopt/attempts OK; fixed
+  `planning_high_effort` 1×2 PASS.
+- Host GPU workspace measure: 86/114 (75.4%) →
+  `artifacts/workspace/tip_contact_workspace_v1.json`.
+- `./scripts/run_verification.sh ci` — 190 passed.
+- GUI integration 2×5 smoke — exit 0, 2/2, 10 tip contacts, `framed=True`.
+
+---
+
+## 2026-07-22 — Diagnose high-effort; widen field; content frame; anti-graze
+
+1. Host one-knob A/B (1×2): baseline PASS; rolls PASS; `pre_approach 0.025`
+   FAIL (`plan_failed`); `planning_high_effort` FAIL at orient tol `0.08` and
+   `0.05` (cuRobo infeasibility, not validation_failed). Kept high-effort
+   orient tol at **0.05** (≤ Phase 4) with unit guard.
+2. Integration 2×5: forward-biased widened AABB `[0.0,-0.17]…[0.24,0.17]`
+   (full ±Y under rim; X≥0 avoids home start-collision from rear cubes),
+   base keep-out ±0.08, `arm_z_motion_range_m: 0.28`; grid seed-offset retry
+   when keep-out rejects a phase; `minimum_world_collision_clearance_m: 0.004`;
+   pre-approach stays `0.01`.
+3. Kit-free `compute_viewport_framing` / `content_aabb_from_field`; multi-target
+   GUI settle frames arm ∪ targets (defaults remain fallback).
+4. `optimizer_collision_activation_distance_m: 0.001 → 0.01` on
+   `benchmark_reproducible` and `planning_high_effort`. Suite clearances now
+   override the validation profile in `plan_multi_target_suite.py`.
+
+### Review recommended
+
+- High-effort still fails on this field even with tol `0.05` — separate
+  diagnosis before re-enabling on integration.
+- Visual: content-aware framing logged `framed=True` on GUI 2×5 smoke
+  (2/2 tip contacts); confirm paths climb rather than skim cube tops.
+
+### Verification
+
+- `./scripts/run_verification.sh ci` — 184 passed.
+- GUI integration 2×5 smoke — exit 0, 2/2 episodes, 10 tip contacts.
+- Doc sync: README current-phase / high-effort / integration smoke wording;
+  Phase 7.3 report EE-floor + keep-out retry note.
+
+---
+
+## 2026-07-22 — Fail episode when a pass defers all with no tip progress
+
+1. `MultiTargetEpisodeRunner`: if a pass leaves deferred targets and made no
+   tip-contact progress (including the first pass), fail immediately with
+   `targets_unplanned` instead of burning `max_reconsider_passes` on the same
+   obstacle field.
+2. Spec / phase-report wording and unit coverage updated.
+
+---
+
+## 2026-07-22 — Zoom viewport on arm; keep packing-safe 2×5 field
+
+1. `frame_viewport_on_arm()` in `scene_setup` (eye≈`(0.28,0.55,0.32)` →
+   target≈`(0.14,-0.08,0.14)`); GUI play paths call it after viewport settle.
+2. Integration 2×5 keeps packing-safe grid AABB + rim `0.28` and
+   `benchmark_reproducible`. Trials of `planning_high_effort`,
+   `pre_approach_distance_m: 0.025`, roll goalsets, and +X/−Y layout packs
+   made every start→target plan fail closed — left as profile/docs only.
+
+### Review recommended
+
+- Confirm GUI framing is close enough; tweak `DEFAULT_VIEWPORT_*` if needed.
+- Diagnose high-effort / roll / longer pre-approach regressions on this field.
+
+---
+
+## 2026-07-22 — Add planning_high_effort profile; propose placement easing
+
+1. New planner profile `planning_high_effort` (64 IK / 8 trajopt seeds,
+   orientation tol 0.08 rad, 4 `max_plan_grasp_attempts`) — less search-
+   constrained than `benchmark_reproducible`. Integration 2×5 suite now uses it.
+2. Documented placement easing proposal (later applied in the entry above).
+
+---
+
+## 2026-07-22 — Implement approach-plane EE clearance, labels, lighting
+
+1. Placement uses **approach-plane** centre separation (⊥ `outward_normal_base`)
+   with floor `edge + flange + ee_approach_clearance_m` (default clearance =
+   flange → **0.076 m**); optional `max_target_radial_m` rim guard.
+2. Integration 2×5 / Phase 7.3 example AABBs widened so grids pack at the new
+   floor; integration sets `max_target_radial_m: 0.36`.
+3. Viewport digit labels: `AddRotateZOp(180)` so glyphs are right-reading from
+   the default +Y camera.
+4. Default / suite lighting dimmed to dome **400** / distant **1000**.
+
+### Review recommended
+
+- Integration 2×5 AABB was tightened under `max_target_radial_m: 0.28` after the
+  first GUI run left well-spaced but out-of-reach centres (~0.33 m). Re-check
+  tip-contact success with the straddling field near ±Y.
+
+---
+
+## 2026-07-22 — Spec: stronger EE clearance + label facing note
+
+1. Phase 7.2/7.3 placement: EE clearance uses **approach-plane** separation
+   (not 3D alone) with floor
+   `edge + flange + ee_approach_clearance_m` (default
+   `ee_approach_clearance_m = flange`); optional rim guard. Aimed at mutual
+   proximal deadlock (e.g. integration ep1 leftovers `1`/`2`).
+2. Viewport digit labels must be right-reading from the primary camera
+   (current fixed local +Y face can appear backward).
+
+---
+
+## 2026-07-22 — Fix planning-failure budget off-by-one
+
+1. Defer when `current_count_planning_failure_per_target >=
+   max_planning_failure_per_target` (was `>`), so a budget of 3 means exactly
+   three failed attempts before moving to the next target.
+2. Spec/phase-report wording: count **reaches** the limit.
+
+---
+
+## 2026-07-22 — Default max_planning_failure_per_target = 3
+
+1. Suite loader / episode deserialize default for
+   `max_planning_failure_per_target` is now **3** (was 5). Reaching the
+   budget **defers** the target and continues to the next unfinished id.
+2. Spec, phase report, README/STATUS, and configs/tests updated.
+
+---
+
 ## 2026-07-22 — Implement EE-clearance target spacing
 
 1. `ee_clearance_min_center_separation_m` helper; suite load defaults

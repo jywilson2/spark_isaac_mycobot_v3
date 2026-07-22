@@ -8,8 +8,8 @@ retain_targets_after_contact: false
 tip_allow_link_names:
   - joint6_flange
 field_aabb:
-  minimum_m: [0.12, -0.18, 0.14]
-  maximum_m: [0.26, 0.02, 0.18]
+  minimum_m: [0.12, -0.20, 0.14]
+  maximum_m: [0.28, 0.02, 0.18]
 # Declared arm vertical envelope (vendor working_radius_m). Grid Z centres are
 # spaced evenly in a band of width 0.5 * this value about AABB mid-Z.
 arm_z_motion_range_m: 0.28
@@ -24,8 +24,8 @@ artifact_path: artifacts/phase7_2
 minimum_self_collision_clearance_m: 0.0
 minimum_world_collision_clearance_m: 0.0
 lighting:
-  dome_intensity: 1000.0
-  distant_intensity: 3000.0
+  dome_intensity: 400.0
+  distant_intensity: 1000.0
   distant_angle_deg: [45.0, -30.0, 0.0]
   color: [1.0, 1.0, 1.0]
 pre_approach_distance_m: 0.01

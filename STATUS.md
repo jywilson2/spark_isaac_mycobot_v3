@@ -7,12 +7,21 @@ Last updated: **2026-07-22**
 **Phase 7.2 — Multi-target tip-contact clearance suite: COMPLETE**
 Including deferral / reconsider after tip-removals, playback in plan-creation
 order, and episode FAIL if any target remains unplanned
-(`targets_unplanned`). Generated target spacing enforces EE clearance
-(`≥ target_edge_m + flange_diameter_assumption_m`). See `spec.md` §8 Phase 7.2.
+(`targets_unplanned`). Approach-plane EE clearance floor
+`edge + flange + ee_approach_clearance_m` (default clearance = flange),
+optional `max_target_radial_m` rim guard, right-reading viewport digit labels
+(`AddRotateZOp(180)`), dimmer default suite lighting (dome 400 /
+distant 1000), widened forward-biased integration 2×5 AABB + base keep-out,
+content-aware GUI framing (`compute_viewport_framing`), TrajOpt collision
+activation `0.01` m on benchmark/high-effort, tip-classify hardening,
+measured +Z tip-contact workspace artifact, `planning_high_effort` IK seeds
+**32**, and integration 2×5 **flange-face containment** with flange-sized
+cubes (`target_edge_m: 0.031`, `require_flange_face_containment: true`).
+Integration stays on `benchmark_reproducible`. See `spec.md` §8 Phase 7.2.
 
 **Phase 7.3 — Controllable target-block placement: IMPLEMENTED**
-`random` / `layout` (`rows`, `arc`) placement with keep-outs and EE-clearance
-separation floor; CI bootstrap; labels / grid Z. See
+`random` / `layout` (`rows`, `arc`) placement with keep-outs and approach-plane
+EE-clearance separation floor; CI bootstrap; labels / grid Z. See
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 
 **Phase 1.1 — Target-scale collision-sphere coverage: OPTION A (DISARMED)**
@@ -62,7 +71,7 @@ planning-success claims, or hardware-readiness claims carry forward.
   tip collision vs non-contact targets; grid mid-Z variability.
 - Phase 7.2 multi-target tip-contact suite: `TargetField`,
   `MultiTargetEpisodeRunner`, three-tier failure budgets
-  (`max_planning_failure_per_target` default 5, `max_target_failures` default
+  (`max_planning_failure_per_target` default 3, `max_target_failures` default
   3, `max_failed_episodes` default 0), tip contact required only for
   successfully planned targets, plan/play split, host smoke with
   `--targets` / `--episodes`, and `--no-auto-exit` continuous episode replay.

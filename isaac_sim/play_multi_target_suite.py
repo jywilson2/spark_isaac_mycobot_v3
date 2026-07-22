@@ -148,6 +148,8 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
     from isaac_sim.articulation_playback import articulation_position_targets
     from isaac_sim.scene_setup import (
         BODY_CONTACT_COLOR_RGBA,
+        DEFAULT_ARM_ENVELOPE_MAX_M,
+        DEFAULT_ARM_ENVELOPE_MIN_M,
         DEFAULT_TARGET_COLOR_RGBA,
         PENDING_CONTACT_COLOR_RGBA,
         TIP_CONTACT_COLOR_RGBA,
@@ -155,11 +157,15 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         IsaacLightingConfig,
         add_cube_prim,
         add_target_label,
+        compute_viewport_framing,
         configure_kit_for_stage_lighting,
+        content_aabb_from_field,
+        frame_viewport_on_arm,
         prepare_illuminated_stage,
         remove_prim,
         set_cube_color,
         stage_lighting_mode_active,
+        union_aabb_m,
     )
     from isaac_sim.tip_body_contact import TipBodyContactMonitor
     from mycobot_curobo.multi_target import (
@@ -176,6 +182,34 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
     )
     from mycobot_curobo.trajectory import JointTrajectory
     from mycobot_curobo.validation import ValidationMetrics
+
+    def _viewport_eye_target_from_results(
+        episode_results: list[MultiTargetEpisodeResult],
+    ) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+        """Closest framing that keeps arm envelope + all episode targets in view."""
+
+        if not episode_results:
+            content_min, content_max = content_aabb_from_field(
+                (0.0, -0.17, 0.12),
+                (0.24, 0.17, 0.20),
+                target_edge_m=0.014,
+            )
+            return compute_viewport_framing(content_min, content_max)
+        mins = [math.inf, math.inf, math.inf]
+        maxs = [-math.inf, -math.inf, -math.inf]
+        for result in episode_results:
+            for target in result.episode.field.targets:
+                half = 0.5 * float(target.edge_m)
+                for axis in range(3):
+                    mins[axis] = min(mins[axis], target.center_m[axis] - half)
+                    maxs[axis] = max(maxs[axis], target.center_m[axis] + half)
+        content_min, content_max = union_aabb_m(
+            (mins[0], mins[1], mins[2]),
+            (maxs[0], maxs[1], maxs[2]),
+            DEFAULT_ARM_ENVELOPE_MIN_M,
+            DEFAULT_ARM_ENVELOPE_MAX_M,
+        )
+        return compute_viewport_framing(content_min, content_max)
 
     def enum_or_none(enum_cls: type[Enum], value: Any) -> Any:
         return None if value is None else enum_cls(value)
@@ -375,10 +409,13 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         for _ in range(GUI_VIEWPORT_SETTLE_STEPS):
             world.step(render=True)
         prepare_illuminated_stage(stage, lighting_config)
+        eye_m, target_m = _viewport_eye_target_from_results(results)
+        framed = frame_viewport_on_arm(eye_m=eye_m, target_m=target_m)
         print(
             "phase7_2_playback: GUI viewport settled "
             f"(DISPLAY={os.environ.get('DISPLAY', '')!r} "
-            f"stage_lighting_mode={stage_lighting_mode_active()})",
+            f"stage_lighting_mode={stage_lighting_mode_active()} "
+            f"framed={framed} eye={eye_m} target={target_m})",
             flush=True,
         )
     dof_names = tuple(str(name) for name in robot.dof_names)
@@ -434,12 +471,20 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         world.step(render=args.gui)
         if not app.is_running():
             raise _PlaybackStopped()
+        contact_diag = os.environ.get("SPARK_PHASE7_2_CONTACT_DIAG", "").strip() in {
+            "1",
+            "true",
+            "TRUE",
+            "yes",
+            "YES",
+        }
         monitor = TipBodyContactMonitor()
         monitor.start(
             stage,
             target_paths=target_paths,
             robot_root_path=robot_root,
             tip_allow_link_names=tip_links,
+            log_contacts=contact_diag,
         )
         updated_legs: list[MultiTargetLegResult] = []
         contacted: list[str] = []
@@ -470,6 +515,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                     failure_category = MultiTargetFailureCategory.CONFIGURATION_MODEL_FAILURE
                     failure_reason = "missing trajectory for validated leg"
                     break
+                monitor.set_active_target_id(leg.to_id)
                 monitor.reset()
                 trajectory = trajectories[leg.request_id]
                 set_cube_color(stage, target_paths[leg.to_id], PENDING_CONTACT_COLOR_RGBA)
@@ -526,12 +572,26 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 # classification sees the planned tip pose, not a collision push-out.
                 _snap_joint_positions(robot, terminal)
                 target_obj = episode.field.target_by_id(leg.to_id)
-                if body_contact_during_motion is not None:
+                # Re-classify with active-target tip priority (flange overhang on a
+                # face smaller than the flange can emit mixed mesh reports).
+                final_monitor = monitor.classify()
+                if body_contact_during_motion is not None and (
+                    final_monitor.kind is ContactKind.PROHIBITED_BODY_CONTACT
+                ):
                     contact = body_contact_during_motion
                 else:
                     contact = _classify_leg_contact(
                         monitor=monitor, robot=robot, target=target_obj, to_id=leg.to_id
                     )
+                if contact_diag:
+                    diag = monitor.summary().get("contact_diagnostics") or []
+                    if diag:
+                        print(
+                            f"phase7_2_playback: contact_diag {leg.from_id}->{leg.to_id} "
+                            f"n={len(diag)} final={contact.kind.value} "
+                            f"sample={diag[:5]}",
+                            flush=True,
+                        )
                 planning_s = (
                     0.0 if leg.planning_duration_s is None else float(leg.planning_duration_s)
                 )

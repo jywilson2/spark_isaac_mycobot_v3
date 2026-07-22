@@ -8,14 +8,15 @@ frame: g_base
 placement: manual
 order: shuffle
 retain_targets_after_contact: false
-# Defaults when omitted: max_planning_failure_per_target=5,
+# Defaults when omitted: max_planning_failure_per_target=3,
 # max_reconsider_passes=target_count, max_failed_episodes=0.
 # max_target_failures is deprecated (must not allow PASS with unplanned targets).
 tip_allow_link_names:
   - joint6_flange
+# Sized so --targets 5 grid fallback packs at approach-plane EE floor (~0.076 m).
 field_aabb:
   minimum_m: [0.10, -0.24, 0.12]
-  maximum_m: [0.28, 0.02, 0.20]
+  maximum_m: [0.34, 0.00, 0.20]
 # Declared arm vertical envelope (vendor working_radius_m). Grid Z band width
 # is 50% of this value centered on field AABB mid-Z (manual placement ignores it).
 arm_z_motion_range_m: 0.28
@@ -37,8 +38,8 @@ artifact_path: artifacts/phase7_2
 minimum_self_collision_clearance_m: 0.0
 minimum_world_collision_clearance_m: 0.0
 lighting:
-  dome_intensity: 1000.0
-  distant_intensity: 3000.0
+  dome_intensity: 400.0
+  distant_intensity: 1000.0
   distant_angle_deg: [45.0, -30.0, 0.0]
   color: [1.0, 1.0, 1.0]
 pre_approach_distance_m: 0.01

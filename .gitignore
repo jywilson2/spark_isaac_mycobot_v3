@@ -19,12 +19,16 @@ artifacts/*
 !artifacts/plans/
 !artifacts/reports/
 !artifacts/benchmarks/
+!artifacts/workspace/
 artifacts/plans/*
 artifacts/reports/*
 artifacts/benchmarks/*
+artifacts/workspace/*
 !artifacts/plans/.gitkeep
 !artifacts/reports/.gitkeep
 !artifacts/benchmarks/.gitkeep
+!artifacts/workspace/.gitkeep
+!artifacts/workspace/tip_contact_workspace_v1.json
 
 # Robot assets are introduced with provenance during Phase 1. Ignore local
 # vendor checkouts and generated conversions.

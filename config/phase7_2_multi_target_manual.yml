@@ -6,14 +6,15 @@ frame: g_base
 placement: manual
 order: listed
 retain_targets_after_contact: true
-max_planning_failure_per_target: 5
+max_planning_failure_per_target: 3
 max_target_failures: 1
 max_failed_episodes: 0
 tip_allow_link_names:
   - joint6_flange
+# Sized so --targets N grid fallback packs at approach-plane EE floor (~0.076 m).
 field_aabb:
   minimum_m: [0.10, -0.24, 0.12]
-  maximum_m: [0.28, 0.02, 0.20]
+  maximum_m: [0.34, 0.00, 0.20]
 # Declared arm vertical envelope (vendor working_radius_m); required even for
 # manual placement so suite configs stay interchangeable with grid mode.
 arm_z_motion_range_m: 0.28
@@ -35,8 +36,8 @@ artifact_path: artifacts/phase7_2
 minimum_self_collision_clearance_m: 0.0
 minimum_world_collision_clearance_m: 0.0
 lighting:
-  dome_intensity: 1000.0
-  distant_intensity: 3000.0
+  dome_intensity: 400.0
+  distant_intensity: 1000.0
   distant_angle_deg: [45.0, -30.0, 0.0]
   color: [1.0, 1.0, 1.0]
 pre_approach_distance_m: 0.01

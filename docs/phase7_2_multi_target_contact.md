@@ -56,7 +56,7 @@ orchestration over successive validated plans with an explicit world revision.
 | `retain_targets_after_contact` | `false` (default): remove on tip contact; `true`: keep geometry |
 | `MultiTargetEpisodeRunner` | Leg loop: plan → validate → execute/play → contact → retry/advance |
 | `ContactDetector` protocol | Returns tip-allowed / body-prohibited / none (Isaac or HW) |
-| `max_planning_failure_per_target` | Per-target planning-failure ceiling before deferral (default **`5`**) |
+| `max_planning_failure_per_target` | Per-target planning-failure ceiling before deferral (default **`3`**) |
 | `max_reconsider_passes` | Reconsider passes over deferred targets (default **`target_count`**) |
 | `max_failed_episodes` | Suite acceptance budget on failed episodes (default **`0`**) |
 | `max_target_failures` | Deprecated; must not allow PASS with unplanned targets |
@@ -70,11 +70,13 @@ orchestration over successive validated plans with an explicit world revision.
   vertical envelope (typically the vendor working radius); the Z band is not
   clipped to the thin field AABB Z span. Geometry is deterministic from
   config; only contact **order** is shuffled when `order: shuffle`.
-  Generated centres must also satisfy **EE clearance spacing**: pairwise
-  centre distance ≥ `target_edge_m + flange_diameter_assumption_m` (or a
-  stricter `min_center_separation_m`) so two remaining neighbors cannot
-  mutually deadlock tip/EE approach. Z-band placement does not relax XY
-  clearance.
+  Generated centres must also satisfy **approach-plane EE clearance** (see
+  `spec.md`): pairwise distance in the plane ⊥ `outward_normal_base` ≥
+  `target_edge_m + flange_diameter_assumption_m + ee_approach_clearance_m`
+  (default `ee_approach_clearance_m = flange_diameter_assumption_m`) so two
+  remaining neighbors cannot mutually deadlock tip/EE approach. Z-band
+  offsets must not count as clearance. Optional rim guard rejects
+  workspace-edge centres.
 - **`manual`:** caller provides the full numbered target list (id, position,
   normal, roll policy). No position sampling; lists fail closed if they
   violate the effective EE-clearance minimum.
@@ -99,8 +101,9 @@ Three tiers:
 
 1. **Planning failure:** each failed plan/validation attempt for the current
    target increments `current_count_planning_failure_per_target`. Retry the
-   same target until success or the count **exceeds**
-   `max_planning_failure_per_target` (default **`5`**) → **defer** the target.
+   same target until success or the count **reaches**
+   `max_planning_failure_per_target` (default **`3`**) → **defer** the target
+   and process the next unfinished id (exactly that many failures; not one more).
 2. **Deferral / reconsider:** deferred targets are reconsidered after
    tip-contact removals (`max_reconsider_passes`, default **`target_count`**).
    If any target remains unplanned → **episode failure** (`targets_unplanned`).
@@ -116,7 +119,7 @@ episode still **FAIL**s if any target remains unplanned at the end
 | Name | Kind | Default | Role |
 |------|------|---------|------|
 | `current_count_planning_failure_per_target` | Observed | starts at `0` | Planning failures for the active target (resets on advance / reconsider) |
-| `max_planning_failure_per_target` | Config | **`5`** | Per-target planning-failure ceiling before deferral |
+| `max_planning_failure_per_target` | Config | **`3`** | Per-target planning-failure ceiling before deferral |
 | `max_reconsider_passes` | Config | **`target_count`** | Ceiling on reconsider passes over deferred targets |
 | `max_failed_episodes` | Config | **`0`** | Suite acceptance ceiling on failed episodes |
 | `max_target_failures` | Config (deprecated) | **`3`** | Must not allow PASS with unplanned targets |
@@ -148,8 +151,10 @@ Implemented in `MultiTargetEpisodeRunner` on `wip_phase7_3`.
   current pass (does not permanently clear the episode requirement).
 - After tip-contact removals shrink the obstacle set, **reconsider** deferred
   targets (reset per-target attempt counters).
-- Episode **FAIL** (`targets_unplanned`) if any target remains without a
-  successful validated plan after reconsider is exhausted.
+- Episode **FAIL** (`targets_unplanned`) if a pass ends with deferred targets
+  and **no tip-contact progress** (including a first pass that defers every
+  target) — do not replan the unchanged field. Also FAIL if any target remains
+  unplanned after reconsider is exhausted.
 - Playback replays successful legs in **plan-creation order**.
 
 ## Call and control flow
@@ -259,7 +264,7 @@ Validated named YAML (`config/phase7_2_multi_target.yml` and variants):
 - `placement`, optional manual target list;
 - `order` (`shuffle` \| `listed`);
 - `retain_targets_after_contact` (default `false`);
-- `max_planning_failure_per_target` defaulting to **`5`**;
+- `max_planning_failure_per_target` defaulting to **`3`**;
 - `max_target_failures` defaulting to **`3`**;
 - `max_failed_episodes` defaulting to **`0`**;
 - root seed; tip/EE allow-list link names; body-prohibited policy;
@@ -296,6 +301,44 @@ With `--no-auto-exit`, Kit **replays** episodes indefinitely after the first
 pass (close the window or Ctrl+C). Planning non-zero exit does not skip
 playback when a bundle was written; plan-failed episodes with validated legs
 are still animated.
+
+### Placement / viewport / anti-graze (integration 2×5)
+
+- Widened forward-biased `field_aabb` ≈ `[0.0,-0.17]…[0.24,0.17]` under
+  `max_target_radial_m: 0.28`, with base `keep_outs` (±0.08) and
+  `arm_z_motion_range_m: 0.28`. A full ±0.18 square around the origin packs
+  under the rim but put rear cubes into home start-collision; X≥0 keeps the
+  field surround-capable in Y while remaining planable. EE floor remains a
+  spacing lower bound; grid pitch widens with the AABB. Phase-shifted grids
+  retry seed offsets when a lattice phase would hit the keep-out.
+- GUI framing: `compute_viewport_framing` from arm envelope ∪ all target
+  bounds (closest view that keeps content in frame; defaults remain fallback).
+- Anti-graze: `optimizer_collision_activation_distance_m: 0.01` on
+  `benchmark_reproducible` / `planning_high_effort`; suite
+  `minimum_world_collision_clearance_m: 0.004`. Keep `pre_approach_distance_m:
+  0.01` (A/B: `0.025` forced start→target `plan_failed`).
+- One-knob A/B (1 ep × 2 targets, packing-safe baseline field): baseline PASS;
+  rolls PASS. Root cause of prior `planning_high_effort` `plan_failed` on
+  `2→1`: **`num_ik_seeds: 64`** (grasp segment; not validation). Fixed profile
+  keeps IK seeds at **32**, trajopt **8**, attempts **4**, orient tol **0.05**.
+  Confirmed packing-safe 1×2 PASS. Integration YAML remains
+  `benchmark_reproducible` until a deliberate 2×5 re-enable.
+- **Flange-face containment:** optional suite flag
+  `require_flange_face_containment` fails validation when the flange disk
+  overhangs the contact face beyond `flange_face_overhang_tolerance_m`
+  (default `0.005` m ≈ planner position tolerance). Metric:
+  `flange_disk_face_overhang_m` in `cube_scene.py`. Integration 2×5 enables
+  this with `target_edge_m: 0.031` (≥ flange Ø) so tip contact is not an
+  expected edge clip. Default 14 mm suites leave the flag off; PhysX tip
+  classification still treats active-target flange/edge contacts as allowed tip.
+- **Workspace map (before field expand):** host sampler
+  `scripts/host/measure_tip_contact_workspace.py` +
+  `mycobot_curobo.tip_contact_workspace` writes
+  `artifacts/workspace/tip_contact_workspace_v1.json` (declaration
+  `measured_tip_contact_candidate_region_v1`). Host GPU v1: 86/114 successes
+  at step `0.06` m, Z layers `{0.10, 0.22}` m under rim `0.28` — **candidate
+  region evidence**, not a full dexterous-workspace claim. Do not relabel the
+  integration AABB from this artifact until placement acceptance is agreed.
 
 ## Acceptance criteria (summary)
 

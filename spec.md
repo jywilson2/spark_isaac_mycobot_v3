@@ -1261,17 +1261,37 @@ over successive independently validated plans with an explicit world revision.
   `0.5 * arm_z_motion_range_m` centered on the AABB mid-Z (declared arm
   vertical envelope; typically vendor `working_radius_m`), or a
   caller-supplied list of numbered targets (no position sampling when manual).
-  **EE clearance spacing (normative for generated fields):** when centres are
-  generated (`grid`, and Phase 7.3 `random` / `layout`), pairwise centre
-  separation must leave enough clearance for tip/EE approach so two remaining
-  neighbors cannot mutually deadlock tip planning. Required minimum centre
-  distance defaults to
-  **`target_edge_m + flange_diameter_assumption_m`**
-  (face-to-face gap at least the declared EE/flange diameter on the approach
-  plane). Suites may raise this via `min_center_separation_m` but must not set
-  it below that EE-clearance floor. Manual lists fail closed if they violate
-  the effective minimum. This spacing is independent of the Z-band rule: Z
-  variability must not be used to excuse undersized XY gaps.
+  **EE clearance spacing (normative; prevents mutual proximal deadlock):**
+  when centres are generated (`grid`, and Phase 7.3 `random` / `layout`),
+  pairwise separation must leave enough tip/EE approach room so two remaining
+  neighbors cannot mutually deadlock tip planning (each needs the other
+  removed first). Rules:
+
+  1. **Approach-plane metric.** Separation is measured in the plane
+     perpendicular to the suite `outward_normal_base` (for the default
+     upward normal `[0,0,1]`, that is **XY**). Do **not** use 3D Euclidean
+     distance alone: Z-band offsets must not inflate apparent clearance.
+  2. **Floor.** Minimum approach-plane centre distance defaults to
+     **`target_edge_m + flange_diameter_assumption_m + ee_approach_clearance_m`**,
+     i.e. face-to-face gap at least
+     `flange_diameter_assumption_m + ee_approach_clearance_m`.
+     **`ee_approach_clearance_m`** defaults to
+     **`flange_diameter_assumption_m`** (extra flange-width of approach
+     corridor beyond the geometric flange diameter). With Phase 7.2 defaults
+     (`edge=0.014`, `flange=0.031`) the floor is **0.076 m** on the approach
+     plane.
+  3. Suites may raise the effective minimum via `min_center_separation_m`
+     but must not set it below that floor. Manual lists fail closed if they
+     violate it. If a generated field cannot satisfy the floor inside
+     `field_aabb`, fail closed (`ConfigurationError`) rather than packing
+     tighter.
+  4. **Optional rim guard (recommended for grid/random/layout):** reject a
+     generated centre when
+     `hypot(x, y) + 0.5 * target_edge_m`
+     exceeds a declared working envelope
+     (`working_radius_m` or suite `max_target_radial_m`) minus a tip margin
+     (default `flange_diameter_assumption_m`), so tip-face goals are not
+     placed on the workspace rim where goalset IK is brittle.
 - **`order: shuffle | listed`:** seeded permutation of active target ids
   (replayable), or preserve enumeration / list order.
 - **`retain_targets_after_contact` (bool, default `false`):** when `false`,
@@ -1287,16 +1307,22 @@ over successive independently validated plans with an explicit world revision.
   `prohibited_body_contact`, or `none`. Isaac PhysX and later force/current or
   operator-ack adapters implement the same contract.
 - Planning / deferral / suite budgets:
-  - **`max_planning_failure_per_target`** (default **`5`**): each failed
+  - **`max_planning_failure_per_target`** (default **`3`**): each failed
     planning/validation attempt for the current target increments
-    `current_count_planning_failure_per_target`. When that count **exceeds**
-    this limit, the target is **deferred** (skipped for this pass), not
-    permanently written off for the episode.
+    `current_count_planning_failure_per_target`. When that count **reaches**
+    this limit, the target is **deferred** and the next unfinished target is
+    processed (skipped for this pass), not permanently written off for the
+    episode. The attempt that hits the budget is the last try (exactly
+    `max_planning_failure_per_target` failures, not one more).
   - **`max_reconsider_passes`** (default **`target_count`**): after a pass
     that tip-contacts and (when retain is false) removes one or more targets,
     deferred targets are reconsidered with the reduced obstacle set. If a
-    full reconsider pass produces no new successful plan while deferred
-    targets remain, the episode fails (`targets_unplanned`).
+    pass produces **no tip-contact progress** while deferred targets remain
+    (including the **first** pass that defers every target), the episode
+    fails immediately (`targets_unplanned`) — do not keep replanning the same
+    unchanged obstacle field. If reconsider passes are exhausted with
+    deferred targets still unplanned, fail (`max_reconsider_passes_exceeded`
+    or `targets_unplanned`).
   - **`max_failed_episodes`** (default **`0`**): suite / acceptance budget;
     the number of failed episodes must not exceed this value.
   - **`max_target_failures`:** **deprecated for episode PASS**. Historical
@@ -1318,7 +1344,7 @@ over successive independently validated plans with an explicit world revision.
   explicitly.
 - Host planning/smoke may override `episode_count` with CLI `--episodes N`
   (positive integer).
-- `max_planning_failure_per_target` (default **`5`**) and
+- `max_planning_failure_per_target` (default **`3`**) and
   `max_failed_episodes` (default **`0`**) do not auto-follow `target_count`.
   `max_reconsider_passes` defaults to `target_count` when omitted.
 - An **episode** is one full clearance sequence over the field (including
@@ -1330,8 +1356,8 @@ over successive independently validated plans with an explicit world revision.
   configured signed TCP approach axis (flange tip / tool approach policy).
 - On structured planning or validation failure for the current target
   (`from_id → to_id`), **retry the same target** until success or
-  `current_count_planning_failure_per_target` exceeds
-  `max_planning_failure_per_target` (default **`5`**); then **defer** that
+  `current_count_planning_failure_per_target` reaches
+  `max_planning_failure_per_target` (default **`3`**); then **defer** that
   target and continue to the next unfinished id.
 - Robot self-collision remains a planning/validation failure.
 
@@ -1385,6 +1411,19 @@ over successive independently validated plans with an explicit world revision.
   **FAIL** immediately (`body_contact`), even if tip contact also occurs.
 - Zero prohibited body–target contacts is required simulation evidence and does
   not replace cuRobo planning or independent validation.
+- **Flange overhang (geometry):** when `target_edge_m < flange_diameter_assumption_m`,
+  tip-face contact on a cube top necessarily overhangs the face (defaults:
+  14 mm edge vs 31 mm flange ≈ 8.5 mm). The active contact cuboid is omitted
+  from the cuRobo planning world so tip occupancy stays feasible; Isaac PhysX
+  still simulates the solid cube, so flange→edge/corner contacts on the
+  **active** tip-contact target classify as allowed tip (path/name matching,
+  including child meshes), not surprise body failures.
+- **Flange-face containment (optional validation):** when
+  `require_flange_face_containment` is true, terminal tip TCP must keep the
+  flange disk inside the contact face within
+  `flange_face_overhang_tolerance_m` (default `0.005` m). Suites that enable
+  this should use `target_edge_m >= flange_diameter_assumption_m` (integration
+  2×5 uses `0.031` m) so containment is geometrically achievable.
 
 ### Success and failure
 
@@ -1424,7 +1463,12 @@ episodes. An episode that finishes with any unplanned target increments
   `failed_episodes <= max_failed_episodes`.
 - Emit matching live lines to the host terminal and the Isaac Sim console.
 - Numbered viewport labels must match `target_id` in logs and JSON (bright red
-  7-segment digits for contrast on colored cubes).
+  7-segment digits for contrast on colored cubes). Digits must be
+  **right-reading from the primary viewport camera** (not mirrored / facing
+  the wrong side). Fixed local glyph orientation that appears backward from
+  the default playback camera is a defect; prefer a yaw about world/local Z
+  so the glyph faces the camera, or a camera-facing billboard, without
+  changing `target_id` semantics.
 - **Target cube highlight colors (playback):**
   - Non-current remaining targets: default blue until selected as current.
   - Current target with contact pending (validated leg about to move): yellow.
@@ -1467,10 +1511,12 @@ pointer (and optional summary diagram).
 - Parameterized `target_count` and `episode_count`; `grid` and `manual`
   placement; `shuffle` and
   `listed` order; retain and remove-after-contact modes; seeded exact replay.
-- Generated target centres (and validating manual lists) enforce EE-clearance
-  spacing: centre distance ≥ `target_edge_m + flange_diameter_assumption_m`
-  (or a stricter configured `min_center_separation_m`) so tip approach is not
-  mutually deadlocked by adjacent remaining cubes.
+- Generated target centres (and validating manual lists) enforce
+  approach-plane EE-clearance spacing:
+  ≥ `target_edge_m + flange_diameter_assumption_m + ee_approach_clearance_m`
+  (default `ee_approach_clearance_m = flange_diameter_assumption_m`) so tip
+  approach is not mutually deadlocked by adjacent remaining cubes; optional
+  rim guard against workspace-edge centres.
 - Flange-normal tip/EE contact; body–target contact fails closed.
 - Planning world uses only obstacles that remain after tip-contact removals
   (plus retain-mode marked contacts when configured); active contact cube
@@ -1516,21 +1562,26 @@ remote runners.
 
 All non-manual policies must respect:
 
-1. **`min_center_separation_m`:** pairwise centre distance; fail closed if
-   violated. **Default and floor:**
-   `target_edge_m + flange_diameter_assumption_m` so generated fields satisfy
-   tip/EE clearance (see Phase 7.2 placement). An explicit larger value is
-   allowed; an explicit smaller value is a configuration error. The legacy
-   default `2 * target_edge_m` is insufficient whenever
-   `flange_diameter_assumption_m > target_edge_m` and must not be used alone.
-2. **`keep_outs`** (optional list of AABBs in `g_base`): a candidate centre is
+1. **`min_center_separation_m`:** pairwise **approach-plane** centre distance
+   (see Phase 7.2 EE clearance); fail closed if violated. **Default and floor:**
+   `target_edge_m + flange_diameter_assumption_m + ee_approach_clearance_m`
+   with `ee_approach_clearance_m` defaulting to
+   `flange_diameter_assumption_m`. An explicit larger value is allowed; an
+   explicit smaller value is a configuration error.
+2. **`keep_outs`** (optional list of AABBs in `g_base`): a candidate is
    rejected if the target cube of edge `target_edge_m` would intersect a
-   keep-out.
+   keep-out (base/pedestal exclusion). Phase-shifted `grid` placement retries
+   deterministic seed offsets when keep-outs would otherwise reject a lattice
+   phase.
 3. **`max_placement_attempts`** (random only; default `1000`): fail closed with
    `ConfigurationError` if a legal field cannot be sampled.
 4. **Episode diversity:** for `grid` / `random` / `layout`, each episode uses a
    distinct `placement_seed` derived from `episode_seed` so fields (and thus
    plans) differ across episodes when `episode_count > 1`.
+5. Integration fields may use the full radial working envelope
+   (`max_target_radial_m`) with keep-outs; the EE-clearance floor is a **lower
+   bound** on centre spacing, not a target packing density (even grids widen
+   pitch as `field_aabb` grows).
 
 Layout parameters (when `placement: layout`):
 
@@ -1557,6 +1608,9 @@ Layout parameters (when `placement: layout`):
 - Interactive GUI drag-and-drop re-placement (optional later).
 - Claiming reachability of every sampled centre (planning failures remain
   structured Phase 7.2 outcomes).
+- Relabeling the integration `field_aabb` as a full dexterous workspace without
+  a measured tip-contact map (`artifacts/workspace/tip_contact_workspace_v1.json`
+  is candidate-region evidence only).
 - Hardware command or PhysX-as-planner-oracle.
 - Re-arming Phase 1.1 spheres without the separate Phase 1.1 acceptance gates.
 
@@ -1564,9 +1618,9 @@ Layout parameters (when `placement: layout`):
 
 - `placement: random` and `placement: layout` (`rows`, `arc`) produce
   deterministic fields for a fixed seed and fail closed on infeasible layouts.
-- Keep-outs and EE-clearance `min_center_separation_m` (floor
-  `target_edge_m + flange_diameter_assumption_m`) are enforced for generated
-  and manual centres.
+- Keep-outs and approach-plane EE-clearance `min_center_separation_m` (floor
+  `target_edge_m + flange + ee_approach_clearance_m`) are enforced for
+  generated and manual centres.
 - Multi-episode suites with non-manual placement yield distinct centre sets
   across episodes.
 - Example Phase 7.3 configs load in unit tests; Phase 7.2 default configs remain
@@ -1813,7 +1867,13 @@ Include named profiles such as:
 
 - `development_fast`;
 - `validation_strict`;
-- `benchmark_reproducible`.
+- `benchmark_reproducible`;
+- `planning_high_effort` (higher trajopt seed count and more
+  `max_plan_grasp_attempts` than `benchmark_reproducible`; keep `num_ik_seeds`
+  at the benchmark value — raising IK seeds to 64 regresses packing-safe
+  multi-target `plan_grasp` on host GPU; orientation tolerance must remain ≤
+  Phase 4 `simulation_initial` terminal/roll thresholds so planner “success”
+  cannot be validation-rejected; not a replacement for mid-reach placement).
 
 Each profile records cuRobo seed counts, tolerances, graph settings, CUDA graph settings, collision activation distance, and goal-set size.
 
@@ -1844,7 +1904,7 @@ Use a validated named YAML configuration for:
   target list;
 - `order` (`shuffle` or `listed`);
 - `retain_targets_after_contact` (default `false`);
-- `max_planning_failure_per_target` defaulting to **`5`**;
+- `max_planning_failure_per_target` defaulting to **`3`**;
 - `max_reconsider_passes` defaulting to **`target_count`**;
 - `max_failed_episodes` defaulting to **`0`**;
 - root seed; tip/EE allow-list link names; body-contact fail-closed policy;

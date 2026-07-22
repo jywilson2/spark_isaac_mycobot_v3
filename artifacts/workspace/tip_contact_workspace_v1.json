@@ -1,0 +1,1547 @@
+{
+  "config": {
+    "frame": "g_base",
+    "grid_step_m": 0.06,
+    "keep_outs": [
+      {
+        "maximum_m": [
+          0.08,
+          0.08,
+          0.24
+        ],
+        "minimum_m": [
+          -0.08,
+          -0.08,
+          0.08
+        ]
+      }
+    ],
+    "max_target_radial_m": 0.28,
+    "outward_normal_base": [
+      0.0,
+      0.0,
+      1.0
+    ],
+    "planner_profile": "benchmark_reproducible",
+    "pre_approach_distance_m": 0.01,
+    "random_seed": 123,
+    "start_joint_bank_rad": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "target_edge_m": 0.014,
+    "z_layers": 2,
+    "z_maximum_m": 0.22,
+    "z_minimum_m": 0.1
+  },
+  "declaration": "measured_tip_contact_candidate_region_v1",
+  "results": [
+    {
+      "center_m": [
+        -0.16000000000000003,
+        -0.22000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 6.793982369010337,
+      "sample_id": "s0000",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        -0.22000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.8268214920244645,
+      "sample_id": "s0001",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        -0.22000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.9193467640143353,
+      "sample_id": "s0002",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        -0.22000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.7350493670091964,
+      "sample_id": "s0003",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        -0.22000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.8743209250096697,
+      "sample_id": "s0004",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        -0.22000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.630454131984152,
+      "sample_id": "s0005",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        -0.16000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.568974251014879,
+      "sample_id": "s0006",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        -0.16000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.8427702140179463,
+      "sample_id": "s0007",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        -0.16000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.928101889003301,
+      "sample_id": "s0008",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        -0.16000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.983456366986502,
+      "sample_id": "s0009",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        -0.16000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.211289230006514,
+      "sample_id": "s0010",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        -0.16000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.199693036003737,
+      "sample_id": "s0011",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        -0.16000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.9460312000010163,
+      "sample_id": "s0012",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        -0.16000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.7131630559742916,
+      "sample_id": "s0013",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        -0.10000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.692655645980267,
+      "sample_id": "s0014",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        -0.10000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.8911887900030706,
+      "sample_id": "s0015",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        -0.10000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.153852821997134,
+      "sample_id": "s0016",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        -0.10000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.6525152050016914,
+      "sample_id": "s0017",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        -0.10000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.281115152989514,
+      "sample_id": "s0018",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        -0.10000000000000003,
+        0.1
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 6.423670980002498,
+      "sample_id": "s0019",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        -0.10000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.238758227991639,
+      "sample_id": "s0020",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        -0.10000000000000003,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.091742035991047,
+      "sample_id": "s0021",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        -0.040000000000000036,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.3204486290051136,
+      "sample_id": "s0022",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        -0.040000000000000036,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.803361311001936,
+      "sample_id": "s0023",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        -0.040000000000000036,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.8008329430012964,
+      "sample_id": "s0024",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        -0.040000000000000036,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.8735532379942015,
+      "sample_id": "s0025",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        -0.040000000000000036,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.9186779639858287,
+      "sample_id": "s0026",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.26,
+        -0.040000000000000036,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.9517394010035787,
+      "sample_id": "s0027",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        0.019999999999999962,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.7536140799929854,
+      "sample_id": "s0028",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        0.019999999999999962,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 5.22659071299131,
+      "sample_id": "s0029",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        0.019999999999999962,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.6353124099841807,
+      "sample_id": "s0030",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        0.019999999999999962,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.215617832989665,
+      "sample_id": "s0031",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        0.019999999999999962,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.220410287991399,
+      "sample_id": "s0032",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.26,
+        0.019999999999999962,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.815718600002583,
+      "sample_id": "s0033",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        0.07999999999999996,
+        0.1
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 7.115526684006909,
+      "sample_id": "s0034",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        0.07999999999999996,
+        0.1
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 6.558587795007043,
+      "sample_id": "s0035",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        0.07999999999999996,
+        0.1
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "No grasp in goal set was reachable.",
+      "planning_duration_s": 9.076476699992782,
+      "sample_id": "s0036",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        0.07999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.07786584700807,
+      "sample_id": "s0037",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        0.07999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.765811669989489,
+      "sample_id": "s0038",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.26,
+        0.07999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.172498162981356,
+      "sample_id": "s0039",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        0.13999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.7409472680010367,
+      "sample_id": "s0040",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        0.13999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.8409909259935375,
+      "sample_id": "s0041",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        0.13999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.274316433002241,
+      "sample_id": "s0042",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        0.13999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.307950867980253,
+      "sample_id": "s0043",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        0.13999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.26595018900116,
+      "sample_id": "s0044",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        0.13999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.231834707985399,
+      "sample_id": "s0045",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        0.13999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.206886885018321,
+      "sample_id": "s0046",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        0.13999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.3329923969868105,
+      "sample_id": "s0047",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        0.19999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.144197902001906,
+      "sample_id": "s0048",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        0.19999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.653672562999418,
+      "sample_id": "s0049",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        0.19999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.9608105000224896,
+      "sample_id": "s0050",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        0.19999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.9815263360214885,
+      "sample_id": "s0051",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        0.19999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.9474997670040466,
+      "sample_id": "s0052",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        0.19999999999999996,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.541165087983245,
+      "sample_id": "s0053",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        0.26,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.683540277008433,
+      "sample_id": "s0054",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        0.26,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.021990440000081,
+      "sample_id": "s0055",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        0.26,
+        0.1
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.7315804329991806,
+      "sample_id": "s0056",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        -0.22000000000000003,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 6.965989379998064,
+      "sample_id": "s0057",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        -0.22000000000000003,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 7.081868451990886,
+      "sample_id": "s0058",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        -0.22000000000000003,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Planning to grasp pose failed.",
+      "planning_duration_s": 9.331758027983597,
+      "sample_id": "s0059",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        -0.22000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.095682960003614,
+      "sample_id": "s0060",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        -0.22000000000000003,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Planning to approach pose failed.",
+      "planning_duration_s": 8.549717232992407,
+      "sample_id": "s0061",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        -0.22000000000000003,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 7.056958917994052,
+      "sample_id": "s0062",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        -0.16000000000000003,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 6.9975741999805905,
+      "sample_id": "s0063",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        -0.16000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.758892009005649,
+      "sample_id": "s0064",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        -0.16000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.840668578981422,
+      "sample_id": "s0065",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        -0.16000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.856021700979909,
+      "sample_id": "s0066",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        -0.16000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.9523439680051524,
+      "sample_id": "s0067",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        -0.16000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.014754543983145,
+      "sample_id": "s0068",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        -0.16000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.067260400013765,
+      "sample_id": "s0069",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        -0.16000000000000003,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 7.1002072200062685,
+      "sample_id": "s0070",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        -0.10000000000000003,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 7.192940982000437,
+      "sample_id": "s0071",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        -0.10000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.9186464759986848,
+      "sample_id": "s0072",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        -0.10000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.1393963629961945,
+      "sample_id": "s0073",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        -0.10000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 5.429713624005672,
+      "sample_id": "s0074",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        -0.10000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.783067504002247,
+      "sample_id": "s0075",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        -0.10000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 5.275149060995318,
+      "sample_id": "s0076",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        -0.10000000000000003,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.570206375006819,
+      "sample_id": "s0077",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        -0.10000000000000003,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Planning to grasp pose failed.",
+      "planning_duration_s": 9.677848460007226,
+      "sample_id": "s0078",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        -0.040000000000000036,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Planning to grasp pose failed.",
+      "planning_duration_s": 9.218359713006066,
+      "sample_id": "s0079",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        -0.040000000000000036,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.3628053050197195,
+      "sample_id": "s0080",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        -0.040000000000000036,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 5.377492252999218,
+      "sample_id": "s0081",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        -0.040000000000000036,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.07644830699428,
+      "sample_id": "s0082",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        -0.040000000000000036,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.260781160002807,
+      "sample_id": "s0083",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.26,
+        -0.040000000000000036,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 7.3671953979937825,
+      "sample_id": "s0084",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        0.019999999999999962,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.9194984860077966,
+      "sample_id": "s0085",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        0.019999999999999962,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 3.9015672609966714,
+      "sample_id": "s0086",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        0.019999999999999962,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 5.599292507977225,
+      "sample_id": "s0087",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        0.019999999999999962,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 5.059154968010262,
+      "sample_id": "s0088",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        0.019999999999999962,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.222120983002242,
+      "sample_id": "s0089",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.26,
+        0.019999999999999962,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 6.731371453002794,
+      "sample_id": "s0090",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        0.07999999999999996,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 6.717333798005711,
+      "sample_id": "s0091",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        0.07999999999999996,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 6.552561127988156,
+      "sample_id": "s0092",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        0.07999999999999996,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 6.945021957013523,
+      "sample_id": "s0093",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        0.07999999999999996,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.073726139002247,
+      "sample_id": "s0094",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        0.07999999999999996,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.925468708010158,
+      "sample_id": "s0095",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.26,
+        0.07999999999999996,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 7.048380291002104,
+      "sample_id": "s0096",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.22000000000000003,
+        0.13999999999999996,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 6.862458161020186,
+      "sample_id": "s0097",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        0.13999999999999996,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.30118998902617,
+      "sample_id": "s0098",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        0.13999999999999996,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.4912663440045435,
+      "sample_id": "s0099",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        0.13999999999999996,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.499985951028066,
+      "sample_id": "s0100",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        0.13999999999999996,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.742384189012228,
+      "sample_id": "s0101",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        0.13999999999999996,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.557225286989706,
+      "sample_id": "s0102",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        0.13999999999999996,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.946242910984438,
+      "sample_id": "s0103",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.19999999999999996,
+        0.13999999999999996,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 7.074114445014857,
+      "sample_id": "s0104",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.16000000000000003,
+        0.19999999999999996,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 6.392115650000051,
+      "sample_id": "s0105",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.10000000000000003,
+        0.19999999999999996,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Planning to grasp pose failed.",
+      "planning_duration_s": 8.887607162992936,
+      "sample_id": "s0106",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        0.19999999999999996,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.123597522993805,
+      "sample_id": "s0107",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        0.19999999999999996,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.2167374300188385,
+      "sample_id": "s0108",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        0.19999999999999996,
+        0.22
+      ],
+      "failure_reason": null,
+      "planner_status": "Planning to approach pose succeeded.",
+      "planning_duration_s": 4.32872654098901,
+      "sample_id": "s0109",
+      "start_label": "zeros",
+      "succeeded": true
+    },
+    {
+      "center_m": [
+        0.13999999999999996,
+        0.19999999999999996,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 6.961397425999166,
+      "sample_id": "s0110",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        -0.040000000000000036,
+        0.26,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 7.197818615997676,
+      "sample_id": "s0111",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        0.019999999999999962,
+        0.26,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 7.359310454980005,
+      "sample_id": "s0112",
+      "start_label": "zeros",
+      "succeeded": false
+    },
+    {
+      "center_m": [
+        0.07999999999999996,
+        0.26,
+        0.22
+      ],
+      "failure_reason": "cuRobo reported no success",
+      "planner_status": "Goalset planning returned None.",
+      "planning_duration_s": 7.036239511013264,
+      "sample_id": "s0113",
+      "start_label": "zeros",
+      "succeeded": false
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "declaration": "measured_tip_contact_candidate_region_v1",
+    "success_aabb_m": {
+      "maximum_m": [
+        0.26,
+        0.26,
+        0.22
+      ],
+      "minimum_m": [
+        -0.22000000000000003,
+        -0.22000000000000003,
+        0.1
+      ]
+    },
+    "success_rate": 0.7543859649122807,
+    "successes": 86,
+    "total_samples": 114
+  }
+}

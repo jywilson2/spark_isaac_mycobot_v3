@@ -57,8 +57,8 @@ minimum_self_collision_clearance_m: 0.0
 minimum_world_collision_clearance_m: 0.0
 max_isaac_prohibited_contacts: 0
 lighting:
-  dome_intensity: 1000.0
-  distant_intensity: 3000.0
+  dome_intensity: 400.0
+  distant_intensity: 1000.0
   distant_angle_deg: [45.0, -30.0, 0.0]
   color: [1.0, 1.0, 1.0]
 pre_approach_distance_m: 0.01

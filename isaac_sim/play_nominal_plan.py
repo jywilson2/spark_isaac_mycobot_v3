@@ -21,6 +21,7 @@ from isaac_sim.articulation_playback import articulation_position_targets  # noq
 from isaac_sim.scene_setup import (  # noqa: E402
     DEFAULT_LIGHTING,
     configure_kit_for_stage_lighting,
+    frame_viewport_on_arm,
     prepare_illuminated_stage,
     stage_lighting_mode_active,
 )
@@ -156,9 +157,11 @@ def main(argv: list[str] | None = None) -> int:
                 world.step(render=True)
             prepare_illuminated_stage(stage, DEFAULT_LIGHTING)
             metrics["stage_lighting_mode"] = stage_lighting_mode_active()
+            metrics["viewport_framed"] = frame_viewport_on_arm()
             print(
                 "phase7_playback: GUI viewport settled "
-                f"stage_lighting_mode={metrics['stage_lighting_mode']}",
+                f"stage_lighting_mode={metrics['stage_lighting_mode']} "
+                f"framed={metrics['viewport_framed']}",
                 flush=True,
             )
         dof_names = tuple(str(name) for name in robot.dof_names)

@@ -84,6 +84,11 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "add_target_label" in player72
     assert "PENDING_CONTACT_COLOR_RGBA" in player72
     assert "TIP_CONTACT_FAILED_COLOR_RGBA" in player72
+    assert "frame_viewport_on_arm" in scene_setup
+    assert "compute_viewport_framing" in scene_setup
+    assert "frame_viewport_on_arm" in player72
+    assert "compute_viewport_framing" in player72
+    assert "frame_viewport_on_arm" in phase71
 
 
 def test_chained_gui_host_script_wires_mode_b_and_episodes() -> None:

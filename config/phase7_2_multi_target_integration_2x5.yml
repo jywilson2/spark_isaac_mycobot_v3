@@ -1,7 +1,8 @@
 # Integration-only Phase 7.2 smoke: 2 episodes × 5 targets.
-# Grid placement + shuffle; each episode uses a distinct placement_seed and
-# planner episode_seed so obstacle fields and planned paths differ.
-# Invoked only via smoke_phase7_2_integration_2x5.sh / --with-integration-smoke.
+# Flange-face containment: cubes are flange-sized (edge ≥ flange Ø) so tip
+# contact does not overhang. Field sized from tip-contact workspace map
+# (forward-biased X≥0; full ±Y under rim) with EE floor edge+flange+clearance.
+# Invoked via smoke_phase7_2_integration_2x5.sh.
 episode_count: 2
 target_count: 5
 root_seed: 4242
@@ -12,24 +13,30 @@ retain_targets_after_contact: false
 tip_allow_link_names:
   - joint6_flange
 field_aabb:
-  minimum_m: [0.12, -0.20, 0.13]
-  maximum_m: [0.28, 0.02, 0.19]
-# Keep grid Z inside the AABB band (half-band = 0.25 * arm_z). Larger values
-# place cubes near the base and make PhysX tip-face evidence brittle.
-arm_z_motion_range_m: 0.12
-target_edge_m: 0.014
+  minimum_m: [0.02, -0.22, 0.12]
+  maximum_m: [0.30, 0.22, 0.22]
+keep_outs:
+  - minimum_m: [-0.08, -0.08, 0.10]
+    maximum_m: [0.08, 0.08, 0.24]
+arm_z_motion_range_m: 0.28
+# Match flange diameter so require_flange_face_containment can pass.
+target_edge_m: 0.031
 outward_normal_base: [0.0, 0.0, 1.0]
 flange_diameter_assumption_m: 0.031
+require_flange_face_containment: true
+# Match planner position_tolerance_m so small lateral IK error is not a fail.
+flange_face_overhang_tolerance_m: 0.005
+max_target_radial_m: 0.36
 start_joint_position_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 planner_profile: benchmark_reproducible
 validation_profile: simulation_initial
 scene_revision_prefix: phase7_2-integration-2x5
 artifact_path: artifacts/phase7_2
 minimum_self_collision_clearance_m: 0.0
-minimum_world_collision_clearance_m: 0.0
+minimum_world_collision_clearance_m: 0.004
 lighting:
-  dome_intensity: 1000.0
-  distant_intensity: 3000.0
+  dome_intensity: 400.0
+  distant_intensity: 1000.0
   distant_angle_deg: [45.0, -30.0, 0.0]
   color: [1.0, 1.0, 1.0]
 pre_approach_distance_m: 0.01

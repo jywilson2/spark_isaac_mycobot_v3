@@ -19,7 +19,11 @@ for candidate in (REPO_ROOT, REPO_ROOT / "src"):
         sys.path.insert(0, str(candidate))
 
 from mycobot_curobo.config import load_app_config  # noqa: E402
-from mycobot_curobo.cube_scene import batch_sphere_cube_clearance_m  # noqa: E402
+from mycobot_curobo.cube_scene import (  # noqa: E402
+    CubeGeometry,
+    batch_sphere_cube_clearance_m,
+    flange_disk_face_overhang_m,
+)
 from mycobot_curobo.errors import ConfigurationError  # noqa: E402
 from mycobot_curobo.multi_target import (  # noqa: E402
     MultiTargetEpisodeRunner,
@@ -44,6 +48,8 @@ from mycobot_curobo.robot_model import load_robot_model_spec  # noqa: E402
 from mycobot_curobo.validation import (  # noqa: E402
     CuroboTrajectoryEvaluator,
     ValidatedPlan,
+    ValidationReport,
+    ValidationViolation,
     load_validation_profile,
     validate_nominal_plan,
 )
@@ -105,14 +111,27 @@ def plan_and_validate(
     *,
     validation_profile_name: str,
     warn_planning_duration_s: float | None,
+    minimum_self_collision_clearance_m: float = 0.0,
+    minimum_world_collision_clearance_m: float = 0.0,
+    flange_diameter_assumption_m: float | None = None,
+    require_flange_face_containment: bool = False,
+    flange_face_overhang_tolerance_m: float = 0.005,
 ) -> tuple[tuple[Any, ...], dict[str, Any]]:
     """Run the multi-target runner with optimistic tip contact (planning process)."""
 
     app = load_app_config()
     base_profile = load_planner_profile(episodes[0].planner_profile)
-    validation_profile = load_validation_profile(validation_profile_name)
+    validation_profile = replace(
+        load_validation_profile(validation_profile_name),
+        minimum_self_collision_clearance_m=float(minimum_self_collision_clearance_m),
+        minimum_world_collision_clearance_m=float(minimum_world_collision_clearance_m),
+    )
     robot_spec = load_robot_model_spec(app.robot_config_path)
     trajectories: dict[str, Any] = {}
+    flange_diameter = (
+        None if flange_diameter_assumption_m is None else float(flange_diameter_assumption_m)
+    )
+    overhang_tol = float(flange_face_overhang_tolerance_m)
 
     def planner_factory(seed: int, scene_model: dict[str, Any], links: tuple[str, ...]) -> Any:
         del links
@@ -135,29 +154,73 @@ def plan_and_validate(
         return NominalPlanner(backend_factory, profile, task_frame_config=app.task_frame)
 
     def validator(
-        plan: NominalPlan, request: PlanningRequest, clearance_geometries: tuple[Any, ...]
+        plan: NominalPlan,
+        request: PlanningRequest,
+        clearance_geometries: tuple[Any, ...],
+        contact_cube: CubeGeometry,
     ) -> ValidatedPlan:
         evaluator_backend = create_curobo_planner(
             replace(base_profile, random_seed=request.random_seed),
             robot_config_path=app.robot_config_path,
             scene_config_path=REPO_ROOT / "config/scenes/empty.yml",
         )
+        evaluator = CuroboTrajectoryEvaluator(
+            evaluator_backend,
+            scene_is_empty=len(clearance_geometries) == 0,
+            world_clearance_fn=(
+                None
+                if not clearance_geometries
+                else _multi_cube_clearance_fn(clearance_geometries)
+            ),
+        )
         # World clearance uses only non-contact cubes; tip may occupy the goal face.
-        return validate_nominal_plan(
+        validated = validate_nominal_plan(
             plan,
             request,
             profile=validation_profile,
-            evaluator=CuroboTrajectoryEvaluator(
-                evaluator_backend,
-                scene_is_empty=len(clearance_geometries) == 0,
-                world_clearance_fn=(
-                    None
-                    if not clearance_geometries
-                    else _multi_cube_clearance_fn(clearance_geometries)
-                ),
-            ),
+            evaluator=evaluator,
             robot_spec=robot_spec,
             task_frame_config=app.task_frame,
+        )
+        if (
+            not require_flange_face_containment
+            or not validated.report.valid
+            or flange_diameter is None
+        ):
+            return validated
+        geometry = evaluator.evaluate(plan.terminal_trajectory.position_rad)
+        tcp = geometry.tcp_position_m[-1]
+        overhang = flange_disk_face_overhang_m(
+            tcp,
+            request.surface_target.surface_normal_base,
+            flange_diameter,
+            contact_cube,
+        )
+        if overhang <= overhang_tol:
+            return validated
+        violation = ValidationViolation(
+            metric="flange_face_containment",
+            waypoint_index=int(plan.terminal_trajectory.sample_count - 1),
+            measured=float(overhang),
+            threshold=overhang_tol,
+            reason=(
+                "flange disk overhangs the contact face "
+                f"(overhang_m={overhang:.4f}; tol_m={overhang_tol:.4f}; "
+                f"edge_m={contact_cube.edge_m}; flange_diameter_m={flange_diameter})"
+            ),
+        )
+        report = ValidationReport(
+            request_id=request.request_id,
+            profile_name=validated.report.profile_name,
+            valid=False,
+            violations=validated.report.violations + (violation,),
+            metrics=validated.report.metrics,
+        )
+        return ValidatedPlan(
+            nominal_plan=plan,
+            report=report,
+            validation_status="invalid",
+            executable=False,
         )
 
     def plan_sink(plan: NominalPlan) -> None:
@@ -197,6 +260,11 @@ def main(argv: list[str] | None = None) -> int:
         episodes,
         validation_profile_name=config.validation_profile,
         warn_planning_duration_s=config.warn_planning_duration_s,
+        minimum_self_collision_clearance_m=config.minimum_self_collision_clearance_m,
+        minimum_world_collision_clearance_m=config.minimum_world_collision_clearance_m,
+        flange_diameter_assumption_m=config.flange_diameter_assumption_m,
+        require_flange_face_containment=config.require_flange_face_containment,
+        flange_face_overhang_tolerance_m=config.flange_face_overhang_tolerance_m,
     )
     summary = aggregate_multi_target_results(results, root_seed=config.root_seed)
     for result in results:

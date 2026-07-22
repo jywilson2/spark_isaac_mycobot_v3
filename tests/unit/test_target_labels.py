@@ -62,6 +62,9 @@ def test_add_target_label_builds_visible_segment_geometry() -> None:
     # Must not re-apply world center on the child label (double-counts parent).
     assert "center[0], center[1], center[2] + height_offset_m" not in source
     assert "label_parent_local_offset_m(height_offset_m)" in source
+    # Right-reading from the default +Y viewport camera.
+    assert "AddRotateZOp" in source
+    assert "180.0" in source
 
 
 def test_github_actions_ci_uses_setup_python_for_pytest() -> None:
