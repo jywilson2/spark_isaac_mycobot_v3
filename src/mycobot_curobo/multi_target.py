@@ -29,6 +29,17 @@ from mycobot_curobo.planner import (
     PlanningRequest,
 )
 from mycobot_curobo.robot_model import TCP_LINK
+from mycobot_curobo.target_placement import (
+    GRID_Z_VARIABILITY_FRACTION,
+    KeepOutAabb,
+    LayoutSpec,
+    build_layout_centers,
+    build_random_centers,
+    ee_clearance_min_center_separation_m,
+    parse_keep_outs,
+    parse_layout_spec,
+    validate_centers_separation,
+)
 from mycobot_curobo.targets import SurfaceTarget
 from mycobot_curobo.validation import ValidatedPlan, ValidationMetrics
 
@@ -36,6 +47,8 @@ from mycobot_curobo.validation import ValidatedPlan, ValidationMetrics
 class PlacementPolicy(str, Enum):
     GRID = "grid"
     MANUAL = "manual"
+    RANDOM = "random"
+    LAYOUT = "layout"
 
 
 class OrderPolicy(str, Enum):
@@ -55,8 +68,10 @@ class MultiTargetFailureCategory(str, Enum):
     BODY_CONTACT = "body_contact"
     TIP_CONTACT_MISSED = "tip_contact_missed"
     MAX_PLANNING_FAILURE_PER_TARGET_EXCEEDED = "max_planning_failure_per_target_exceeded"
-    MAX_TARGET_FAILURES_EXCEEDED = "max_target_failures_exceeded"
+    MAX_TARGET_FAILURES_EXCEEDED = "max_target_failures_exceeded"  # deprecated PASS escape
     TARGETS_INCOMPLETE = "targets_incomplete"
+    TARGETS_UNPLANNED = "targets_unplanned"
+    MAX_RECONSIDER_PASSES_EXCEEDED = "max_reconsider_passes_exceeded"
     CONFIGURATION_MODEL_FAILURE = "configuration_model_failure"
 
 
@@ -195,7 +210,8 @@ class MultiTargetSuiteConfig:
     order: OrderPolicy
     retain_targets_after_contact: bool
     max_planning_failure_per_target: int
-    max_target_failures: int
+    max_target_failures: int  # deprecated; must not allow PASS with unplanned targets
+    max_reconsider_passes: int
     max_failed_episodes: int
     tip_allow_link_names: tuple[str, ...]
     field_minimum_m: tuple[float, float, float]
@@ -220,6 +236,11 @@ class MultiTargetSuiteConfig:
     fixed_roll_rad: float | None
     warn_planning_duration_s: float | None
     flange_diameter_assumption_m: float
+    # Phase 7.3 placement controls (defaults preserve Phase 7.2 behaviour).
+    min_center_separation_m: float
+    keep_outs: tuple[KeepOutAabb, ...] = ()
+    max_placement_attempts: int = 1000
+    layout: LayoutSpec | None = None
 
 
 def _tuple3(value: Any, label: str) -> tuple[float, float, float]:
@@ -279,6 +300,12 @@ def load_multi_target_suite_config(
     )
     max_failed_episodes = _non_negative_int(
         payload.get("max_failed_episodes", 0), "max_failed_episodes"
+    )
+    reconsider_raw = payload.get("max_reconsider_passes")
+    max_reconsider_passes = (
+        target_count
+        if reconsider_raw is None
+        else _positive_int(reconsider_raw, "max_reconsider_passes")
     )
     tip_links = tuple(str(item) for item in payload["tip_allow_link_names"])
     if not tip_links or any(not item.strip() for item in tip_links):
@@ -356,6 +383,34 @@ def load_multi_target_suite_config(
             )
     elif payload.get("targets"):
         raise ConfigurationError("targets list is only valid when placement is manual")
+    layout = parse_layout_spec(payload.get("layout"))
+    if placement is PlacementPolicy.LAYOUT:
+        if layout is None:
+            raise ConfigurationError("layout placement requires a layout mapping")
+    elif layout is not None:
+        raise ConfigurationError("layout is only valid when placement is layout")
+    if placement is PlacementPolicy.RANDOM and payload.get("layout") is not None:
+        raise ConfigurationError("layout is only valid when placement is layout")
+    keep_outs = parse_keep_outs(payload.get("keep_outs"))
+    flange_diameter_assumption_m = float(payload["flange_diameter_assumption_m"])
+    if not math.isfinite(flange_diameter_assumption_m) or flange_diameter_assumption_m <= 0.0:
+        raise ConfigurationError("flange_diameter_assumption_m must be positive finite")
+    ee_floor = ee_clearance_min_center_separation_m(edge, flange_diameter_assumption_m)
+    sep_raw = payload.get("min_center_separation_m")
+    if sep_raw is None:
+        min_center_separation_m = ee_floor
+    else:
+        min_center_separation_m = float(sep_raw)
+        if not math.isfinite(min_center_separation_m) or min_center_separation_m <= 0.0:
+            raise ConfigurationError("min_center_separation_m must be positive finite")
+        if min_center_separation_m + 1.0e-12 < ee_floor:
+            raise ConfigurationError(
+                "min_center_separation_m is below EE clearance floor "
+                f"(min_center_separation_m={min_center_separation_m}, "
+                f"floor={ee_floor}=target_edge_m+flange_diameter_assumption_m)"
+            )
+    attempts_raw = payload.get("max_placement_attempts", 1000)
+    max_placement_attempts = _positive_int(attempts_raw, "max_placement_attempts")
     warn = payload.get("warn_planning_duration_s")
     warn_s = None if warn is None else float(warn)
     if warn_s is not None and (not math.isfinite(warn_s) or warn_s <= 0.0):
@@ -371,6 +426,7 @@ def load_multi_target_suite_config(
         retain_targets_after_contact=retain,
         max_planning_failure_per_target=max_planning_failure_per_target,
         max_target_failures=max_target_failures,
+        max_reconsider_passes=max_reconsider_passes,
         max_failed_episodes=max_failed_episodes,
         tip_allow_link_names=tip_links,
         field_minimum_m=minimum_m,
@@ -391,7 +447,11 @@ def load_multi_target_suite_config(
         roll_candidates_rad=roll_candidates,
         fixed_roll_rad=fixed,
         warn_planning_duration_s=warn_s,
-        flange_diameter_assumption_m=float(payload["flange_diameter_assumption_m"]),
+        flange_diameter_assumption_m=flange_diameter_assumption_m,
+        min_center_separation_m=min_center_separation_m,
+        keep_outs=keep_outs,
+        max_placement_attempts=max_placement_attempts,
+        layout=layout,
     )
 
 
@@ -417,18 +477,31 @@ def override_suite_target_count(
     Manual lists shorter than ``target_count`` switch to grid placement inside
     the declared field AABB so ``--targets N`` stays usable without a new YAML.
     When the listed manual set is long enough, it is truncated to the first N
-    targets in list order. ``max_target_failures`` stays at the configured value
-    (default **3**); it does not rescale with ``target_count``.
+    targets in list order. ``max_reconsider_passes`` defaults to the new
+    ``target_count`` unless the caller already set an explicit value that
+    differs from the previous ``target_count``.
     """
 
     count = _positive_int(target_count, "target_count")
-    if config.placement is PlacementPolicy.GRID:
-        return replace(config, target_count=count, manual_targets=())
+    reconsider = (
+        count
+        if config.max_reconsider_passes == config.target_count
+        else config.max_reconsider_passes
+    )
+    if config.placement in {
+        PlacementPolicy.GRID,
+        PlacementPolicy.RANDOM,
+        PlacementPolicy.LAYOUT,
+    }:
+        return replace(
+            config, target_count=count, manual_targets=(), max_reconsider_passes=reconsider
+        )
     if len(config.manual_targets) >= count:
         return replace(
             config,
             target_count=count,
             manual_targets=config.manual_targets[:count],
+            max_reconsider_passes=reconsider,
         )
     # Not enough explicit poses: fall back to a deterministic grid.
     return replace(
@@ -436,12 +509,9 @@ def override_suite_target_count(
         target_count=count,
         placement=PlacementPolicy.GRID,
         manual_targets=(),
+        layout=None,
+        max_reconsider_passes=reconsider,
     )
-
-
-# Fraction of declared arm Z-motion range used as the total grid Z band width
-# centered on the field AABB mid-Z.
-GRID_Z_VARIABILITY_FRACTION = 0.5
 
 
 def build_grid_centers(
@@ -450,6 +520,7 @@ def build_grid_centers(
     maximum_m: Sequence[float],
     *,
     arm_z_motion_range_m: float,
+    placement_seed: int | None = None,
 ) -> tuple[tuple[float, float, float], ...]:
     """Place ``count`` centres on an XY lattice with mid-Z band variability.
 
@@ -458,6 +529,10 @@ def build_grid_centers(
     ``GRID_Z_VARIABILITY_FRACTION * arm_z_motion_range_m`` (50% of the declared
     arm vertical envelope). The band is **not** clipped to the thin field AABB
     Z span so variability is not silently zeroed.
+
+    When ``placement_seed`` is set, apply a deterministic toroidal phase shift in
+    X/Y/Z so multi-episode suites get distinct obstacle fields while remaining
+    inside the same AABB / Z band.
     """
 
     if count < 1:
@@ -469,47 +544,120 @@ def build_grid_centers(
     rows, columns = _grid_layout_shape(count)
     mid_z = 0.5 * (lo[2] + hi[2])
     half_band = 0.5 * GRID_Z_VARIABILITY_FRACTION * arm_z_motion_range_m
+    phase_x = 0.0
+    phase_y = 0.0
+    phase_z = 0.0
+    if placement_seed is not None:
+        rng = np.random.default_rng(int(placement_seed))
+        phase_x = float(rng.uniform(0.0, 1.0))
+        phase_y = float(rng.uniform(0.0, 1.0))
+        phase_z = float(rng.uniform(0.0, 1.0))
     centers: list[tuple[float, float, float]] = []
     for index in range(count):
         row = index // columns
         col = index % columns
-        x = lo[0] if columns == 1 else lo[0] + (col + 0.5) * (hi[0] - lo[0]) / columns
-        y = lo[1] if rows == 1 else lo[1] + (row + 0.5) * (hi[1] - lo[1]) / rows
-        if count == 1:
-            z = mid_z
+        if placement_seed is None:
+            x = lo[0] if columns == 1 else lo[0] + (col + 0.5) * (hi[0] - lo[0]) / columns
+            y = lo[1] if rows == 1 else lo[1] + (row + 0.5) * (hi[1] - lo[1]) / rows
+            if count == 1:
+                z = mid_z
+            else:
+                # Even spacing across [mid - half_band, mid + half_band].
+                z = (mid_z - half_band) + (index + 0.5) * (2.0 * half_band) / count
         else:
-            # Even spacing across [mid - half_band, mid + half_band].
-            z = (mid_z - half_band) + (index + 0.5) * (2.0 * half_band) / count
+            x_frac = ((col + 0.5) / columns + phase_x) % 1.0
+            y_frac = ((row + 0.5) / rows + phase_y) % 1.0
+            x = lo[0] + x_frac * (hi[0] - lo[0])
+            y = lo[1] + y_frac * (hi[1] - lo[1])
+            if count == 1:
+                z = mid_z + (2.0 * phase_z - 1.0) * half_band
+            else:
+                z_frac = ((index + 0.5) / count + phase_z) % 1.0
+                z = (mid_z - half_band) + z_frac * (2.0 * half_band)
         centers.append((float(x), float(y), float(z)))
     return tuple(centers)
 
 
-def build_target_field(config: MultiTargetSuiteConfig, *, order_seed: int) -> TargetField:
+def _targets_from_centers(
+    config: MultiTargetSuiteConfig, centers: Sequence[tuple[float, float, float]]
+) -> tuple[NumberedTarget, ...]:
+    return tuple(
+        NumberedTarget(
+            target_id=str(index + 1),
+            center_m=center,
+            edge_m=config.target_edge_m,
+            outward_normal_base=config.outward_normal_base,
+            fixed_roll_rad=config.fixed_roll_rad,
+            roll_candidates_rad=config.roll_candidates_rad,
+            pre_approach_distance_m=config.pre_approach_distance_m,
+        )
+        for index, center in enumerate(centers)
+    )
+
+
+def build_target_field(
+    config: MultiTargetSuiteConfig,
+    *,
+    order_seed: int,
+    placement_seed: int | None = None,
+) -> TargetField:
     """Build a numbered field and apply shuffle or listed contact order."""
 
     if config.placement is PlacementPolicy.MANUAL:
         targets = config.manual_targets
         if len(targets) != config.target_count:
             raise ConfigurationError("manual target count must match target_count")
+        validate_centers_separation(
+            [target.center_m for target in targets],
+            min_center_separation_m=config.min_center_separation_m,
+            edge_m=config.target_edge_m,
+            keep_outs=config.keep_outs,
+        )
+    elif config.placement is PlacementPolicy.RANDOM:
+        if placement_seed is None:
+            raise ConfigurationError("random placement requires placement_seed")
+        centers = build_random_centers(
+            config.target_count,
+            config.field_minimum_m,
+            config.field_maximum_m,
+            arm_z_motion_range_m=config.arm_z_motion_range_m,
+            edge_m=config.target_edge_m,
+            min_center_separation_m=config.min_center_separation_m,
+            keep_outs=config.keep_outs,
+            placement_seed=placement_seed,
+            max_placement_attempts=config.max_placement_attempts,
+        )
+        targets = _targets_from_centers(config, centers)
+    elif config.placement is PlacementPolicy.LAYOUT:
+        if config.layout is None:
+            raise ConfigurationError("layout placement requires layout spec")
+        centers = build_layout_centers(
+            config.target_count,
+            config.field_minimum_m,
+            config.field_maximum_m,
+            layout=config.layout,
+            arm_z_motion_range_m=config.arm_z_motion_range_m,
+            edge_m=config.target_edge_m,
+            min_center_separation_m=config.min_center_separation_m,
+            keep_outs=config.keep_outs,
+            placement_seed=placement_seed,
+        )
+        targets = _targets_from_centers(config, centers)
     else:
         centers = build_grid_centers(
             config.target_count,
             config.field_minimum_m,
             config.field_maximum_m,
             arm_z_motion_range_m=config.arm_z_motion_range_m,
+            placement_seed=placement_seed,
         )
-        targets = tuple(
-            NumberedTarget(
-                target_id=str(index + 1),
-                center_m=center,
-                edge_m=config.target_edge_m,
-                outward_normal_base=config.outward_normal_base,
-                fixed_roll_rad=config.fixed_roll_rad,
-                roll_candidates_rad=config.roll_candidates_rad,
-                pre_approach_distance_m=config.pre_approach_distance_m,
-            )
-            for index, center in enumerate(centers)
+        validate_centers_separation(
+            centers,
+            min_center_separation_m=config.min_center_separation_m,
+            edge_m=config.target_edge_m,
+            keep_outs=config.keep_outs,
         )
+        targets = _targets_from_centers(config, centers)
     listed_ids = tuple(target.target_id for target in targets)
     if config.order is OrderPolicy.LISTED:
         order_ids = listed_ids
@@ -538,6 +686,7 @@ class MultiTargetEpisode:
     tip_allow_link_names: tuple[str, ...]
     max_planning_failure_per_target: int
     max_target_failures: int
+    max_reconsider_passes: int
     max_failed_episodes: int
     scene_revision_prefix: str
     retain_targets_after_contact: bool
@@ -561,7 +710,9 @@ def sample_multi_target_episodes(
     for index in range(count):
         episode_seed = seed + 1009 * (index + 1)
         order_seed = seed + 9176 * (index + 1)
-        field = build_target_field(config, order_seed=order_seed)
+        # Grid suites use episode_seed so each episode gets a distinct field;
+        # manual suites ignore placement_seed (listed centres are fixed).
+        field = build_target_field(config, order_seed=order_seed, placement_seed=episode_seed)
         episodes.append(
             MultiTargetEpisode(
                 episode_index=index,
@@ -574,6 +725,7 @@ def sample_multi_target_episodes(
                 tip_allow_link_names=config.tip_allow_link_names,
                 max_planning_failure_per_target=config.max_planning_failure_per_target,
                 max_target_failures=config.max_target_failures,
+                max_reconsider_passes=config.max_reconsider_passes,
                 max_failed_episodes=config.max_failed_episodes,
                 scene_revision_prefix=config.scene_revision_prefix,
                 retain_targets_after_contact=config.retain_targets_after_contact,
@@ -612,6 +764,9 @@ def deserialize_episode(payload: dict[str, Any]) -> MultiTargetEpisode:
         tip_allow_link_names=tuple(data["tip_allow_link_names"]),
         max_planning_failure_per_target=int(data.get("max_planning_failure_per_target", 5)),
         max_target_failures=int(data.get("max_target_failures", default_max_target_failures())),
+        max_reconsider_passes=int(
+            data.get("max_reconsider_passes", len(target_field.contact_order_ids))
+        ),
         max_failed_episodes=int(data.get("max_failed_episodes", 0)),
         scene_revision_prefix=str(data["scene_revision_prefix"]),
         retain_targets_after_contact=bool(data["retain_targets_after_contact"]),
@@ -651,6 +806,8 @@ class MultiTargetEpisodeResult:
     contacted_ids: tuple[str, ...]
     removed_ids: tuple[str, ...]
     episode_duration_s: float | None = None
+    deferred_target_ids: tuple[str, ...] = ()
+    planned_target_ids: tuple[str, ...] = ()
 
     @property
     def tip_contact_count(self) -> int:
@@ -803,9 +960,12 @@ class _EpisodeState:
     removed_ids: list[str] = field(default_factory=list)
     contacted_ids: list[str] = field(default_factory=list)
     failed_target_ids: list[str] = field(default_factory=list)
+    deferred_target_ids: list[str] = field(default_factory=list)
+    planned_target_ids: list[str] = field(default_factory=list)
     current_count_planning_failure_per_target: int = 0
     planning_failure_count: int = 0
     target_failure_count: int = 0
+    reconsider_pass: int = 0
     current_joints: tuple[float, ...] = ()
     from_id: str = "start"
 
@@ -861,9 +1021,49 @@ class MultiTargetEpisodeRunner:
         started = time.perf_counter()
         state = _EpisodeState(current_joints=episode.start_position_rad)
         legs: list[MultiTargetLegResult] = []
-        pending = list(episode.field.contact_order_ids)
-        while pending:
-            to_id = pending[0]
+        order = list(episode.field.contact_order_ids)
+        to_do = list(order)
+        deferred: list[str] = []
+        progress_in_pass = False
+
+        while to_do or deferred:
+            if not to_do:
+                if not progress_in_pass and state.reconsider_pass > 0:
+                    state.failed_target_ids = list(deferred)
+                    state.deferred_target_ids = list(deferred)
+                    reason = f"unplanned targets after reconsider: {sorted(deferred)}"
+                    return self._fail_episode(
+                        episode,
+                        legs,
+                        state,
+                        started,
+                        MultiTargetFailureCategory.TARGETS_UNPLANNED,
+                        reason,
+                    )
+                if state.reconsider_pass >= episode.max_reconsider_passes:
+                    state.failed_target_ids = list(deferred)
+                    state.deferred_target_ids = list(deferred)
+                    reason = (
+                        f"reconsider passes {state.reconsider_pass} reached "
+                        f"max_reconsider_passes={episode.max_reconsider_passes}; "
+                        f"unplanned={sorted(deferred)}"
+                    )
+                    return self._fail_episode(
+                        episode,
+                        legs,
+                        state,
+                        started,
+                        MultiTargetFailureCategory.MAX_RECONSIDER_PASSES_EXCEEDED,
+                        reason,
+                    )
+                deferred_set = set(deferred)
+                to_do = [target_id for target_id in order if target_id in deferred_set]
+                deferred = []
+                state.reconsider_pass += 1
+                progress_in_pass = False
+                continue
+
+            to_id = to_do[0]
             leg = self._run_leg(episode, state, to_id)
             legs.append(leg)
             self._console_log(
@@ -879,38 +1079,29 @@ class MultiTargetEpisodeRunner:
                 leg.failure_category
                 is MultiTargetFailureCategory.MAX_PLANNING_FAILURE_PER_TARGET_EXCEEDED
             ):
-                state.failed_target_ids.append(to_id)
-                state.target_failure_count += 1
-                pending.pop(0)
+                # Defer for a later pass with a reduced obstacle set.
+                deferred.append(to_id)
+                state.deferred_target_ids = list(deferred)
+                state.target_failure_count = len(deferred)
+                to_do.pop(0)
                 state.current_count_planning_failure_per_target = 0
-                if state.target_failure_count > episode.max_target_failures:
-                    reason = (
-                        f"target failures {state.target_failure_count} exceed "
-                        f"max_target_failures={episode.max_target_failures}"
-                    )
-                    return self._fail_episode(
-                        episode,
-                        legs,
-                        state,
-                        started,
-                        MultiTargetFailureCategory.MAX_TARGET_FAILURES_EXCEEDED,
-                        reason,
-                    )
                 continue
             if not leg.planning_succeeded or not leg.validation_passed:
-                # Same-target retry: leave pending[0] unchanged.
+                # Same-target retry: leave to_do[0] unchanged.
                 continue
             if leg.contact_kind is ContactKind.ALLOWED_TIP_CONTACT:
+                if to_id not in state.planned_target_ids:
+                    state.planned_target_ids.append(to_id)
                 state.contacted_ids.append(to_id)
                 if not episode.retain_targets_after_contact:
                     state.removed_ids.append(to_id)
                 if leg.final_joint_position_rad is not None:
                     state.current_joints = leg.final_joint_position_rad
                 state.from_id = to_id
-                pending.pop(0)
+                to_do.pop(0)
                 state.current_count_planning_failure_per_target = 0
+                progress_in_pass = True
                 continue
-            # Successful plan/validation but tip missed: abort the episode.
             reason = f"tip contact missed on {state.from_id}->{to_id}"
             legs[-1] = replace(
                 leg,
@@ -926,18 +1117,20 @@ class MultiTargetEpisodeRunner:
                 MultiTargetFailureCategory.TIP_CONTACT_MISSED,
                 reason,
             )
-        required_ids = set(episode.field.contact_order_ids) - set(state.failed_target_ids)
-        if set(state.contacted_ids) != required_ids:
-            reason = (
-                f"contacted {sorted(state.contacted_ids)} != required "
-                f"{sorted(required_ids)} (failed_targets={list(state.failed_target_ids)})"
-            )
+
+        required_ids = set(episode.field.contact_order_ids)
+        planned = set(state.planned_target_ids)
+        contacted = set(state.contacted_ids)
+        if planned != required_ids or contacted != required_ids:
+            missing = sorted(required_ids - planned)
+            state.failed_target_ids = missing
+            reason = f"unplanned targets remain: {missing}"
             return self._fail_episode(
                 episode,
                 legs,
                 state,
                 started,
-                MultiTargetFailureCategory.TARGETS_INCOMPLETE,
+                MultiTargetFailureCategory.TARGETS_UNPLANNED,
                 reason,
             )
         return MultiTargetEpisodeResult(
@@ -946,12 +1139,14 @@ class MultiTargetEpisodeRunner:
             failure_category=None,
             failure_reason=None,
             planning_failure_count=state.planning_failure_count,
-            target_failure_count=state.target_failure_count,
-            failed_target_ids=tuple(state.failed_target_ids),
+            target_failure_count=0,
+            failed_target_ids=(),
             legs=tuple(legs),
             contacted_ids=tuple(state.contacted_ids),
             removed_ids=tuple(state.removed_ids),
             episode_duration_s=time.perf_counter() - started,
+            deferred_target_ids=(),
+            planned_target_ids=tuple(state.planned_target_ids),
         )
 
     def _record_planning_failure(self, state: _EpisodeState) -> None:
@@ -979,6 +1174,8 @@ class MultiTargetEpisodeRunner:
             contacted_ids=tuple(state.contacted_ids),
             removed_ids=tuple(state.removed_ids),
             episode_duration_s=time.perf_counter() - started,
+            deferred_target_ids=tuple(state.deferred_target_ids),
+            planned_target_ids=tuple(state.planned_target_ids),
         )
 
     def _planning_failure_leg(

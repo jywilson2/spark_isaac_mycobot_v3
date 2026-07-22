@@ -508,8 +508,47 @@ Create a validated cuRobo v0.8.0 robot configuration for the exact MyCobot 280 M
 
 ## Phase 1.1 — Target-scale collision-sphere coverage
 
-**Status:** Implemented on `wip_phase7_3`. Design notes:
+**Status:** **Option A implemented; overlay disarmed.** Self-clear and
+body-clip detectability GPU checks pass under a trial-enabled overlay, but
+arming it in the default robot YAML regresses Phase 7.1 / 7.2 GPU planning
+(cuRobo reports start/end state in collision against target cubes). Keep
+scaffolding until cover/suite fixtures are reconciled. Design notes:
 [`docs/phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md).
+
+### Headless verification finding (2026-07-21) — first cover rejected
+
+Headless cuRobo checks found two defects in the first Phase 1.1 landing:
+
+1. **Adapter bug (fixed):** `load_curobo_robot_config` forwarded project-only
+   keys into cuRobo `KinematicsLoaderCfg`, so `MotionPlanner` construction
+   failed and the overlay never loaded. The adapter now merges the overlay then
+   strips those keys.
+2. **Cover incompatible with self-collision (rejected):** the first greedy mesh
+   cover (128 spheres, radii up to `2E` ≈ 28 mm plus `collision_sphere_buffer`)
+   yielded **negative self-collision clearance** at the zero configuration.
+   Phase 1 scaffolding (32 spheres) remains self-clear.
+
+### Chosen revision: Option A (thickness-capped cover)
+
+**Goal unchanged:** detect axis-aligned cubes of edge ≥ `E` (default 0.014 m)
+in planning/world clearance **without** destroying self-collision feasibility
+or expanding ignore maps silently.
+
+| Option | Idea | Status |
+|--------|------|--------|
+| **A. Thickness-capped cover** | Mesh-constrained offline cover; each sphere radius capped by **local link thickness / medial radius** and `≤ E`; densify for detectability | **Chosen / implemented** |
+| **B. Dual role split** | Self spheres vs separate world-only overlay | Not selected |
+| **C. Distal densify only** | Densify only distal links | Not selected |
+| **D. Scene-side keep-outs** | Inflate world cuboids; leave robot scaffolding | Not selected |
+
+**Option A acceptance gate (before re-arming default YAML):**
+`validate_start_state` at the zero configuration and at least one mid-reach
+seeded posture must report **non-negative** self-collision clearance with the
+cover, **and** a body-clip cube of edge `E` must still fail world clearance
+where scaffolding would falsely clear. Phase 7.1 / 7.2 GPU planning suites and
+host headless + GUI integration 2×5 smoke must also pass with the overlay
+armed (see Acceptance criteria). Default robot YAML keeps
+`collision_sphere_overlay_path` commented out until those gates pass.
 
 ### Objective
 
@@ -561,10 +600,12 @@ set used for that suite must satisfy Phase 1.1 for
    fine grid. Neighboring sphere **surface** gaps along the cover must not
    leave a pocket that admits an edge-`E` cube against the mesh without a
    sphere hit (rule 3).
-5. **Self-collision policy unchanged.** Keep explicit adjacent-link ignore maps
-   and self-collision buffers; regenerating world-cover spheres must not
-   silently alter self-collision semantics without an explicit YAML change and
-   tests.
+5. **Self-collision policy unchanged (hard gate).** Keep explicit adjacent-link
+   ignore maps and self-collision buffers; regenerating world-cover spheres must
+   not silently alter self-collision semantics without an explicit YAML change
+   and tests. A candidate cover is **rejected** if the zero configuration (and
+   agreed mid-reach seeds) fail self-collision clearance under the same
+   thresholds used by Phase 4 / suite validation.
 6. **Still format 2.0.** Output remains cuRobo robot-config `collision_spheres`
    with per-link lists; inspection script continues to report counts by link.
 
@@ -583,7 +624,10 @@ set used for that suite must satisfy Phase 1.1 for
    `docs/phase1_1_target_scale_collision_spheres.md`.
 2. Add a host regeneration script (deterministic seed / inputs) that writes
    updated `collision_spheres` into the robot YAML (or a layered override file
-   loaded by the adapter).
+   loaded by the adapter). The adapter must merge the overlay then **strip
+   project-only keys** (`min_detectable_obstacle_edge_m`,
+   `collision_sphere_overlay_path`) before calling cuRobo
+   `MotionPlannerCfg` / `KinematicsLoaderCfg` (unknown kwargs abort construction).
 3. Set `min_detectable_obstacle_edge_m` explicitly in robot or suite config;
    fail closed if a suite `target_edge_m` is smaller than the committed cover’s
    `E`.
@@ -593,8 +637,10 @@ set used for that suite must satisfy Phase 1.1 for
    intersecting a link envelope yields planning or validation world-collision
    failure with the new spheres, and passes falsely with the Phase 1 reduced
    set (or an explicit under-covered baseline).
-6. Re-run Phase 7.2 unit gates; host GUI smoke remains review evidence for
-   body-contact rates vs the prior sphere set.
+6. Re-run Phase 7.2 unit gates; host headless and GUI **integration 2×5**
+   smokes must satisfy the self-collision and unremoved-target acceptance
+   bullet below (not optional review-only evidence; not the default 2-target
+   spark gate).
 
 ### Acceptance criteria
 
@@ -602,20 +648,44 @@ set used for that suite must satisfy Phase 1.1 for
   7.2 `target_edge_m` unless a different `E` is explicitly declared.
 - Sphere count is justified by sparsity under that `E` (report before/after
   counts by link in the phase report): Phase 1 scaffolding **32** → Phase 1.1
-  cover **128** for `E = 0.014 m`.
+  Option A cover **1012** spheres for `E = 0.014 m` (thickness-capped; radii
+  `≤ E`).
 - Suite configs fail closed when `target_edge_m < min_detectable_obstacle_edge_m`.
 - Core package remains Isaac-free; PhysX is not imported into planning.
 - No physical robot command is issued.
+- Before re-arming any Phase 1.1 overlay in the default robot YAML, host
+  **headless and GUI** runs of the Phase 7.2 **integration smoke**
+  (`scripts/host/smoke_phase7_2_integration_2x5.sh`, config
+  `config/phase7_2_multi_target_integration_2x5.yml`: **2 episodes × 5
+  targets**, grid placement with distinct per-episode placement and planner
+  seeds) must both pass. This smoke is **integration-only** (not part of the
+  default spark GUI gate); enable with
+  `./scripts/run_verification.sh spark --with-integration-smoke` or
+  `SPARK_RUN_INTEGRATION_SMOKE=1`. Evidence required:
+  1. **Self-collision:** the armed cover keeps the zero configuration and the
+     agreed mid-reach seeds self-clear under suite self-collision thresholds,
+     and planning/validation rejects a deliberate self-colliding fixture (or
+     equivalent fail-closed case); and
+  2. **Unremoved targets:** with only the active contact cube stripped from the
+     planning world (Phase 7.2 policy), a body-clip against an edge-`E`
+     **unremoved** non-contact target yields planning or independent
+     world-collision failure—including cases where Phase 1 scaffolding would
+     falsely report non-negative clearance.
+  Episodes in that smoke must differ in target placement **and** planned paths
+  (distinct `placement_seed` / `episode_seed`).
 
 ### Relationship to other phases
 
-- **Phase 1:** remains the base robot model; Phase 1.1 revises only collision
+- **Phase 1:** introduced the authoritative robot YAML and static collision
+  spheres (scaffolding; four per collision link). Phase 1.1 revises only that
   sphere coverage for target-scale world obstacles.
 - **Phase 7.2:** continues to strip only the active contact cube from the
   planning world and keep tip collision enabled vs other targets; better
   spheres improve body (and tip) detection of those cuboids.
-- **Phase 7.3:** placement keep-outs remain optional and complementary; they
-  do not replace Phase 1.1 coverage.
+- **Phase 7.3:** controllable target-block placement (under consideration). It
+  does **not** introduce collision spheres; placement keep-outs remain optional
+  and complementary and do not replace Phase 1.1 coverage. Phase 1.1 work may
+  share the `wip_phase7_3` branch without becoming part of Phase 7.3.
 
 ---
 
@@ -1191,31 +1261,50 @@ over successive independently validated plans with an explicit world revision.
   `0.5 * arm_z_motion_range_m` centered on the AABB mid-Z (declared arm
   vertical envelope; typically vendor `working_radius_m`), or a
   caller-supplied list of numbered targets (no position sampling when manual).
+  **EE clearance spacing (normative for generated fields):** when centres are
+  generated (`grid`, and Phase 7.3 `random` / `layout`), pairwise centre
+  separation must leave enough clearance for tip/EE approach so two remaining
+  neighbors cannot mutually deadlock tip planning. Required minimum centre
+  distance defaults to
+  **`target_edge_m + flange_diameter_assumption_m`**
+  (face-to-face gap at least the declared EE/flange diameter on the approach
+  plane). Suites may raise this via `min_center_separation_m` but must not set
+  it below that EE-clearance floor. Manual lists fail closed if they violate
+  the effective minimum. This spacing is independent of the Z-band rule: Z
+  variability must not be used to excuse undersized XY gaps.
 - **`order: shuffle | listed`:** seeded permutation of active target ids
   (replayable), or preserve enumeration / list order.
 - **`retain_targets_after_contact` (bool, default `false`):** when `false`,
   allowed tip/EE contact removes the target from the scene and cuRobo world
   geometry; when `true`, the target is marked contacted, recolored, and left in
-  place as an obstacle for subsequent plans.
-- **`MultiTargetEpisodeRunner`:** for each next id, build the world from active
-  obstacles, call `plan_grasp` with flange-normal approach, independently
-  validate, then consume a `ContactDetector` result.
+  place as an obstacle for subsequent plans. Acceptance and integration smokes
+  use `false` so tip-contacted cubes leave the planning world.
+- **`MultiTargetEpisodeRunner`:** multi-pass orchestration (see **Clearance,
+  deferral, and reconsider** below): for each next id, build the world from
+  **remaining** obstacles only, call `plan_grasp` with flange-normal approach,
+  independently validate, then consume a `ContactDetector` result.
 - **`ContactDetector` protocol:** reports `allowed_tip_contact`,
   `prohibited_body_contact`, or `none`. Isaac PhysX and later force/current or
   operator-ack adapters implement the same contract.
-- Three failure tiers (planning → target → episode):
+- Planning / deferral / suite budgets:
   - **`max_planning_failure_per_target`** (default **`5`**): each failed
     planning/validation attempt for the current target increments
     `current_count_planning_failure_per_target`. When that count **exceeds**
-    this limit, the **target** fails.
-  - **`max_target_failures`** (default = **`3`**): when the
-    number of failed targets in an episode **exceeds** this limit, the
-    **episode** fails.
+    this limit, the target is **deferred** (skipped for this pass), not
+    permanently written off for the episode.
+  - **`max_reconsider_passes`** (default **`target_count`**): after a pass
+    that tip-contacts and (when retain is false) removes one or more targets,
+    deferred targets are reconsidered with the reduced obstacle set. If a
+    full reconsider pass produces no new successful plan while deferred
+    targets remain, the episode fails (`targets_unplanned`).
   - **`max_failed_episodes`** (default **`0`**): suite / acceptance budget;
     the number of failed episodes must not exceed this value.
+  - **`max_target_failures`:** **deprecated for episode PASS**. Historical
+    configs may still declare it; it must not allow an episode to PASS with
+    any target left unplanned. Prefer `max_reconsider_passes`.
 - Observed counters: `current_count_planning_failure_per_target` (resets each
-  target), episode `planning_failure_count` / `target_failure_count`, and suite
-  `failed_episodes`.
+  target attempt window), episode `planning_failure_count`,
+  `deferred_target_ids`, `planned_target_ids`, and suite `failed_episodes`.
 
 ### Scene and episode model
 
@@ -1224,32 +1313,68 @@ over successive independently validated plans with an explicit world revision.
   (positive integer). When the selected YAML uses `placement: manual` and the
   listed poses are fewer than N, the override switches to `placement: grid`
   inside the declared field AABB; when the list is long enough, it is truncated
-  to the first N ids. `max_target_failures` is left unchanged when `--targets`
-  overrides the count (default **3**).
+  to the first N ids. When `--targets` overrides the count,
+  `max_reconsider_passes` defaults to the effective `target_count` unless set
+  explicitly.
 - Host planning/smoke may override `episode_count` with CLI `--episodes N`
   (positive integer).
 - `max_planning_failure_per_target` (default **`5`**) and
   `max_failed_episodes` (default **`0`**) do not auto-follow `target_count`.
-- An **episode** is one full clearance or contact sequence over the field, or
-  an early fail.
-- Contact order follows `shuffle` or `listed` as configured.
+  `max_reconsider_passes` defaults to `target_count` when omitted.
+- An **episode** is one full clearance sequence over the field (including
+  deferral/reconsider passes), or an early fail.
+- Contact / attempt order follows `shuffle` or `listed` as configured for the
+  first pass; reconsider passes revisit deferred ids in that same relative
+  order among remaining deferred targets.
 - Terminal approach is opposite the outward face normal and aligned to the
   configured signed TCP approach axis (flange tip / tool approach policy).
 - On structured planning or validation failure for the current target
   (`from_id → to_id`), **retry the same target** until success or
   `current_count_planning_failure_per_target` exceeds
-  `max_planning_failure_per_target` (default **`5`**); then mark that **target**
-  failed and continue to the next id (unless the episode target-failure budget
-  is exceeded).
+  `max_planning_failure_per_target` (default **`5`**); then **defer** that
+  target and continue to the next unfinished id.
 - Robot self-collision remains a planning/validation failure.
-- **Failure counting (three tiers):**
-  - **Planning failures:** per-target attempt counter
-    `current_count_planning_failure_per_target`; exceed
-    `max_planning_failure_per_target` → **target failure**.
-  - **Target failures:** count of failed targets in the episode; exceed
-    `max_target_failures` (default **`3`**) → **episode failure**.
-  - **Episode failures:** suite `failed_episodes` must be
-    `<= max_failed_episodes` (default **`0`**) for acceptance.
+
+### Clearance, deferral, and reconsider (normative)
+
+1. **Planning world = remaining tip-contact obstacles only.**
+   Each `plan_grasp` / independent clearance check builds the cuRobo world
+   from targets that have **not** yet been removed by allowed tip/EE contact
+   (when `retain_targets_after_contact` is `false`). Tip-contacted and removed
+   cubes are absent. The **active** contact target is also omitted from that
+   world so tip-face occupancy remains feasible. Do **not** globally disable
+   tip/flange links (`disable_collision_links` stays empty).
+   `tip_allow_link_names` is for Isaac tip-vs-body classification only.
+   When retain is `true`, contacted targets remain in the world as marked
+   obstacles (no removal); reconsider still applies to deferred plans.
+
+2. **Defer after per-target planning retries.** Exceeding
+   `max_planning_failure_per_target` does **not** permanently fail the
+   episode by itself. The target is recorded in `deferred_target_ids` and
+   skipped for the remainder of the current pass so other reachable targets
+   can be tip-contacted and (when retain is false) removed.
+
+3. **Reconsider deferred targets.** After a pass tip-contacts at least one
+   target (and removes it when retain is false), run further passes over any
+   still-deferred / unplanned targets using the **updated remaining obstacle
+   set**. Reset `current_count_planning_failure_per_target` when a deferred
+   target is reconsidered. Stop reconsider when every target has a successful
+   plan, or when a pass produces no new successful plan while unplanned
+   targets remain (`targets_unplanned`), or when `max_reconsider_passes` is
+   exceeded.
+
+4. **Playback order = plan-creation order.** Host plan/play split must replay
+   validated trajectories in the **same order the successful plans were
+   created** during the episode (including legs planned on reconsider
+   passes). Playback must not reshuffle or reorder relative to that creation
+   sequence.
+
+5. **All targets must end planned.** After clearance, deferral, reconsider,
+   and recording of successful plans, **every** target id in the episode
+   field must appear in `planned_target_ids` with a validated trajectory.
+   If any target remains unplanned, the episode **FAIL**s
+   (`targets_unplanned`). Tip contact remains required for every planned leg
+   that is played (tip miss → `tip_contact_missed`).
 
 ### Contact policy (hard requirement)
 
@@ -1260,41 +1385,31 @@ over successive independently validated plans with an explicit world revision.
   **FAIL** immediately (`body_contact`), even if tip contact also occurs.
 - Zero prohibited body–target contacts is required simulation evidence and does
   not replace cuRobo planning or independent validation.
-- **Planning world:** remaining non-contact targets are cuRobo cuboid obstacles
-  for **tip and body**. Only the active contact target is omitted from the
-  planning/clearance world so tip face contact remains feasible. Do **not**
-  globally disable tip/flange links against the multi-target field
-  (`disable_collision_links` stays empty on multi-target `plan_grasp`).
-  `tip_allow_link_names` is for Isaac tip-vs-body contact classification only.
 
 ### Success and failure
 
 An episode **PASS** only when:
 
-1. Every **non-failed** target (planning/validation succeeded and motion was
-   attempted) is tip-contacted via allowed tip/EE contact (and removed when
-   retain is false). Planning-failed targets require **no** tip contact because
-   arm motion was never attempted;
-2. Every motion segment that ran was produced by cuRobo and independently
-   validated;
-3. Target failures for that episode are `<= max_target_failures` (default
-   **`3`**);
+1. **Every** target in the field has a successful, independently validated
+   cuRobo plan (`planned_target_ids` equals the full field id set);
+2. Every planned leg that is played achieves allowed tip/EE contact (and is
+   removed when retain is false);
+3. Playback order matches plan-creation order;
 4. Zero prohibited body–target contacts;
 5. Required timing and identity fields are finite and logged.
 
 Otherwise **FAIL**. After a successful plan/validation, a tip-contact miss
 aborts the episode immediately (`tip_contact_missed`). Taxonomy includes at
 least `plan_failed`, `validation_failed`, `body_contact`, `tip_contact_missed`,
-`max_planning_failure_per_target_exceeded`, `max_target_failures_exceeded`, and
-`targets_incomplete`. Failed plans must identify the leg as `from_id → to_id`
-(use `start` when leaving the episode start state).
+`max_planning_failure_per_target_exceeded` (deferral event),
+`targets_unplanned`, `max_reconsider_passes_exceeded`, and
+`targets_incomplete`. Failed plan attempts must identify the leg as
+`from_id → to_id` (use `start` when leaving the episode start state).
 
 **Suite acceptance:** `failed_episodes <= max_failed_episodes` (default **`0`**).
-Report distinct totals for planning failures, target failures, and failed
-episodes. Example: six planning failures on one target with
-`max_planning_failure_per_target=5` yield one target failure; if that pushes
-`target_failure_count` past `max_target_failures`, the episode fails and
-increments `failed_episodes` by one.
+Report planning-attempt totals, deferred-then-recovered counts, and failed
+episodes. An episode that finishes with any unplanned target increments
+`failed_episodes` by one.
 
 ### Timing, visualization, and latency labeling
 
@@ -1302,9 +1417,10 @@ increments `failed_episodes` by one.
   (plan + motion through first allowed tip contact); when a leg attempt fails,
   log the attempt against `current_count_planning_failure_per_target`.
 - Per episode: `episode_duration_s`, success/fail outcome, contact counts,
-  `planning_failure_count`, `target_failure_count`, `failed_target_ids`.
+  `planning_failure_count`, `deferred_target_ids`, `planned_target_ids`,
+  plan-creation order of successful legs.
 - Suite summary: episode pass/fail counts; `failed_episodes`,
-  `total_planning_failures`, `total_target_failures`; acceptance requires
+  `total_planning_failures`, unplanned-episode counts; acceptance requires
   `failed_episodes <= max_failed_episodes`.
 - Emit matching live lines to the host terminal and the Isaac Sim console.
 - Numbered viewport labels must match `target_id` in logs and JSON (bright red
@@ -1325,8 +1441,8 @@ Phase 7.2 shall document and type the following so Phases 10–11 can reuse the
 same runner with swapped adapters (see also Remaining future adapters below):
 
 - `MultiTargetEpisodeRunner`, `TargetField`, contact-order policy, retain flag,
-  `max_planning_failure_per_target` / `max_target_failures` /
-  `max_failed_episodes` budgets;
+  deferral/reconsider policy, `max_planning_failure_per_target` /
+  `max_reconsider_passes` / `max_failed_episodes` budgets;
 - `ContactDetector`, optional `TargetPoseSource`, scene-revision / obstacle set,
   `MotionGate`, and leg/episode report schema;
 - Phase 5 execution seam (`RobotStateProvider`, command adapter,
@@ -1351,41 +1467,118 @@ pointer (and optional summary diagram).
 - Parameterized `target_count` and `episode_count`; `grid` and `manual`
   placement; `shuffle` and
   `listed` order; retain and remove-after-contact modes; seeded exact replay.
+- Generated target centres (and validating manual lists) enforce EE-clearance
+  spacing: centre distance ≥ `target_edge_m + flange_diameter_assumption_m`
+  (or a stricter configured `min_center_separation_m`) so tip approach is not
+  mutually deadlocked by adjacent remaining cubes.
 - Flange-normal tip/EE contact; body–target contact fails closed.
-- Per-target planning retries until `max_planning_failure_per_target`;
-  target/episode/suite budgets as above; dual console/JSON timing.
-- Suite acceptance: `failed_episodes <= max_failed_episodes` (default **`0`**).
+- Planning world uses only obstacles that remain after tip-contact removals
+  (plus retain-mode marked contacts when configured); active contact cube
+  omitted for tip feasibility.
+- Per-target planning retries until `max_planning_failure_per_target`, then
+  defer; reconsider deferred targets after removals; episode FAIL if any
+  target remains unplanned (`targets_unplanned`).
+- Playback order equals plan-creation order of successful legs.
+- Suite acceptance: `failed_episodes <= max_failed_episodes` (default **`0`**);
+  dual console/JSON timing.
 - Phase 7 and Phase 7.1 smoke gates remain mandatory for Isaac-path changes.
 - No physical hardware command, alternate planner, Orin SLA claim from sim
   timings, or simulation-derived physical-accuracy claim is introduced.
 
+**Implementation status:** the deferral/reconsider / all-targets-planned
+policy above is **implemented** on `wip_phase7_3` (supersedes the prior
+“planning-failed targets need no tip contact / `max_target_failures` may leave
+targets unplanned” episode PASS rule).
+
 ---
 
-## Phase 7.3 — Controllable target-block placement (under consideration)
+## Phase 7.3 — Controllable target-block placement
 
-### Objective (draft)
+**Status:** Implemented on `wip_phase7_3`. Design notes:
+[`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 
-Improve operator and suite control over numbered target-block placement used
-by Phase 7.2 multi-target clearance, and repair GitHub Actions CI execution
-issues observed on remote runners. Detailed placement contracts, sampling
-rules, and acceptance criteria are **not yet normative**.
+### Objective
 
-Phase 7.3 uses branch `wip_phase7_3` for planning and specification. Brainstorm
-notes live in `docs/phase7_3_target_placement.md`.
+Give suite authors finer control over numbered target-block placement used by
+Phase 7.2 multi-target clearance, beyond the Phase 7.2 `grid` AABB lattice and
+fully enumerated `manual` lists, while keeping fail-closed configuration errors
+and the existing plan/play split. Also repair GitHub Actions CI execution on
+remote runners.
 
-### Current standing
+### Placement policies (normative)
 
-- **Status:** under consideration / brainstorm with Cursor.
-- **Must not yet:** implement new placement APIs on landed Phase 7.2 code paths
-  without accepted §8 requirements; weaken existing Phase 7 / 7.1 / 7.2 gates.
-- **CI:** remote workflow bootstrap and verification failures are in scope for
-  this revision once requirements are written.
+| `placement` | Behaviour |
+|-------------|-----------|
+| `manual` | Explicit `targets[]` list (Phase 7.2) |
+| `grid` | XY lattice + mid-Z band (Phase 7.2); optional per-episode phase shift |
+| `random` | Seeded constrained-random centres inside `field_aabb` / Z band |
+| `layout` | Named parameterized layout (`rows` or `arc`) without listing centres |
+
+All non-manual policies must respect:
+
+1. **`min_center_separation_m`:** pairwise centre distance; fail closed if
+   violated. **Default and floor:**
+   `target_edge_m + flange_diameter_assumption_m` so generated fields satisfy
+   tip/EE clearance (see Phase 7.2 placement). An explicit larger value is
+   allowed; an explicit smaller value is a configuration error. The legacy
+   default `2 * target_edge_m` is insufficient whenever
+   `flange_diameter_assumption_m > target_edge_m` and must not be used alone.
+2. **`keep_outs`** (optional list of AABBs in `g_base`): a candidate centre is
+   rejected if the target cube of edge `target_edge_m` would intersect a
+   keep-out.
+3. **`max_placement_attempts`** (random only; default `1000`): fail closed with
+   `ConfigurationError` if a legal field cannot be sampled.
+4. **Episode diversity:** for `grid` / `random` / `layout`, each episode uses a
+   distinct `placement_seed` derived from `episode_seed` so fields (and thus
+   plans) differ across episodes when `episode_count > 1`.
+
+Layout parameters (when `placement: layout`):
+
+- `layout.name: rows` with positive `rows` and `columns` whose product is
+  ≥ `target_count` (first `target_count` cells used in row-major order).
+- `layout.name: arc` with `radius_m > 0`, `span_rad > 0`, `center_xy_m`,
+  optional `z_m` (default field mid-Z), optional `start_angle_rad` (default
+  `-span_rad/2`). All centres must lie inside `field_aabb` (XY) or fail closed.
+
+### Tasks
+
+1. Document policies in `docs/phase7_3_target_placement.md`.
+2. Implement `random` and `layout` placement in the core package (Isaac-free).
+3. Validate separation / keep-outs for all placement modes that generate
+   centres; manual lists fail closed on separation/keep-out violations too.
+4. Ship example configs under `config/phase7_3_*.yml`.
+5. Unit-test sampling determinism, episode diversity, and fail-closed cases.
+6. Keep GitHub Actions CI bootstrap green (`pytest.yml` + `run_verification.sh ci`).
+7. Preserve Phase 7 / 7.1 / 7.2 default smoke gates; integration 2×5 smoke remains
+   opt-in via `--with-integration-smoke`.
+
+### Non-goals
+
+- Interactive GUI drag-and-drop re-placement (optional later).
+- Claiming reachability of every sampled centre (planning failures remain
+  structured Phase 7.2 outcomes).
+- Hardware command or PhysX-as-planner-oracle.
+- Re-arming Phase 1.1 spheres without the separate Phase 1.1 acceptance gates.
 
 ### Acceptance criteria
 
-To be defined when Phase 7.3 requirements are finalized.
+- `placement: random` and `placement: layout` (`rows`, `arc`) produce
+  deterministic fields for a fixed seed and fail closed on infeasible layouts.
+- Keep-outs and EE-clearance `min_center_separation_m` (floor
+  `target_edge_m + flange_diameter_assumption_m`) are enforced for generated
+  and manual centres.
+- Multi-episode suites with non-manual placement yield distinct centre sets
+  across episodes.
+- Example Phase 7.3 configs load in unit tests; Phase 7.2 default configs remain
+  valid.
+- Container CI (`./scripts/run_verification.sh ci`) passes.
+- Host default spark GUI smokes (Phase 7 / 7.1 / 7.2) remain mandatory for
+  Isaac-path changes; integration 2×5 smoke is the opt-in final gate when
+  requested.
+- No physical robot command; core package stays Isaac-free.
 
 ---
+
 
 ## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
 
@@ -1652,13 +1845,13 @@ Use a validated named YAML configuration for:
 - `order` (`shuffle` or `listed`);
 - `retain_targets_after_contact` (default `false`);
 - `max_planning_failure_per_target` defaulting to **`5`**;
-- `max_target_failures` defaulting to **`3`**;
+- `max_reconsider_passes` defaulting to **`target_count`**;
 - `max_failed_episodes` defaulting to **`0`**;
 - root seed; tip/EE allow-list link names; body-contact fail-closed policy;
 - planner/validation/scene profiles and lighting;
-- console/report fields including planning/target/episode failure counts,
-  artifact path, and
-  optional `warn_planning_duration_s`; and
+- console/report fields including planning-attempt totals, deferred/planned
+  target ids, plan-creation order, artifact path, and optional
+  `warn_planning_duration_s`; and
 - dual host-terminal and Isaac-console timing fields.
 
 Host entry points:

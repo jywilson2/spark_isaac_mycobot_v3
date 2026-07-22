@@ -10,6 +10,7 @@ import yaml
 
 from mycobot_curobo.collision_sphere_cover import (
     CollisionSphere,
+    estimate_local_medial_radius_m,
     load_dae_vertex_positions,
     points_covered_by_spheres,
     sparse_cover_points_for_obstacle_edge,
@@ -49,8 +50,9 @@ def test_sparse_cover_contains_all_samples_for_edge() -> None:
     assert len(spheres) < cloud.shape[0]
     assert points_covered_by_spheres(samples, spheres)
     assert points_covered_by_spheres(cloud, spheres)
-    assert all(sphere.radius_m >= 0.5 * edge - 1.0e-12 for sphere in spheres)
-    assert all(sphere.radius_m <= 2.0 * edge + 1.0e-12 for sphere in spheres)
+    assert all(sphere.radius_m > 0.0 for sphere in spheres)
+    # Option A: radii capped by thickness and E (not the old 2E balloon).
+    assert all(sphere.radius_m <= edge + 1.0e-12 for sphere in spheres)
 
 
 def test_covered_envelope_detects_edge_cube_at_sample() -> None:
@@ -66,12 +68,31 @@ def test_covered_envelope_detects_edge_cube_at_sample() -> None:
     assert clearance <= 0.0
 
 
-def test_robot_overlay_loads_phase1_1_edge_and_more_spheres() -> None:
+def test_robot_declares_detectable_edge_while_option_a_disarmed() -> None:
     spec = load_robot_model_spec()
     assert spec.min_detectable_obstacle_edge_m == pytest.approx(0.014)
     total = sum(spec.collision_sphere_count_by_link.values())
-    assert total == 128
-    assert total > 32  # denser than Phase 1 scaffolding
+    assert total == 32  # scaffolding until Option A is reconcilable with planning
+
+
+def test_phase1_1_overlay_file_has_metre_scale_thickness_capped_spheres() -> None:
+    overlay_path = ROOT / "config/robots/mycobot_280_m5_phase1_1_spheres.yml"
+    payload = yaml.safe_load(overlay_path.read_text(encoding="utf-8"))
+    spheres = payload["collision_spheres"]
+    total = sum(len(link_spheres) for link_spheres in spheres.values())
+    assert 32 < total <= 2048
+    assert float(payload["min_detectable_obstacle_edge_m"]) == pytest.approx(0.014)
+    assert payload.get("generator", {}).get("option") == "A_thickness_capped"
+    centers = np.asarray(
+        [sphere["center"] for link_spheres in spheres.values() for sphere in link_spheres],
+        dtype=float,
+    )
+    radii = np.asarray(
+        [sphere["radius"] for link_spheres in spheres.values() for sphere in link_spheres],
+        dtype=float,
+    )
+    assert float(np.max(np.abs(centers))) < 0.5
+    assert float(np.max(radii)) <= 0.014 + 1.0e-9
 
 
 def test_suite_rejects_target_edge_smaller_than_robot_e(tmp_path: Path) -> None:
@@ -85,10 +106,7 @@ def test_suite_rejects_target_edge_smaller_than_robot_e(tmp_path: Path) -> None:
 
 
 def test_dae_loader_prefers_positions_not_uv_map() -> None:
-    mesh = (
-        ROOT
-        / "third_party/mycobot_ros2/mycobot_description/urdf/mycobot_280_m5/joint1.dae"
-    )
+    mesh = ROOT / "third_party/mycobot_ros2/mycobot_description/urdf/mycobot_280_m5/joint1.dae"
     if not mesh.is_file():
         pytest.skip("vendor meshes not downloaded")
     points = load_dae_vertex_positions(mesh)
@@ -100,3 +118,20 @@ def test_dae_loader_prefers_positions_not_uv_map() -> None:
 def test_collision_sphere_mapping_roundtrip() -> None:
     sphere = CollisionSphere(center_m=(0.1, 0.0, 0.0), radius_m=0.02)
     assert sphere.as_mapping() == {"center": [0.1, 0.0, 0.0], "radius": 0.02}
+
+
+def test_thickness_cap_keeps_thin_capsule_radii_below_e() -> None:
+    edge = 0.014
+    # Thin capsule: radius ~4 mm, length 80 mm.
+    zs = np.linspace(0.0, 0.08, 40)
+    ring = np.linspace(0.0, 2.0 * np.pi, 16, endpoint=False)
+    points = []
+    for z in zs:
+        for angle in ring:
+            points.append([0.004 * np.cos(angle), 0.004 * np.sin(angle), z])
+    cloud = np.asarray(points, dtype=float)
+    spheres = sparse_cover_points_for_obstacle_edge(cloud, edge, thickness_cap=True)
+    assert all(sphere.radius_m <= edge + 1.0e-12 for sphere in spheres)
+    assert max(sphere.radius_m for sphere in spheres) < 0.5 * edge
+    medial = estimate_local_medial_radius_m(cloud, cloud[0], neighbor_radius_m=0.03)
+    assert medial < 0.01

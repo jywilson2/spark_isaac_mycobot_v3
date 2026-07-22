@@ -1,0 +1,37 @@
+# Integration-only Phase 7.2 smoke: 2 episodes × 5 targets.
+# Grid placement + shuffle; each episode uses a distinct placement_seed and
+# planner episode_seed so obstacle fields and planned paths differ.
+# Invoked only via smoke_phase7_2_integration_2x5.sh / --with-integration-smoke.
+episode_count: 2
+target_count: 5
+root_seed: 4242
+frame: g_base
+placement: grid
+order: shuffle
+retain_targets_after_contact: false
+tip_allow_link_names:
+  - joint6_flange
+field_aabb:
+  minimum_m: [0.12, -0.20, 0.13]
+  maximum_m: [0.28, 0.02, 0.19]
+# Keep grid Z inside the AABB band (half-band = 0.25 * arm_z). Larger values
+# place cubes near the base and make PhysX tip-face evidence brittle.
+arm_z_motion_range_m: 0.12
+target_edge_m: 0.014
+outward_normal_base: [0.0, 0.0, 1.0]
+flange_diameter_assumption_m: 0.031
+start_joint_position_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+planner_profile: benchmark_reproducible
+validation_profile: simulation_initial
+scene_revision_prefix: phase7_2-integration-2x5
+artifact_path: artifacts/phase7_2
+minimum_self_collision_clearance_m: 0.0
+minimum_world_collision_clearance_m: 0.0
+lighting:
+  dome_intensity: 1000.0
+  distant_intensity: 3000.0
+  distant_angle_deg: [45.0, -30.0, 0.0]
+  color: [1.0, 1.0, 1.0]
+pre_approach_distance_m: 0.01
+fixed_roll_rad: 0.0
+warn_planning_duration_s: 30.0

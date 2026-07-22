@@ -1,62 +1,55 @@
-# Phase 7.3 — Controllable target-block placement (under consideration)
+# Phase 7.3 — Controllable target-block placement
 
-**Status:** Under consideration / brainstorm with Cursor. Not started.
-**Branch (when work begins):** `wip_phase7_3`
+**Status:** Implemented  
+**Branch:** `wip_phase7_3`  
+**Normative text:** [`spec.md`](../spec.md) §8 Phase 7.3.
 
-## Intent (draft)
+## Intent
 
-Give operators and suite authors finer control over where Phase 7.2 numbered
-target blocks are placed in `g_base`, beyond today’s `grid` AABB lattice and
-fully enumerated `manual` lists. Exact APIs, sampling policies, and acceptance
-gates are **to be defined later**.
+Finer control over Phase 7.2 numbered target-block placement than `grid` /
+`manual` alone, with fail-closed separation and keep-out checks. Also stabilizes
+GitHub Actions CI execution for this repository.
 
-## Brainstorm themes (non-normative)
+## Placement policies
 
-Possible directions under discussion (none are committed requirements yet):
+| `placement` | Description |
+|-------------|-------------|
+| `manual` | Explicit `targets[]` (Phase 7.2) |
+| `grid` | XY lattice + mid-Z band; per-episode phase shift |
+| `random` | Seeded constrained-random in AABB / Z band |
+| `layout` | Named `rows` or `arc` layouts |
 
-- Explicit per-target pose editors / YAML schemas with validation against
-  reachability and mutual clearance.
-- Seeded “constrained random” placement inside a declared volume with
-  minimum-separation and keep-out regions.
-- Named layouts (rows, arcs, shelves) parameterized without listing every
-  centre by hand.
-- Stronger CLI/GUI overrides for interactive re-placement during Isaac review.
-- Clear fail-closed errors when a requested layout is infeasible (same spirit
-  as Phase 7.2 structured planning failures).
+Shared controls:
 
-## Also in this revision
+- `min_center_separation_m` (default / floor:
+  `target_edge_m + flange_diameter_assumption_m` for EE tip/flange clearance;
+  must not fall back to `2 * target_edge_m` alone when the flange is larger
+  than the cube edge)
+- `keep_outs` — optional AABB list; target cubes may not intersect
+- `max_placement_attempts` — random sampling budget (default 1000)
 
-Stabilize **GitHub Actions CI** execution for this repository. Landed on this
-branch (workflow-only fix, no container/system Python change):
+Core module: `mycobot_curobo.target_placement`.
 
-- [`.github/workflows/pytest.yml`](../.github/workflows/pytest.yml) installs
-  CPU-safe `numpy` / `pyyaml` / `pytest` / `ruff`, then
-  `pip install --no-deps -e .` (avoids pulling `nvidia-curobo` on runners).
-- Sets `SPARK_PYTEST_PYTHON` to the `actions/setup-python` interpreter so
-  `./scripts/run_verification.sh ci` does not run against bare
-  `/usr/bin/python3` without pytest.
+## Example configs
 
-Also landed (Phase 7.2 gap / Phase 7.3 early placement tweak):
+- `config/phase7_3_multi_target_random.yml`
+- `config/phase7_3_multi_target_layout_rows.yml`
+- `config/phase7_3_multi_target_layout_arc.yml`
 
-- Viewport-visible 7-segment target ID geometry in
-  `isaac_sim/scene_setup.py` `add_target_label` (parent-local Z offset under
-  the cube prim; an earlier world-center child translate double-counted pose).
-- Grid mid-Z variability: centres spaced across
-  `0.5 * arm_z_motion_range_m` about the field AABB mid-Z
-  (`arm_z_motion_range_m` declared; typically vendor working radius 0.28 m).
+```bash
+./scripts/host/smoke_phase7_2_multi_target.sh --config config/phase7_3_multi_target_random.yml --gui --auto-exit
+```
 
-Further volumetric / constrained-random placement APIs remain **to be defined**.
+## Also landed on this branch
 
-## Normative status
-
-Until Phase 7.3 requirements are written into `spec.md` §8 and accepted:
-
-- Prefer Phase 7.2 `grid` / `manual` placement contracts.
-- Do not treat this brainstorm note as acceptance criteria.
-- Do not implement placement features on `wip_phase7_2` after landing.
+- GitHub Actions CI: CPU deps + `--no-deps` editable install +
+  `SPARK_PYTEST_PYTHON` in `.github/workflows/pytest.yml`
+- Viewport 7-segment target ID labels (parent-local Z offset)
+- Grid mid-Z variability (`0.5 * arm_z_motion_range_m`)
+- Contact-state cube highlights; tip collision vs non-contact targets
 
 ## Related
 
-- Phase 7.2 report: [`phase7_2_multi_target_contact.md`](phase7_2_multi_target_contact.md)
+- Phase 7.2: [`phase7_2_multi_target_contact.md`](phase7_2_multi_target_contact.md)
+- Integration smoke (opt-in): `smoke_phase7_2_integration_2x5.sh`
 - Roadmap: [`implementation_phases.md`](implementation_phases.md)
-- Spec: `spec.md` §8 Phase 7.3 (placeholder)

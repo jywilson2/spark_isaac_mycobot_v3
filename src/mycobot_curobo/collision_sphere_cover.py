@@ -1,9 +1,10 @@
 """Offline sparse collision-sphere covers for target-scale obstacles (Phase 1.1).
 
-Centres stay on mesh-derived sample points. Radii grow up to a bound set by the
-minimum detectable obstacle edge ``E`` so an axis-aligned cube of edge ``E``
-that meets the sampled envelope also meets a sphere under project clearance
-math (every sample point is contained in at least one sphere).
+Option A (thickness-capped): centres stay on mesh-derived sample points. Each
+sphere radius is capped by a local medial/thickness estimate (and optionally by
+``E``) so the cover cannot balloon past thin link cross-sections. Remaining
+samples densify with smaller spheres until the edge-``E`` detectability
+guarantee holds under project sphere–AABB clearance math.
 """
 
 from __future__ import annotations
@@ -82,7 +83,6 @@ def load_dae_vertex_positions(path: Path | str) -> np.ndarray:
     candidates = positioned if positioned else fallback
     if not candidates:
         raise ConfigurationError(f"no xyz float_array vertices in {source}")
-    # Prefer the largest positions array when several exist.
     best = max(candidates, key=lambda item: item.shape[0])
     if not np.all(np.isfinite(best)):
         raise ConfigurationError(f"non-finite vertices in {source}")
@@ -124,7 +124,6 @@ def voxel_downsample_points(points_m: np.ndarray, pitch_m: float) -> np.ndarray:
     if points_m.ndim != 2 or points_m.shape[1] != 3 or points_m.shape[0] == 0:
         raise ConfigurationError("points_m must be a non-empty (N,3) array")
     keys = np.floor(points_m / pitch).astype(np.int64)
-    # Lexicographic unique for stable order.
     order = np.lexsort((keys[:, 2], keys[:, 1], keys[:, 0]))
     sorted_keys = keys[order]
     sorted_points = points_m[order]
@@ -133,19 +132,64 @@ def voxel_downsample_points(points_m: np.ndarray, pitch_m: float) -> np.ndarray:
     return sorted_points[unique_mask]
 
 
+def estimate_local_medial_radius_m(
+    points_m: np.ndarray,
+    query_m: np.ndarray,
+    *,
+    neighbor_radius_m: float,
+    min_neighbors: int = 8,
+) -> float:
+    """Estimate local inradius from the thinnest local AABB half-extent.
+
+    Uses neighbours within ``neighbor_radius_m`` (falling back to the nearest
+    ``min_neighbors`` points). Returns a positive finite medial proxy.
+    """
+
+    points = np.asarray(points_m, dtype=float)
+    query = np.asarray(query_m, dtype=float).reshape(3)
+    radius = float(neighbor_radius_m)
+    if points.ndim != 2 or points.shape[1] != 3 or points.shape[0] == 0:
+        raise ConfigurationError("points_m must be a non-empty (N,3) array")
+    if query.shape != (3,) or not np.all(np.isfinite(query)):
+        raise ConfigurationError("query_m must be a finite 3-vector")
+    if not math.isfinite(radius) or radius <= 0.0:
+        raise ConfigurationError("neighbor_radius_m must be positive finite")
+    dist = np.linalg.norm(points - query, axis=1)
+    mask = dist <= radius
+    if int(np.count_nonzero(mask)) < min_neighbors:
+        order = np.argsort(dist)
+        neighbors = points[order[: max(min_neighbors, 1)]]
+    else:
+        neighbors = points[mask]
+    extents = neighbors.max(axis=0) - neighbors.min(axis=0)
+    half = 0.5 * float(np.min(extents))
+    if not math.isfinite(half) or half <= 0.0:
+        # Degenerate neighbourhood (planar/collinear): use mean nearest spacing.
+        positive = dist[dist > 1.0e-9]
+        if positive.size == 0:
+            raise ConfigurationError("cannot estimate medial radius from coincident points")
+        half = 0.5 * float(np.min(positive))
+    return half
+
+
 def sparse_cover_points_for_obstacle_edge(
     points_m: np.ndarray,
     obstacle_edge_m: float,
     *,
-    max_radius_scale: float = 2.0,
-    min_radius_scale: float = 0.5,
+    max_radius_scale: float = 1.0,
+    min_radius_scale: float = 0.25,
+    thickness_cap: bool = True,
+    also_cap_by_e: bool = True,
+    thickness_factor: float = 0.85,
+    max_spheres: int = 512,
 ) -> tuple[CollisionSphere, ...]:
-    """Greedy sparse ball cover of mesh sample points for obstacle edge ``E``.
+    """Greedy thickness-capped ball cover of mesh sample points for edge ``E``.
 
-    Every returned sphere centre is one of the (downsampled) sample points.
-    Radius is at least ``min_radius_scale * E`` and at most
-    ``max_radius_scale * E``, grown to cover as many remaining samples as
-    possible within that cap (sparsity).
+    Option A: each sphere centre is a sample point. Radius is at most
+    ``thickness_factor * local_medial`` and, when ``also_cap_by_e``, also at most
+    ``max_radius_scale * E``. Floor radius is
+    ``min(min_radius_scale * E, thickness_cap)``. Remaining uncovered samples
+    densify until covered or ``max_spheres`` is exceeded (fail closed).
     """
 
     edge = float(obstacle_edge_m)
@@ -153,23 +197,40 @@ def sparse_cover_points_for_obstacle_edge(
         raise ConfigurationError("obstacle_edge_m must be positive finite")
     if max_radius_scale < min_radius_scale or min_radius_scale <= 0.0:
         raise ConfigurationError("radius scales must satisfy max >= min > 0")
-    # Cap raw mesh size before voxel filter (COLLADA dumps can be huge).
+    if not math.isfinite(thickness_factor) or thickness_factor <= 0.0 or thickness_factor > 1.0:
+        raise ConfigurationError("thickness_factor must be in (0, 1]")
+    if max_spheres < 1:
+        raise ConfigurationError("max_spheres must be positive")
     working = np.asarray(points_m, dtype=float)
     if working.shape[0] > 50_000:
         stride = int(math.ceil(working.shape[0] / 50_000))
         working = working[::stride]
-    samples = voxel_downsample_points(working, pitch_m=0.5 * edge)
+    # Slightly finer pitch under thickness caps so thin links still densify
+    # without exploding past the host overlay sphere budget (~1k–2k).
+    pitch = 0.4 * edge if thickness_cap else 0.5 * edge
+    samples = voxel_downsample_points(working, pitch_m=pitch)
     if samples.shape[0] == 0:
         raise ConfigurationError("no samples after voxel downsample")
-    min_radius = min_radius_scale * edge
-    max_radius = max_radius_scale * edge
+    global_max = max_radius_scale * edge
+    global_min = min_radius_scale * edge
     remaining = np.ones(samples.shape[0], dtype=bool)
     spheres: list[CollisionSphere] = []
-    # O(n) greedy: seed at the first remaining sample, cover neighbors within
-    # max_radius (no full pairwise distance matrix).
+    neighbor_r = max(2.0 * edge, 3.0 * pitch)
     while np.any(remaining):
+        if len(spheres) >= max_spheres:
+            raise ConfigurationError(
+                f"sphere budget {max_spheres} exceeded before covering samples"
+            )
         seed_index = int(np.flatnonzero(remaining)[0])
         center = samples[seed_index]
+        if thickness_cap:
+            medial = estimate_local_medial_radius_m(working, center, neighbor_radius_m=neighbor_r)
+            thickness_max = thickness_factor * medial
+        else:
+            thickness_max = global_max
+        max_radius = min(thickness_max, global_max) if also_cap_by_e else thickness_max
+        max_radius = max(max_radius, 1.0e-4)
+        min_radius = min(global_min, max_radius)
         delta = samples - center
         dist = np.linalg.norm(delta, axis=1)
         covered = remaining & (dist <= max_radius)
@@ -185,8 +246,10 @@ def sparse_cover_points_for_obstacle_edge(
             )
         )
         remaining[covered] = False
-    # Grow radii (capped) so remaining working vertices near a sphere are covered
-    # without exploding sphere count.
+        # If the seed itself was not marked covered (numerical), clear it.
+        remaining[seed_index] = False
+
+    # Densify for raw working vertices still outside all spheres.
     centers = np.asarray([sphere.center_m for sphere in spheres], dtype=float)
     radii = np.asarray([sphere.radius_m for sphere in spheres], dtype=float)
     for point in working:
@@ -195,11 +258,20 @@ def sparse_cover_points_for_obstacle_edge(
         needed = float(dist[nearest])
         if needed <= radii[nearest] + 1.0e-9:
             continue
+        if thickness_cap:
+            medial = estimate_local_medial_radius_m(working, point, neighbor_radius_m=neighbor_r)
+            thickness_max = thickness_factor * medial
+        else:
+            thickness_max = global_max
+        max_radius = min(thickness_max, global_max) if also_cap_by_e else thickness_max
+        max_radius = max(max_radius, 1.0e-4)
         if needed <= max_radius + 1.0e-9:
-            radii[nearest] = max(radii[nearest], needed)
+            radii[nearest] = max(radii[nearest], min(needed, max_radius))
             continue
+        if centers.shape[0] >= max_spheres:
+            raise ConfigurationError(f"sphere budget {max_spheres} exceeded during densify pass")
         centers = np.vstack([centers, point.reshape(1, 3)])
-        radii = np.append(radii, min_radius)
+        radii = np.append(radii, min(global_min, max_radius))
     return tuple(
         CollisionSphere(
             center_m=(float(centers[i, 0]), float(centers[i, 1]), float(centers[i, 2])),
@@ -215,11 +287,7 @@ def sample_points_on_sphere_union(
     *,
     seed: int = 0,
 ) -> np.ndarray:
-    """Sample mesh-envelope points on the union of seed spheres (link frame, m).
-
-    Phase 1 scaffolding spheres are treated as a mesh-derived envelope when
-    COLLADA node scales are unavailable. Surface spacing tracks ``E``.
-    """
+    """Sample mesh-envelope points on the union of seed spheres (link frame, m)."""
 
     edge = float(obstacle_edge_m)
     if not math.isfinite(edge) or edge <= 0.0:
@@ -234,7 +302,6 @@ def sample_points_on_sphere_union(
         if radius <= 0.0 or not np.all(np.isfinite(center)):
             raise ConfigurationError("seed spheres must have finite positive radii")
         points.append(center.reshape(1, 3))
-        # Fibonacci-ish count: surface area / (E/2)^2
         area = 4.0 * math.pi * radius * radius
         cell = max(0.25 * edge * edge, 1.0e-8)
         count = max(8, int(math.ceil(area / cell)))
@@ -245,7 +312,6 @@ def sample_points_on_sphere_union(
         directions = np.column_stack(
             (np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi))
         )
-        # Small deterministic jitter keeps samples off exact lattice seams.
         jitter = 0.02 * edge * rng.standard_normal(directions.shape)
         surface = center + radius * directions + jitter
         points.append(surface)
@@ -287,7 +353,6 @@ def parse_urdf_collision_mesh_origins(
         if mesh is None or not mesh.get("filename"):
             continue
         filename = str(mesh.get("filename"))
-        # package://mycobot_description/urdf/mycobot_280_m5/foo.dae
         mesh_name = Path(filename).name
         origin = collision.find("origin")
         xyz = (0.0, 0.0, 0.0)

@@ -11,9 +11,9 @@ import pytest
 
 from mycobot_curobo.errors import ConfigurationError
 from mycobot_curobo.multi_target import (
+    GRID_Z_VARIABILITY_FRACTION,
     ContactEvent,
     ContactKind,
-    GRID_Z_VARIABILITY_FRACTION,
     MultiTargetEpisodeRunner,
     MultiTargetFailureCategory,
     OptimisticTipContactDetector,
@@ -122,7 +122,8 @@ def test_default_config_loads_and_shuffle_is_deterministic() -> None:
     assert config.retain_targets_after_contact is False
     assert config.max_planning_failure_per_target == 5
     assert config.target_count == 2
-    assert config.max_target_failures == 3  # fixed default
+    assert config.max_target_failures == 3  # deprecated; retained for YAML compat
+    assert config.max_reconsider_passes == config.target_count
     assert config.max_failed_episodes == 0
     assert config.tip_allow_link_names == ("joint6_flange",)
     field_a = build_target_field(config, order_seed=123)
@@ -138,6 +139,26 @@ def test_default_config_loads_and_shuffle_is_deterministic() -> None:
         arm_z_motion_range_m=config.arm_z_motion_range_m,
     )
     assert len(centers) == 4
+
+
+def test_integration_2x5_episodes_differ_in_placement_and_seeds() -> None:
+    config = load_multi_target_suite_config(
+        ROOT / "config/phase7_2_multi_target_integration_2x5.yml"
+    )
+    assert config.episode_count == 2
+    assert config.target_count == 5
+    assert config.placement is PlacementPolicy.GRID
+    assert config.order is OrderPolicy.SHUFFLE
+    episodes = sample_multi_target_episodes(config)
+    assert len(episodes) == 2
+    assert episodes[0].episode_seed != episodes[1].episode_seed
+    assert episodes[0].order_seed != episodes[1].order_seed
+    centers_a = tuple(target.center_m for target in episodes[0].field.targets)
+    centers_b = tuple(target.center_m for target in episodes[1].field.targets)
+    assert centers_a != centers_b
+    assert len(set(centers_a)) == 5
+    assert len(set(centers_b)) == 5
+    assert episodes[0].field.contact_order_ids != episodes[1].field.contact_order_ids
 
 
 def test_grid_z_varies_across_half_arm_range() -> None:
@@ -168,7 +189,8 @@ def test_manual_listed_retain_config() -> None:
     assert config.placement is PlacementPolicy.MANUAL
     assert config.order is OrderPolicy.LISTED
     assert config.retain_targets_after_contact is True
-    assert config.max_target_failures == 1
+    assert config.max_target_failures == 1  # deprecated field still loads
+    assert config.max_reconsider_passes == config.target_count
     assert config.max_failed_episodes == 0
     field = build_target_field(config, order_seed=0)
     assert field.contact_order_ids == ("1", "2")
@@ -179,7 +201,7 @@ def test_grid_listed_field_builds_four_targets() -> None:
     config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_grid.yml")
     assert config.placement is PlacementPolicy.GRID
     assert config.order is OrderPolicy.LISTED
-    assert config.max_target_failures == 3  # fixed default
+    assert config.max_reconsider_passes == config.target_count
     field = build_target_field(config, order_seed=0)
     assert field.contact_order_ids == ("1", "2", "3", "4")
     assert len(field.targets) == 4
@@ -200,43 +222,40 @@ def test_episodes_replay_exactly() -> None:
     assert surface.position_base_m.shape == (3,)
 
 
-def test_runner_retries_same_target_until_planning_budget_then_target_fails() -> None:
+def test_runner_retries_same_target_until_budget_then_defers_and_fails_unplanned() -> None:
     config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_manual.yml")
-    episode = sample_multi_target_episodes(config, root_seed=7)[0]
+    episode = sample_multi_target_episodes(config, root_seed=11)[0]
     episode = replace(
         episode,
         max_planning_failure_per_target=2,
-        max_target_failures=0,
+        max_reconsider_passes=1,
     )
     fail = PlanningOutcome(
         plan=None,
         failure=PlanningFailure("planning_infeasible", "no path", "failed"),
     )
-    outcomes = [fail, fail, fail]
+    # Both targets always fail planning → defer all → reconsider once → unplanned.
+    outcomes = [fail] * 20
     planner = _FakePlanner(outcomes)
 
     def planner_factory(seed: int, scene_model: dict, links: tuple[str, ...]) -> _FakePlanner:
         del seed, scene_model, links
         return planner
 
-    def validator(plan: NominalPlan, request: Any, clearance: tuple) -> ValidatedPlan:
-        del clearance
-        return _validated(plan)
-
     runner = MultiTargetEpisodeRunner(
         planner_factory=planner_factory,
-        validator=validator,
+        validator=lambda plan, request, clearance: _validated(plan),
         contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
         console_log=lambda _line: None,
     )
     result = runner.run((episode,))[0]
     assert result.succeeded is False
-    assert result.failure_category is MultiTargetFailureCategory.MAX_TARGET_FAILURES_EXCEEDED
-    assert result.planning_failure_count == 3
-    assert result.target_failure_count == 1
-    assert result.failed_target_ids == (episode.field.contact_order_ids[0],)
-    assert all(leg.to_id == episode.field.contact_order_ids[0] for leg in result.legs)
-    assert all(leg.from_id == "start" for leg in result.legs)
+    assert result.failure_category in {
+        MultiTargetFailureCategory.TARGETS_UNPLANNED,
+        MultiTargetFailureCategory.MAX_RECONSIDER_PASSES_EXCEEDED,
+    }
+    assert set(result.failed_target_ids) == set(episode.field.contact_order_ids)
+    assert result.planned_target_ids == ()
 
 
 def test_leg_keeps_tip_collision_and_strips_only_contact_cube() -> None:
@@ -296,8 +315,8 @@ def test_suite_counts_failed_episodes_against_max_failed_episodes() -> None:
     failed = MultiTargetEpisodeResult(
         episode=episode,
         succeeded=False,
-        failure_category=MultiTargetFailureCategory.MAX_TARGET_FAILURES_EXCEEDED,
-        failure_reason="exhausted",
+        failure_category=MultiTargetFailureCategory.TARGETS_UNPLANNED,
+        failure_reason="unplanned",
         planning_failure_count=5,
         target_failure_count=1,
         failed_target_ids=("1",),
@@ -375,10 +394,71 @@ def test_runner_removes_targets_when_retain_false() -> None:
     assert len(result.legs) == 2
 
 
-def test_episode_passes_without_tip_contact_on_planning_failed_targets() -> None:
+def test_deferred_target_replans_after_blocker_removed() -> None:
+    """Defer first, tip-remove second, reconsider first → all planned."""
+
     config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_manual.yml")
     episode = sample_multi_target_episodes(config, root_seed=7)[0]
-    episode = replace(episode, max_planning_failure_per_target=1, max_target_failures=1)
+    episode = replace(
+        episode,
+        max_planning_failure_per_target=1,
+        max_reconsider_passes=2,
+        retain_targets_after_contact=False,
+    )
+    first_id = episode.field.contact_order_ids[0]
+    second_id = episode.field.contact_order_ids[1]
+    fail = PlanningOutcome(
+        plan=None,
+        failure=PlanningFailure("planning_infeasible", "no path", "failed"),
+    )
+    plan_a = _plan("a", 1)
+    plan_b = _plan("b", 2)
+    # First: two fails -> defer. Second: success (removes). Reconsider first: success.
+    outcomes = [
+        fail,
+        fail,
+        PlanningOutcome(plan=plan_b, failure=None),
+        PlanningOutcome(plan=plan_a, failure=None),
+    ]
+    planner = _FakePlanner(outcomes)
+    scenes: list[dict] = []
+
+    def planner_factory(seed: int, scene_model: dict, links: tuple[str, ...]) -> _FakePlanner:
+        del seed, links
+        scenes.append(scene_model)
+        return planner
+
+    runner = MultiTargetEpisodeRunner(
+        planner_factory=planner_factory,
+        validator=lambda plan, request, clearance: _validated(plan),
+        contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lambda _line: None,
+    )
+    result = runner.run((episode,))[0]
+    assert result.succeeded is True
+    assert set(result.planned_target_ids) == {first_id, second_id}
+    assert result.contacted_ids == (second_id, first_id)
+    assert result.removed_ids == (second_id, first_id)
+    # Successful legs appear in plan-creation order (second then first).
+    ok = [leg for leg in result.legs if leg.planning_succeeded and leg.validation_passed]
+    assert [leg.to_id for leg in ok] == [second_id, first_id]
+    # Reconsider plan for first must omit the tip-removed second cube.
+    first_name = episode.field.target_by_id(first_id).cube_geometry.name
+    second_name = episode.field.target_by_id(second_id).cube_geometry.name
+    reconsider_scene = scenes[-1]
+    cuboids = reconsider_scene.get("cuboid", {})
+    assert second_name not in cuboids
+    assert first_name not in cuboids  # active contact cube also omitted
+
+
+def test_episode_fails_when_deferred_target_remains_unplanned() -> None:
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_manual.yml")
+    episode = sample_multi_target_episodes(config, root_seed=7)[0]
+    episode = replace(
+        episode,
+        max_planning_failure_per_target=1,
+        max_reconsider_passes=1,
+    )
     first_id = episode.field.contact_order_ids[0]
     second_id = episode.field.contact_order_ids[1]
     fail = PlanningOutcome(
@@ -386,7 +466,14 @@ def test_episode_passes_without_tip_contact_on_planning_failed_targets() -> None
         failure=PlanningFailure("planning_infeasible", "no path", "failed"),
     )
     plan = _plan("ok", 1)
-    outcomes = [fail, fail, PlanningOutcome(plan=plan, failure=None)]
+    # First target: two fails -> defer. Second: success. Reconsider first: two fails again.
+    outcomes = [
+        fail,
+        fail,
+        PlanningOutcome(plan=plan, failure=None),
+        fail,
+        fail,
+    ]
     planner = _FakePlanner(outcomes)
 
     def planner_factory(seed: int, scene_model: dict, links: tuple[str, ...]) -> _FakePlanner:
@@ -404,11 +491,11 @@ def test_episode_passes_without_tip_contact_on_planning_failed_targets() -> None
         console_log=lambda _line: None,
     )
     result = runner.run((episode,))[0]
-    assert result.succeeded is True
-    assert result.failed_target_ids == (first_id,)
-    assert result.contacted_ids == (second_id,)
-    assert result.target_failure_count == 1
-    assert first_id not in result.contacted_ids
+    assert result.succeeded is False
+    assert result.failure_category is MultiTargetFailureCategory.TARGETS_UNPLANNED
+    assert first_id in result.failed_target_ids
+    assert second_id in result.planned_target_ids
+    assert second_id in result.contacted_ids
 
 
 def test_tip_miss_after_successful_plan_aborts_episode() -> None:
@@ -513,7 +600,7 @@ def test_override_target_count_truncates_manual_list() -> None:
     config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target.yml")
     overridden = override_suite_target_count(config, 1)
     assert overridden.target_count == 1
-    assert overridden.max_target_failures == 3  # fixed default; not rescaled
+    assert overridden.max_reconsider_passes == overridden.target_count
     assert overridden.placement is PlacementPolicy.MANUAL
     assert len(overridden.manual_targets) == 1
     assert overridden.manual_targets[0].target_id == "1"
@@ -525,7 +612,7 @@ def test_override_target_count_switches_to_grid_when_manual_too_short() -> None:
     config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target.yml")
     overridden = override_suite_target_count(config, 5)
     assert overridden.target_count == 5
-    assert overridden.max_target_failures == 3  # fixed default; not rescaled
+    assert overridden.max_reconsider_passes == overridden.target_count
     assert overridden.placement is PlacementPolicy.GRID
     assert overridden.manual_targets == ()
     field = build_target_field(overridden, order_seed=0)

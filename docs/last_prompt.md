@@ -1,3 +1,142 @@
+## BEGIN: 2026-07-22 02:32 -0700
+
+Build and test the code that implements this spec change.
+
+If all tests pass then commit and push to github, along with a rebase with main, also pushed to github.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-22 02:29 -0700
+
+Can you create a spec change in the section that describes how targets are generated in Z, to also indicate that targets will be genreated with sufficient distance from each other to satisfy clearance requirements of the EE. This should prevent the mutual proximal deadlock problem discussed above.
+
+## END
+
+
+## BEGIN: 2026-07-21 14:01 -0700
+
+Perform a smoke test with 2 episodes and 5 targets. If it passes, then commit these changes and push to github and rebase with main, and also push to the main branch.
+
+## END
+
+
+## BEGIN: 2026-07-21 13:44 -0700
+
+Update the spec as described above.
+
+Then provide an implementation for this and "Option A".
+
+## END
+
+
+## BEGIN: 2026-07-21 13:40 -0700
+
+Can you formulate an upate to the spcification that describes the following:
+
+When path planning is performed it should consider only those obstacles which remain after have been removed by tip contact.
+
+Also, reconsider paths for remaining targets that were skipped after repeated retries.
+
+The paths should be replayed in the same order that they were created.
+
+After all of the above steps all targets should have successfully planned paths. If any remain unplanned in an episode, then the test should fail.
+
+## END
+
+## BEGIN: 2026-07-21 13:31 -0700
+
+Can you elaborate on this: "Phase 1.1 sphere overlay remains disarmed pending approval of a revision option in spec.md."
+
+## END
+
+## BEGIN: 2026-07-21 12:22 -0700
+
+Review @spec.md and continue implementation of all 7.3 features. Iterate on these changes and fix as needed if there is a test failure.
+
+Perform the optional integration (smoke) test when all other tests have passed, and make this the final gate. Resolve any issues that arrise and continue iteration.
+
+## END
+
+## BEGIN: 2026-07-21 12:17 -0700
+
+Can you define a smoke test that with two episodes, each with 5 targets. The target placement (and path planning) should be different for each episode. This test should be run only when integration testing is required.
+
+Update the acceptance criteria in the appropriate document to reflect this.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-21 12:14 -0700
+
+What are the episode and target paremeters for the smoke tests?
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-21 12:11 -0700
+
+Yes, add this acceptanace bullet.
+
+To be clear in the spec, collision spheres were only added in phase 7.3, correct?
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-21 12:07 -0700
+
+Can you show me the spec change for Option A, and also the specific wording that requires the headless and GUI tests to verify that self-collision is detected and that collision with unremoved targets is also detected.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-21 12:03 -0700
+
+Option B would only work for cubes placed in the world for testing, right? When this code is used with a physical arm, will any of these options support path planning around obstacles identified by external sensors in the real-world?
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-21 12:00 -0700
+
+Before I decide, can you tell me if this works for both self-collision and collision with other targets still not contacted?
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-21 11:43 -0700
+
+Using headless mode for testing, veriify that the collision spheres are working. If not iterate on this problem.
+
+Feel free to propose a new approach to creation and use of the collision spheres. If a new approach is recommended stop iterating, make a change to @spec.md and await approval to proceed.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-21 11:38 -0700
+
+Does the headless and GUI test check for collisions which occur when the arm is moving toward a designated target?
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-21 11:36 -0700
+
+What is the current branch?
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-07-20 21:03 -0700
 
 Mark STATUS.md with a the following to allow me to pick up where I left off after a long delay.

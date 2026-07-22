@@ -3,12 +3,12 @@
 set -euo pipefail
 
 usage() {
-  printf 'Usage: %s [--headless|--gui] [--auto-exit|--no-auto-exit] [--manual] [--targets N] [--episodes N]\n' "$0"
+  printf 'Usage: %s [--headless|--gui] [--auto-exit|--no-auto-exit] [--manual] [--config PATH] [--targets N] [--episodes N]\n' "$0"
 }
 
 main() {
   local root mode auto_exit manual vendor_urdf prepared_usd nested_prepared_usd
-  local report bundle suite_status config targets episodes artifact_tag
+  local report bundle suite_status config targets episodes artifact_tag config_override
   local -a plan_args
 
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -17,12 +17,21 @@ main() {
   manual=0
   targets=""
   episodes=""
+  config_override=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --headless|--gui) mode="$1"; shift ;;
       --auto-exit) auto_exit="--auto-exit"; shift ;;
       --no-auto-exit) auto_exit="--no-auto-exit"; shift ;;
       --manual) manual=1; shift ;;
+      --config)
+        if [[ $# -lt 2 ]]; then
+          printf 'ERROR: --config requires a YAML path\n' >&2
+          return 2
+        fi
+        config_override="$2"
+        shift 2
+        ;;
       --targets)
         if [[ $# -lt 2 ]]; then
           printf 'ERROR: --targets requires a positive integer\n' >&2
@@ -86,7 +95,22 @@ main() {
     return 1
   fi
 
-  if [[ "${manual}" -eq 1 ]]; then
+  if [[ -n "${config_override}" ]]; then
+    if [[ "${manual}" -eq 1 ]]; then
+      printf 'ERROR: --config and --manual are mutually exclusive\n' >&2
+      return 2
+    fi
+    if [[ "${config_override}" != /* ]]; then
+      config_override="${root}/${config_override}"
+    fi
+    if [[ ! -f "${config_override}" ]]; then
+      printf 'ERROR: suite config not found: %s\n' "${config_override}" >&2
+      return 2
+    fi
+    config="${config_override}"
+    report="${SPARK_PHASE7_2_REPORT:-${root}/artifacts/reports/phase7_2_multi_target_custom.json}"
+    bundle="${SPARK_PHASE7_2_BUNDLE:-${root}/artifacts/reports/phase7_2_multi_target_custom.bundle.json}"
+  elif [[ "${manual}" -eq 1 ]]; then
     config="${root}/config/phase7_2_multi_target_manual.yml"
     report="${SPARK_PHASE7_2_REPORT:-${root}/artifacts/reports/phase7_2_multi_target_manual.json}"
     bundle="${SPARK_PHASE7_2_BUNDLE:-${root}/artifacts/reports/phase7_2_multi_target_manual.bundle.json}"
@@ -103,9 +127,9 @@ main() {
   elif [[ -n "${episodes}" ]]; then
     artifact_tag="ep${episodes}"
   fi
-  if [[ -n "${artifact_tag}" ]]; then
-    report="${SPARK_PHASE7_2_REPORT:-${root}/artifacts/reports/phase7_2_multi_target_${artifact_tag}.json}"
-    bundle="${SPARK_PHASE7_2_BUNDLE:-${root}/artifacts/reports/phase7_2_multi_target_${artifact_tag}.bundle.json}"
+  if [[ -n "${artifact_tag}" && -z "${SPARK_PHASE7_2_REPORT:-}" ]]; then
+    report="${root}/artifacts/reports/phase7_2_multi_target_${artifact_tag}.json"
+    bundle="${root}/artifacts/reports/phase7_2_multi_target_${artifact_tag}.bundle.json"
   fi
   mkdir -p "$(dirname "${report}")"
 

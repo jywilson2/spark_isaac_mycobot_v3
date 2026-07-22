@@ -39,8 +39,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--mesh-dir",
         type=Path,
-        default=REPO_ROOT
-        / "third_party/mycobot_ros2/mycobot_description/urdf/mycobot_280_m5",
+        default=REPO_ROOT / "third_party/mycobot_ros2/mycobot_description/urdf/mycobot_280_m5",
     )
     parser.add_argument(
         "--obstacle-edge-m",
@@ -87,13 +86,24 @@ def main(argv: list[str] | None = None) -> int:
                 raise ConfigurationError(
                     f"mesh extent {max_extent:.3f} m exceeds 0.5 m; check units"
                 )
-            cover = sparse_cover_points_for_obstacle_edge(points, edge)
+            cover = sparse_cover_points_for_obstacle_edge(
+                points,
+                edge,
+                max_radius_scale=1.0,
+                min_radius_scale=0.25,
+                thickness_cap=True,
+                also_cap_by_e=True,
+                thickness_factor=0.85,
+                max_spheres=2048,
+            )
+            radii = [sphere.radius_m for sphere in cover]
+            r_max = max(radii) if radii else 0.0
         except ConfigurationError as exc:
             raise SystemExit(f"{link}: {exc}") from exc
         new_spheres[link] = [sphere.as_mapping() for sphere in cover]
         counts[link] = len(cover)
         print(
-            f"{link}: {counts[link]} spheres max_extent_m={max_extent:.4f}",
+            f"{link}: {counts[link]} spheres max_extent_m={max_extent:.4f} r_max_m={r_max:.4f}",
             flush=True,
         )
 
@@ -103,14 +113,39 @@ def main(argv: list[str] | None = None) -> int:
         "generator": {
             "script": "scripts/host/regenerate_target_scale_collision_spheres.py",
             "obstacle_edge_m": edge,
-            "max_radius_scale": 2.0,
-            "min_radius_scale": 0.5,
-            "voxel_pitch_scale": 0.5,
+            "option": "A_thickness_capped",
+            "max_radius_scale": 1.0,
+            "min_radius_scale": 0.25,
+            "thickness_cap": True,
+            "also_cap_by_e": True,
+            "thickness_factor": 0.85,
             "source": "urdf_collision_dae_positions",
         },
     }
     total = sum(counts.values())
     print(f"total_spheres={total} E={edge}", flush=True)
+    # Fail closed on unit-scale mistakes (e.g. millimetre vertices without
+    # COLLADA meter scaling) that explode count and place centres metres away.
+    max_abs_center_m = 0.0
+    for link_spheres in new_spheres.values():
+        for sphere in link_spheres:
+            center = sphere["center"]
+            max_abs_center_m = max(
+                max_abs_center_m,
+                abs(float(center[0])),
+                abs(float(center[1])),
+                abs(float(center[2])),
+            )
+    if max_abs_center_m > 0.5:
+        raise SystemExit(
+            f"refusing to write overlay: max |sphere center|={max_abs_center_m:.3f} m "
+            "(expected link-frame metres; check COLLADA unit scaling)"
+        )
+    if total > 2048:
+        raise SystemExit(
+            f"refusing to write overlay: total_spheres={total} exceeds 2048 "
+            f"for E={edge} (likely mesh unit / cover bug)"
+        )
     if args.dry_run:
         return 0
     header = (

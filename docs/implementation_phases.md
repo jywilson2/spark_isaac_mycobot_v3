@@ -79,8 +79,9 @@ flowchart LR
 
 **Branch:** `wip_phase7_3`
 
-**Status:** Implemented — mesh DAE cover → committed overlay (128 spheres for
-`E = 0.014 m`). See [`spec.md`](../spec.md) §8 Phase 1.1 and
+**Status:** Option A thickness-capped cover implemented (1012 spheres /
+`E=0.014 m`); disarmed — planning regressions vs 7.1/7.2 GPU when armed. See
+[`spec.md`](../spec.md) §8 Phase 1.1 and
 [`docs/phase1_1_target_scale_collision_spheres.md`](phase1_1_target_scale_collision_spheres.md).
 
 **Objective:** Offline, mesh-constrained, sparse static spheres so cuRobo
@@ -244,8 +245,8 @@ closed. Design a typed multi-target API reusable by later hardware adapters.
 
 - Core Isaac-free `TargetField`, order policy, retain flag, and
   `MultiTargetEpisodeRunner` with per-target planning retries
-  (`max_planning_failure_per_target` default **`5`**),
-  `max_target_failures` defaulting to **`3`**, and
+  (`max_planning_failure_per_target` default **`5`**), deferral /
+  reconsider (`max_reconsider_passes` default **`target_count`**), and
   `max_failed_episodes` defaulting to **`0`**;
 - `ContactDetector` protocol (PhysX tip vs body in Isaac; HW later);
 - Numbered viewport labels, tip/body recolor, dual console timing;
@@ -267,24 +268,21 @@ on non-failed targets, zero body contacts.
 
 ---
 
-## Phase 7.3 — Controllable target-block placement (under consideration)
+## Phase 7.3 — Controllable target-block placement
 
-**Branch:** `wip_phase7_3` (planning / specification)
+**Branch:** `wip_phase7_3`
 
-**Status:** Under consideration — brainstorm with Cursor; requirements TBD.
+**Status:** Implemented — `random` / `layout` (`rows`, `arc`) placement with
+keep-outs and separation; CI bootstrap fix; labels / grid Z variability.
 
-**Objective (draft):** Provide finer control over Phase 7.2 target-block
-placement than grid AABB / fully manual lists alone. Exact placement
-policies, CLI/GUI controls, and acceptance criteria will be defined later.
-This revision is also expected to fix GitHub Actions CI execution issues on
-remote runners.
+**Objective:** Finer Phase 7.2 target-block placement control plus remote CI
+repair. See [`spec.md`](../spec.md) §8 Phase 7.3 and
+[`docs/phase7_3_target_placement.md`](phase7_3_target_placement.md).
 
-**Must not (until requirements land):** Treat brainstorm notes as normative;
-weaken Phase 7 / 7.1 / 7.2 gates; command hardware.
+**Must not:** Weaken Phase 7 / 7.1 / 7.2 default smoke gates; command hardware;
+treat PhysX as the planner collision oracle.
 
 **Entry criteria:** Phase 7.2 acceptance passes.
-
-See [`docs/phase7_3_target_placement.md`](phase7_3_target_placement.md).
 
 ---
 

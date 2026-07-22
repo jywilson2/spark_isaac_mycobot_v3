@@ -437,6 +437,14 @@ def load_robot_model_spec(
     )
 
 
+# Project-owned kinematics keys that must not be forwarded to cuRobo
+# ``KinematicsLoaderCfg`` (unknown kwargs fail planner construction).
+_CUROBO_EXCLUDED_KINEMATICS_KEYS = (
+    "min_detectable_obstacle_edge_m",
+    "collision_sphere_overlay_path",
+)
+
+
 def load_curobo_robot_config(
     config_path: Path | str = Path("config/robots/mycobot_280_m5.yml"),
 ) -> dict[str, Any]:
@@ -446,6 +454,10 @@ def load_curobo_robot_config(
     directory, not against an external YAML file. Resolving these two fields
     before calling ``MotionPlannerCfg.create(robot=data)`` is therefore
     required for a portable project-owned robot configuration.
+
+    Phase 1.1 overlay spheres are merged in-place; project-only keys
+    (``min_detectable_obstacle_edge_m``, ``collision_sphere_overlay_path``)
+    are stripped so cuRobo receives only format-2.0 kinematics fields.
     """
 
     path = Path(config_path).resolve()
@@ -454,6 +466,8 @@ def load_curobo_robot_config(
     load_robot_model_spec(path)
     kinematics = payload["robot_cfg"]["kinematics"]
     apply_collision_sphere_overlay(kinematics, path)
+    for key in _CUROBO_EXCLUDED_KINEMATICS_KEYS:
+        kinematics.pop(key, None)
     kinematics["asset_root_path"] = str(
         _resolve_repo_path(path, str(kinematics["asset_root_path"]))
     )

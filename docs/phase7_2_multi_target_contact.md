@@ -2,10 +2,10 @@
 
 ## Status
 
-**Complete.** Three-tier failure counting
-(`max_planning_failure_per_target` / `max_target_failures` /
-`max_failed_episodes`), tip-contact-only-for-planned-targets, and
-`--no-auto-exit` continuous replay are landed. Normative criteria remain in
+**Complete** (including deferral / reconsider / all-targets-planned). Budgets:
+`max_planning_failure_per_target`, `max_reconsider_passes` (default
+`target_count`), `max_failed_episodes`. Playback follows plan-creation order.
+`--no-auto-exit` continuous replay is landed. Normative criteria remain in
 [`spec.md`](../spec.md) §8 Phase 7.2.
 
 Authoritative acceptance criteria are in [`spec.md`](../spec.md) §8.
@@ -25,11 +25,12 @@ Phase 7.2 extends, but does not replace:
 - Phase 4 independent validation; and
 - Phase 7 Isaac validated-plan playback.
 
-An episode succeeds when every **non-failed** target is tip-contacted (and
-removed when configured), planning-failed targets are within
-`max_target_failures`, tip miss after a successful plan aborts immediately, and
-there is zero prohibited body–target contact. Tip contact is not required for
-targets that never attempted motion.
+An episode **PASS**es only when **every** field target ends with a successful
+validated plan and tip contact (removed when configured), playback order matches
+plan-creation order, tip miss after a successful plan aborts immediately, and
+there is zero prohibited body–target contact. Deferred targets are reconsidered
+after tip-removals; any remaining unplanned target fails the episode
+(`targets_unplanned`).
 
 ## Documentation conventions
 
@@ -55,9 +56,10 @@ orchestration over successive validated plans with an explicit world revision.
 | `retain_targets_after_contact` | `false` (default): remove on tip contact; `true`: keep geometry |
 | `MultiTargetEpisodeRunner` | Leg loop: plan → validate → execute/play → contact → retry/advance |
 | `ContactDetector` protocol | Returns tip-allowed / body-prohibited / none (Isaac or HW) |
-| `max_planning_failure_per_target` | Per-target planning-failure ceiling (default **`5`**) |
-| `max_target_failures` | Episode budget on failed targets (default = **`3`**) |
+| `max_planning_failure_per_target` | Per-target planning-failure ceiling before deferral (default **`5`**) |
+| `max_reconsider_passes` | Reconsider passes over deferred targets (default **`target_count`**) |
 | `max_failed_episodes` | Suite acceptance budget on failed episodes (default **`0`**) |
+| `max_target_failures` | Deprecated; must not allow PASS with unplanned targets |
 
 ### Placement
 
@@ -68,8 +70,14 @@ orchestration over successive validated plans with an explicit world revision.
   vertical envelope (typically the vendor working radius); the Z band is not
   clipped to the thin field AABB Z span. Geometry is deterministic from
   config; only contact **order** is shuffled when `order: shuffle`.
+  Generated centres must also satisfy **EE clearance spacing**: pairwise
+  centre distance ≥ `target_edge_m + flange_diameter_assumption_m` (or a
+  stricter `min_center_separation_m`) so two remaining neighbors cannot
+  mutually deadlock tip/EE approach. Z-band placement does not relax XY
+  clearance.
 - **`manual`:** caller provides the full numbered target list (id, position,
-  normal, roll policy). No position sampling.
+  normal, roll policy). No position sampling; lists fail closed if they
+  violate the effective EE-clearance minimum.
 
 ### Contact order
 
@@ -92,24 +100,26 @@ Three tiers:
 1. **Planning failure:** each failed plan/validation attempt for the current
    target increments `current_count_planning_failure_per_target`. Retry the
    same target until success or the count **exceeds**
-   `max_planning_failure_per_target` (default **`5`**) → **target failure**.
-2. **Target failure:** increment episode `target_failure_count` and skip to the
-   next target. If `target_failure_count` **exceeds** `max_target_failures`
-   (default = **`3`**) → **episode failure**.
+   `max_planning_failure_per_target` (default **`5`**) → **defer** the target.
+2. **Deferral / reconsider:** deferred targets are reconsidered after
+   tip-contact removals (`max_reconsider_passes`, default **`target_count`**).
+   If any target remains unplanned → **episode failure** (`targets_unplanned`).
 3. **Episode failure:** suite `failed_episodes` must be
    `<= max_failed_episodes` (default **`0`**) for acceptance.
 
-Tip contact is required only for targets whose plan/validation succeeded and
-whose motion ran. After such a leg, tip miss → episode **FAIL**
-(`tip_contact_missed`) immediately. Planning-failed targets skip motion; their
-missing tip contact does not fail the episode by itself.
+Tip contact is required for every planned leg that is played. Tip miss →
+episode **FAIL** (`tip_contact_missed`) immediately. Exceeding per-target
+planning retries **defers** the target for reconsider after tip-removals; the
+episode still **FAIL**s if any target remains unplanned at the end
+(`targets_unplanned`). See `spec.md` §8 Phase 7.2.
 
 | Name | Kind | Default | Role |
 |------|------|---------|------|
-| `current_count_planning_failure_per_target` | Observed | starts at `0` | Planning failures for the active target (resets on advance) |
-| `max_planning_failure_per_target` | Config | **`5`** | Per-target planning-failure ceiling |
-| `max_target_failures` | Config | **`3`** | Episode ceiling on failed targets |
+| `current_count_planning_failure_per_target` | Observed | starts at `0` | Planning failures for the active target (resets on advance / reconsider) |
+| `max_planning_failure_per_target` | Config | **`5`** | Per-target planning-failure ceiling before deferral |
+| `max_reconsider_passes` | Config | **`target_count`** | Ceiling on reconsider passes over deferred targets |
 | `max_failed_episodes` | Config | **`0`** | Suite acceptance ceiling on failed episodes |
+| `max_target_failures` | Config (deprecated) | **`3`** | Must not allow PASS with unplanned targets |
 
 
 ### Flange-normal approach
@@ -121,12 +131,26 @@ tip/EE allow-list only.
 
 ### Planning obstacles
 
-Each leg strips only the **active contact** cube from the cuRobo world (and from
-independent world clearance) so the tip can occupy the face centre. All other
-remaining targets stay as cuboid obstacles for **tip and body**. Multi-target
-`plan_grasp` uses empty `disable_collision_links`; `tip_allow_link_names` is for
-Isaac PhysX tip-vs-body classification only. Near blockers therefore force tip
-detours rather than tip paths through other cubes.
+Each leg builds the cuRobo world (and independent world clearance) from
+**targets that remain after tip-contact removals** when
+`retain_targets_after_contact` is false. Tip-contacted cubes are gone. The
+**active contact** cube is also omitted so the tip can occupy the face centre.
+All other still-present targets stay as cuboid obstacles for **tip and body**.
+Multi-target `plan_grasp` uses empty `disable_collision_links`;
+`tip_allow_link_names` is for Isaac PhysX tip-vs-body classification only.
+
+### Deferral, reconsider, and all-targets-planned
+
+Normative detail: `spec.md` §8 Phase 7.2 **Clearance, deferral, and reconsider**.
+Implemented in `MultiTargetEpisodeRunner` on `wip_phase7_3`.
+
+- Exceeding `max_planning_failure_per_target` **defers** the target for the
+  current pass (does not permanently clear the episode requirement).
+- After tip-contact removals shrink the obstacle set, **reconsider** deferred
+  targets (reset per-target attempt counters).
+- Episode **FAIL** (`targets_unplanned`) if any target remains without a
+  successful validated plan after reconsider is exhausted.
+- Playback replays successful legs in **plan-creation order**.
 
 ## Call and control flow
 
@@ -140,21 +164,27 @@ flowchart TD
   world --> plan[cuRobo plan_grasp flange-normal]
   plan -->|fail| retry{plan fails less than max per target?}
   retry -->|yes| plan
-  retry -->|no| failTgt[Target FAIL then next or episode FAIL]
+  retry -->|no| defer[Defer target then next unfinished]
   plan -->|ok| val[Independent validation]
   val -->|fail| retry
-  val -->|ok| exec[Playback or execution seam]
-  exec --> contact{ContactDetector}
+  val -->|ok| record[Record plan in creation order]
+  record --> more{More unfinished this pass?}
+  more -->|yes| leg
+  more -->|no| recon{Deferred remain and progress possible?}
+  recon -->|yes| leg
+  recon -->|no unplanned| play[Playback plans in creation order]
+  recon -->|stuck unplanned| failUnp[Episode FAIL targets_unplanned]
+  play --> contact{ContactDetector per leg}
   contact -->|body| failBody[Episode FAIL body_contact]
   contact -->|tip miss| failTip[Episode FAIL tip_contact_missed]
   contact -->|tip allowed| mark[Recolor message timings]
   mark --> retain{retain after contact?}
   retain -->|no| remove[Remove target from field and world]
   retain -->|yes| keep[Keep geometry mark contacted]
-  remove --> more{More targets?}
-  keep --> more
-  more -->|yes| leg
-  more -->|no| passEp[Episode PASS if non-failed targets tip-contacted]
+  remove --> nextPlay{More planned legs?}
+  keep --> nextPlay
+  nextPlay -->|yes| play
+  nextPlay -->|no| passEp[Episode PASS all targets planned and tip-contacted]
 ```
 
 Host Isaac path keeps the Phase 7.1 split: **planning process** (cuRobo only)
@@ -245,6 +275,22 @@ Host CLI overrides (normative detail in `spec.md` §8 / §9):
 ```bash
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 10 --episodes 5
 ```
+
+### Integration smoke (2 episodes × 5 targets)
+
+Opt-in host gate (not part of default spark GUI smoke):
+
+```bash
+./scripts/host/smoke_phase7_2_integration_2x5.sh --headless --auto-exit
+./scripts/host/smoke_phase7_2_integration_2x5.sh --gui --auto-exit
+# or
+./scripts/run_verification.sh spark --with-integration-smoke
+```
+
+Uses `config/phase7_2_multi_target_integration_2x5.yml` (grid + shuffle). Each
+episode gets a distinct grid `placement_seed` and planner `episode_seed` so
+target placement and planned paths differ. Required by Phase 1.1 acceptance
+before re-arming denser collision spheres (`spec.md` §8 Phase 1.1).
 
 With `--no-auto-exit`, Kit **replays** episodes indefinitely after the first
 pass (close the window or Ctrl+C). Planning non-zero exit does not skip

@@ -30,27 +30,37 @@ Usage: ./scripts/run_verification.sh <ci|spark|help>
             4) Optional: pytest -m gpu tests/integration when CUDA/cuRobo exist
             5) Required Phase 7 validated-plan GUI smoke
             6) Required Phase 7.1 cube-suite GUI smoke
+            7) Required Phase 7.2 default multi-target GUI smoke
+            8) Optional: Phase 7.2 integration 2×5 headless+GUI smoke
 
 Options (after mode):
   --skip-pytest    Skip the unit suite (debug only)
   --skip-ruff      Skip lint/format checks (debug only)
   --with-gpu       For spark/ci: also run GPU-marked integration tests
+  --with-integration-smoke
+                   Host only: run Phase 7.2 integration smoke
+                   (2 episodes × 5 targets, distinct placement/paths)
+                   headless then GUI. Also enabled by
+                   SPARK_RUN_INTEGRATION_SMOKE=1.
 
 Examples:
   ./scripts/run_verification.sh ci
   ./scripts/run_verification.sh spark --with-gpu
+  ./scripts/run_verification.sh spark --with-integration-smoke
 EOF
 }
 
 SKIP_PYTEST=0
 SKIP_RUFF=0
 WITH_GPU=0
+WITH_INTEGRATION_SMOKE=0
 EXTRA=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-pytest) SKIP_PYTEST=1; shift ;;
     --skip-ruff) SKIP_RUFF=1; shift ;;
     --with-gpu) WITH_GPU=1; shift ;;
+    --with-integration-smoke) WITH_INTEGRATION_SMOKE=1; shift ;;
     -h|--help|help)
       usage
       exit 0
@@ -191,6 +201,20 @@ run_phase7_2_isaac_gui_smoke() {
   fi
 }
 
+run_phase7_2_integration_2x5_smoke() {
+  echo "=== Phase 7.2 integration smoke (2 episodes × 5 targets) ==="
+  local mode
+  for mode in --headless --gui; do
+    echo "--- integration 2x5 ${mode} ---"
+    if [[ -f /.dockerenv ]]; then
+      bash "${ROOT}/scripts/host/spark_host_exec.sh" \
+        ./scripts/host/smoke_phase7_2_integration_2x5.sh "${mode}" --auto-exit
+    else
+      bash "${ROOT}/scripts/host/smoke_phase7_2_integration_2x5.sh" "${mode}" --auto-exit
+    fi
+  done
+}
+
 
 case "${MODE}" in
   ci)
@@ -204,6 +228,9 @@ case "${MODE}" in
       run_gpu_integration
     else
       echo "NOTE: GPU integration not run (pass --with-gpu when CUDA/cuRobo available)."
+    fi
+    if [[ "${WITH_INTEGRATION_SMOKE}" -eq 1 || "${SPARK_RUN_INTEGRATION_SMOKE:-0}" == "1" ]]; then
+      echo "NOTE: --with-integration-smoke requires the Spark host Isaac stack; skipping in CI."
     fi
     echo "=== CI verification PASSED ==="
     ;;
@@ -222,6 +249,11 @@ case "${MODE}" in
     run_isaac_gui_smoke
     run_phase7_1_isaac_gui_smoke
     run_phase7_2_isaac_gui_smoke
+    if [[ "${WITH_INTEGRATION_SMOKE}" -eq 1 || "${SPARK_RUN_INTEGRATION_SMOKE:-0}" == "1" ]]; then
+      run_phase7_2_integration_2x5_smoke
+    else
+      echo "NOTE: Phase 7.2 integration 2×5 smoke not run (pass --with-integration-smoke or SPARK_RUN_INTEGRATION_SMOKE=1)."
+    fi
     echo "=== Spark verification PASSED ==="
     ;;
   *)

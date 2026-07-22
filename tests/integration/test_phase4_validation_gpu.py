@@ -59,7 +59,8 @@ def test_nominal_plan_passes_independent_fk_limits_and_collision_validation() ->
     rotation = _quaternion_to_rotation(known_pose.quaternion_wxyz)
     target = SurfaceTarget.create(
         position_base_m=known_pose.position_m,
-        surface_normal_base=rotation[:, 2],
+        # Tip-face: outward normal opposes TCP +Z (tool_approach_sign=+1).
+        surface_normal_base=-rotation[:, 2],
         tangent_hint_base=rotation[:, 0],
         fixed_roll_rad=0.0,
         pre_approach_distance_m=0.01,

@@ -64,9 +64,11 @@ def test_reachable_plan_grasp_returns_two_reproducible_normal_line_segments() ->
     known_goal_q = np.array([0.3, -0.1, 0.1, 0.0, 0.0, 0.0])
     known_pose = forward_kinematics(known_goal_q, spec=model)
     rotation = _quaternion_to_rotation(known_pose.quaternion_wxyz)
+    # Tip-face convention (tool_approach_sign=+1): outward surface normal
+    # opposes TCP +Z so approach (-normal) recovers the known FK pose.
     target = SurfaceTarget.create(
         position_base_m=known_pose.position_m,
-        surface_normal_base=rotation[:, 2],
+        surface_normal_base=-rotation[:, 2],
         tangent_hint_base=rotation[:, 0],
         fixed_roll_rad=0.0,
         pre_approach_distance_m=0.01,

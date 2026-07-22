@@ -51,7 +51,8 @@ def test_every_collision_link_has_static_spheres() -> None:
         "joint6_flange",
     }
     assert all(count >= 1 for count in spec.collision_sphere_count_by_link.values())
-    assert sum(spec.collision_sphere_count_by_link.values()) == 128
+    # Option A overlay remains disarmed (planning regressions vs 7.1/7.2 GPU).
+    assert sum(spec.collision_sphere_count_by_link.values()) == 32
     assert spec.min_detectable_obstacle_edge_m == pytest.approx(0.014)
 
 
@@ -75,6 +76,45 @@ def test_curobo_adapter_resolves_external_paths_absolutely() -> None:
     assert Path(kinematics["urdf_path"]).is_file()
     assert Path(kinematics["asset_root_path"]).is_absolute()
     assert kinematics["grasp_contact_link_names"] == []
+
+
+def test_curobo_adapter_strips_project_only_keys() -> None:
+    """Phase 1.1 keys must not reach cuRobo KinematicsLoaderCfg."""
+
+    payload = load_curobo_robot_config(ROBOT_CONFIG)
+    kinematics = payload["robot_cfg"]["kinematics"]
+    assert "min_detectable_obstacle_edge_m" not in kinematics
+    assert "collision_sphere_overlay_path" not in kinematics
+
+
+def test_curobo_adapter_merges_overlay_when_path_enabled(tmp_path: Path) -> None:
+    """Overlay merge + strip still works when explicitly enabled for trials."""
+
+    overlay = ROOT / "config" / "robots" / "mycobot_280_m5_phase1_1_spheres.yml"
+    if not overlay.is_file():
+        pytest.skip("Phase 1.1 overlay candidate missing")
+    payload = yaml.safe_load(ROBOT_CONFIG.read_text(encoding="utf-8"))
+    payload["robot_cfg"]["kinematics"]["collision_sphere_overlay_path"] = (
+        "config/robots/mycobot_280_m5_phase1_1_spheres.yml"
+    )
+    # Must live under config/robots so asset paths resolve via parents[2].
+    trial = ROOT / "config" / "robots" / "_tmp_overlay_trial.yml"
+    trial.write_text(yaml.safe_dump(payload), encoding="utf-8")
+    try:
+        loaded = load_curobo_robot_config(trial)
+        kinematics = loaded["robot_cfg"]["kinematics"]
+        spheres = kinematics["collision_spheres"]
+        total = sum(len(link_spheres) for link_spheres in spheres.values())
+        assert 32 < total <= 2048
+        assert "min_detectable_obstacle_edge_m" not in kinematics
+        assert "collision_sphere_overlay_path" not in kinematics
+        centers = np.asarray(
+            [sphere["center"] for link_spheres in spheres.values() for sphere in link_spheres],
+            dtype=float,
+        )
+        assert float(np.max(np.abs(centers))) < 0.5
+    finally:
+        trial.unlink(missing_ok=True)
 
 
 def test_explicit_reorder_joint_state() -> None:

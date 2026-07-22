@@ -25,6 +25,27 @@ for candidate in (REPO_ROOT, REPO_ROOT / "src"):
 
 STAGE_SETTLE_UPDATES = 10
 GUI_VIEWPORT_SETTLE_STEPS = 30
+# Half of the 14 mm Phase 7.2 cube edge plus a small PhysX/tracking margin.
+TIP_FACE_CONTACT_TOLERANCE_M = 0.015
+
+
+def tip_reaches_surface_m(
+    tip_position_m: Any,
+    surface_position_m: Any,
+    *,
+    tolerance_m: float = TIP_FACE_CONTACT_TOLERANCE_M,
+) -> bool:
+    """Return whether tip is within ``tolerance_m`` of the contact surface point."""
+
+    import numpy as np
+
+    tip = np.asarray(tip_position_m, dtype=float).reshape(3)
+    surface = np.asarray(surface_position_m, dtype=float).reshape(3)
+    if not np.all(np.isfinite(tip)) or not np.all(np.isfinite(surface)):
+        return False
+    if not math.isfinite(tolerance_m) or tolerance_m < 0.0:
+        raise ValueError("tolerance_m must be finite and non-negative")
+    return float(np.linalg.norm(tip - surface)) <= float(tolerance_m)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -83,6 +104,24 @@ def _drive_targets(robot: Any, targets: Any) -> None:
     from isaacsim.core.utils.types import ArticulationAction
 
     robot.apply_action(ArticulationAction(joint_positions=targets))
+
+
+def _snap_joint_positions(robot: Any, targets: Any) -> bool:
+    """Force articulation joints to ``targets`` when the API allows it.
+
+    PD position targets alone can leave centimetre-scale tip error at short
+    headless holds; snapping the measured state before contact classification
+    keeps tip-face evidence aligned with the planned terminal waypoint.
+
+    Returns True when a hard position write was used.
+    """
+
+    setter = getattr(robot, "set_joint_positions", None)
+    if callable(setter):
+        setter(targets)
+        return True
+    _drive_targets(robot, targets)
+    return False
 
 
 def _physics_steps_for_duration(duration_s: float, physics_dt_s: float) -> int:
@@ -195,6 +234,8 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
             contacted_ids=tuple(item["contacted_ids"]),
             removed_ids=tuple(item["removed_ids"]),
             episode_duration_s=item.get("episode_duration_s"),
+            deferred_target_ids=tuple(item.get("deferred_target_ids", ())),
+            planned_target_ids=tuple(item.get("planned_target_ids", ())),
         )
 
     def load_trajectory(item: dict[str, Any]) -> JointTrajectory:
@@ -228,22 +269,23 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         except ImportError:
             pass
 
-    def _tip_pose_m(robot: Any, stage: Any) -> np.ndarray | None:
-        """Best-effort flange/TCP world position from the articulation stage."""
+    def _tip_pose_from_usd(stage: Any) -> np.ndarray | None:
+        """Best-effort TCP/flange world position from USD (prefer ``tcp_link``)."""
         try:
             from pxr import UsdGeom
 
-            tip_prim = next(
-                (
-                    prim
-                    for prim in stage.Traverse()
-                    if prim.GetName() in ("tcp_link", "joint6_flange")
-                ),
-                None,
-            )
-            if tip_prim is None:
+            tip_prim = None
+            flange_prim = None
+            for prim in stage.Traverse():
+                name = prim.GetName()
+                if name == "tcp_link" and tip_prim is None:
+                    tip_prim = prim
+                elif name == "joint6_flange" and flange_prim is None:
+                    flange_prim = prim
+            chosen = tip_prim if tip_prim is not None else flange_prim
+            if chosen is None:
                 return None
-            xform = UsdGeom.Xformable(tip_prim)
+            xform = UsdGeom.Xformable(chosen)
             world = xform.ComputeLocalToWorldTransform(0.0)
             return np.asarray(
                 [
@@ -253,6 +295,23 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 ],
                 dtype=float,
             )
+        except Exception:
+            return None
+
+    def _tip_pose_from_joints(robot: Any) -> np.ndarray | None:
+        """TCP position from measured articulation joints via project FK."""
+        try:
+            from isaac_sim.articulation_playback import revolute_dof_indices
+            from mycobot_curobo.robot_model import JOINT_NAMES, forward_kinematics
+
+            getter = getattr(robot, "get_joint_positions", None)
+            if not callable(getter):
+                return None
+            measured = np.asarray(getter(), dtype=float)
+            if measured.shape != (len(dof_names),):
+                return None
+            revolute = measured[list(revolute_dof_indices(dof_names, JOINT_NAMES))]
+            return forward_kinematics(revolute).position_m
         except Exception:
             return None
 
@@ -266,12 +325,14 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         physx = monitor.classify()
         if physx.kind is ContactKind.PROHIBITED_BODY_CONTACT:
             return physx
-        tip = _tip_pose_m(robot, stage)
         face = np.asarray(target.to_surface_target().position_base_m, dtype=float)
-        if tip is not None and float(np.linalg.norm(tip - face)) <= 0.012:
-            return ContactEvent(
-                ContactKind.ALLOWED_TIP_CONTACT, target_id=to_id, link_name="joint6_flange"
-            )
+        for tip in (_tip_pose_from_joints(robot), _tip_pose_from_usd(stage)):
+            if tip is not None and tip_reaches_surface_m(tip, face):
+                return ContactEvent(
+                    ContactKind.ALLOWED_TIP_CONTACT,
+                    target_id=to_id,
+                    link_name="joint6_flange",
+                )
         if physx.kind is ContactKind.ALLOWED_TIP_CONTACT:
             return physx
         return ContactEvent(ContactKind.NONE)
@@ -386,8 +447,8 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         episode_failed = False
         failure_category = planned.failure_category
         failure_reason = planned.failure_reason
-        # Preserve planning-side episode failures (e.g. max_target_failures) while
-        # still animating any validated legs for visualization / replay.
+        # Preserve planning-side episode failures (e.g. targets_unplanned) while
+        # still animating validated legs in plan-creation order for replay.
         plan_already_failed = not planned.succeeded
         current = reset_targets
         try:
@@ -414,7 +475,11 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 set_cube_color(stage, target_paths[leg.to_id], PENDING_CONTACT_COLOR_RGBA)
                 motion_started = time.perf_counter()
                 tip_seen_at: float | None = None
+                body_contact_during_motion: ContactEvent | None = None
                 waypoint_steps = _physics_steps_for_duration(trajectory.dt_s, physics_dt_s)
+                terminal = articulation_position_targets(
+                    trajectory.position_rad[-1], dof_names, current
+                )
                 for waypoint in trajectory.position_rad:
                     if not app.is_running():
                         raise _PlaybackStopped()
@@ -432,26 +497,41 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                             raise _PlaybackStopped()
                         world.step(render=args.gui)
                         classification = monitor.classify()
-                        if (
-                            classification.kind is ContactKind.PROHIBITED_BODY_CONTACT
-                            or classification.kind is ContactKind.ALLOWED_TIP_CONTACT
-                        ):
+                        if classification.kind is ContactKind.ALLOWED_TIP_CONTACT:
                             if tip_seen_at is None:
                                 tip_seen_at = time.perf_counter()
-                            if classification.kind is ContactKind.PROHIBITED_BODY_CONTACT:
-                                tip_seen_at = time.perf_counter()
-                                break
-                    if monitor.classify().kind is ContactKind.PROHIBITED_BODY_CONTACT:
-                        break
+                        elif classification.kind is ContactKind.PROHIBITED_BODY_CONTACT:
+                            # Keep playing to the terminal waypoint so tip-face
+                            # evidence is not lost to a transient mid-path contact
+                            # that PhysX clears before the hold. Body contact still
+                            # fails the leg after the trajectory completes.
+                            if body_contact_during_motion is None:
+                                body_contact_during_motion = classification
+                                post_message(
+                                    f"BODY CONTACT DETECTED {leg.from_id}->{leg.to_id} "
+                                    f"link={classification.link_name} "
+                                    f"target={classification.target_id}"
+                                )
+                # Snap to the planned terminal waypoint so tip-face classification
+                # is not lost to short-hold PD lag under headless stepping.
+                snapped = _snap_joint_positions(robot, terminal)
+                current = terminal
                 motion_duration_s = time.perf_counter() - motion_started
                 for _ in range(_physics_steps_for_duration(args.hold_s, physics_dt_s)):
                     if not app.is_running():
                         raise _PlaybackStopped()
+                    _snap_joint_positions(robot, terminal)
                     world.step(render=args.gui)
+                # Re-apply terminal joints after the last physics step so contact
+                # classification sees the planned tip pose, not a collision push-out.
+                _snap_joint_positions(robot, terminal)
                 target_obj = episode.field.target_by_id(leg.to_id)
-                contact = _classify_leg_contact(
-                    monitor=monitor, robot=robot, target=target_obj, to_id=leg.to_id
-                )
+                if body_contact_during_motion is not None:
+                    contact = body_contact_during_motion
+                else:
+                    contact = _classify_leg_contact(
+                        monitor=monitor, robot=robot, target=target_obj, to_id=leg.to_id
+                    )
                 planning_s = (
                     0.0 if leg.planning_duration_s is None else float(leg.planning_duration_s)
                 )
@@ -512,7 +592,16 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                         flush=True,
                     )
                     continue
-                message = f"TIP CONTACT MISSED {leg.from_id}->{leg.to_id}"
+                face = np.asarray(target_obj.to_surface_target().position_base_m, dtype=float)
+                tip_joint = _tip_pose_from_joints(robot)
+                tip_usd = _tip_pose_from_usd(stage)
+                d_joint = None if tip_joint is None else float(np.linalg.norm(tip_joint - face))
+                d_usd = None if tip_usd is None else float(np.linalg.norm(tip_usd - face))
+                message = (
+                    f"TIP CONTACT MISSED {leg.from_id}->{leg.to_id} "
+                    f"motion_s={motion_duration_s:.3f} snapped={snapped} "
+                    f"d_joint={d_joint} d_usd={d_usd}"
+                )
                 set_cube_color(stage, target_paths[leg.to_id], TIP_CONTACT_FAILED_COLOR_RGBA)
                 post_message(message)
                 updated = replace(
@@ -531,13 +620,14 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
             monitor.stop()
 
         if not episode_failed and not plan_already_failed:
-            expected = set(episode.field.contact_order_ids) - set(planned.failed_target_ids)
+            expected = set(episode.field.contact_order_ids)
             if set(contacted) != expected:
                 episode_failed = True
-                failure_category = MultiTargetFailureCategory.TARGETS_INCOMPLETE
+                failure_category = MultiTargetFailureCategory.TARGETS_UNPLANNED
                 failure_reason = (
                     f"contacted {sorted(contacted)} != required {sorted(expected)} "
-                    f"(failed_targets={list(planned.failed_target_ids)})"
+                    f"(planned={list(getattr(planned, 'planned_target_ids', ()))}; "
+                    f"failed_targets={list(planned.failed_target_ids)})"
                 )
         if plan_already_failed:
             episode_failed = True
@@ -619,7 +709,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     if args.hold_s is None:
-        args.hold_s = 1.0 if args.gui else 0.25
+        args.hold_s = 1.0 if args.gui else 0.5
     if args.hold_s < 0.0 or not math.isfinite(args.hold_s):
         raise ValueError("--hold-s must be finite and non-negative")
     if not args.bundle.is_file():

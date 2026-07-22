@@ -374,17 +374,22 @@ can override the count:
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 5
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 10 --episodes 5
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --manual
+# Integration-only (2 episodes × 5 targets, distinct placement/paths per episode):
+./scripts/host/smoke_phase7_2_integration_2x5.sh --gui --auto-exit
+./scripts/run_verification.sh spark --with-integration-smoke
 ```
 
 `--no-auto-exit` keeps replaying episodes indefinitely after the first pass
 (close the window or Ctrl+C to finish). Playback still runs if planning reports
-incomplete clearance, so you can inspect motion for validated legs.
+incomplete clearance, so you can inspect motion for validated legs. The
+integration 2×5 smoke is opt-in (not the default spark gate).
 
 `--targets N` and `--episodes N` are defined in [`spec.md`](spec.md) §8 Phase 7.2 / §9.
 Failure budgets: per-target planning retries
-(`max_planning_failure_per_target`, default 5), episode target-failure ceiling
-(`max_target_failures`, default **`3`**), and suite episode ceiling
-(`max_failed_episodes`, default 0). See
+(`max_planning_failure_per_target`, default 5), then deferral / reconsider
+(`max_reconsider_passes`, default `target_count`); suite episode ceiling
+(`max_failed_episodes`, default 0). Episodes FAIL if any target remains
+unplanned. See
 [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md).
 
 ## Planned Phase 9/9.1 contact tool

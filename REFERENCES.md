@@ -56,8 +56,9 @@ compute-capability warning is retained in that report and is not suppressed.
 
 - **Phase 1.1 target-scale sphere coverage**  
   [`docs/phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md)
-  — sparse mesh-constrained spheres for obstacles ≥ Phase 7.2 `target_edge_m`;
-  overlay `config/robots/mycobot_280_m5_phase1_1_spheres.yml`.
+  — Option A thickness-capped cover implemented; disarmed pending 7.1/7.2
+  planning reconciliation (see `spec.md` §8 Phase 1.1). Overlay file:
+  `config/robots/mycobot_280_m5_phase1_1_spheres.yml`.
 
 - **Elephant Robotics `mycobot_ros2`**  
   <https://github.com/elephantrobotics/mycobot_ros2>  
@@ -227,14 +228,13 @@ compute-capability warning is retained in that report and is not suppressed.
 - Planning latency logged in 7.2 is sim-host evidence only; Orin AGX budgets
   remain Phases 10–11.
 
-## Phase 7.3 target placement (under consideration)
+## Phase 7.3 target placement
 
-- **Project brainstorm note** —
-  [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md)
-- Spec placeholder: [`spec.md`](spec.md) §8 Phase 7.3.
-- Branch for planning/specification: `wip_phase7_3`.
-- Also scoped to repair GitHub Actions CI execution on remote runners
-  (CPU-safe deps + `SPARK_PYTEST_PYTHON` in `.github/workflows/pytest.yml`
+- Design: [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md)
+- Spec: [`spec.md`](spec.md) §8 Phase 7.3 (`random` / `layout` / keep-outs).
+- Branch: `wip_phase7_3`.
+- CI bootstrap: CPU-safe deps + `SPARK_PYTEST_PYTHON` in
+  `.github/workflows/pytest.yml`
   landed on this branch).
 - Requirements for finer placement APIs are not yet normative.
 

@@ -1,0 +1,38 @@
+# Phase 7.3 constrained-random placement example.
+episode_count: 2
+target_count: 4
+root_seed: 77
+frame: g_base
+placement: random
+order: shuffle
+retain_targets_after_contact: false
+# Default/floor is target_edge_m + flange_diameter_assumption_m (= 0.045 m).
+min_center_separation_m: 0.05
+max_placement_attempts: 1000
+keep_outs:
+  - minimum_m: [0.18, -0.12, 0.10]
+    maximum_m: [0.22, -0.08, 0.22]
+tip_allow_link_names:
+  - joint6_flange
+field_aabb:
+  minimum_m: [0.12, -0.20, 0.13]
+  maximum_m: [0.28, 0.02, 0.19]
+arm_z_motion_range_m: 0.28
+target_edge_m: 0.014
+outward_normal_base: [0.0, 0.0, 1.0]
+flange_diameter_assumption_m: 0.031
+start_joint_position_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+planner_profile: benchmark_reproducible
+validation_profile: simulation_initial
+scene_revision_prefix: phase7_3-random
+artifact_path: artifacts/phase7_3
+minimum_self_collision_clearance_m: 0.0
+minimum_world_collision_clearance_m: 0.0
+lighting:
+  dome_intensity: 1000.0
+  distant_intensity: 3000.0
+  distant_angle_deg: [45.0, -30.0, 0.0]
+  color: [1.0, 1.0, 1.0]
+pre_approach_distance_m: 0.01
+fixed_roll_rad: 0.0
+warn_planning_duration_s: 30.0

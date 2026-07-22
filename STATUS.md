@@ -1,21 +1,25 @@
 # STATUS — MyCobot 280 M5 Constrained Approach Planner
 
-Last updated: **2026-07-20**
+Last updated: **2026-07-22**
 
 ## Current phase
 
 **Phase 7.2 — Multi-target tip-contact clearance suite: COMPLETE**
+Including deferral / reconsider after tip-removals, playback in plan-creation
+order, and episode FAIL if any target remains unplanned
+(`targets_unplanned`). Generated target spacing enforces EE clearance
+(`≥ target_edge_m + flange_diameter_assumption_m`). See `spec.md` §8 Phase 7.2.
 
-**Phase 7.3 — Controllable target-block placement: UNDER CONSIDERATION**
-(brainstorm / specification on `wip_phase7_3`; also scoped to fix GitHub
-Actions CI execution). See
+**Phase 7.3 — Controllable target-block placement: IMPLEMENTED**
+`random` / `layout` (`rows`, `arc`) placement with keep-outs and EE-clearance
+separation floor; CI bootstrap; labels / grid Z. See
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 
-**Phase 1.1 — Target-scale collision-sphere coverage: IMPLEMENTED**
-Sparse mesh-constrained spheres (128 total for `E = 0.014 m`) via overlay
-`config/robots/mycobot_280_m5_phase1_1_spheres.yml`. See [`spec.md`](spec.md)
-§8 Phase 1.1 and
-[`docs/phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md).
+**Phase 1.1 — Target-scale collision-sphere coverage: OPTION A (DISARMED)**
+Thickness-capped overlay (1012 spheres, radii ≤ `E`) regenerated; GPU
+self-clear + body-clip detectability pass under trial enable, but arming
+regresses Phase 7.1 / 7.2 GPU planning. Default robot uses scaffolding (32).
+See [`spec.md`](spec.md) §8 Phase 1.1.
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–11)  
@@ -30,7 +34,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 |-------|-------|--------|
 | 0 | Env / version guard | **Complete** |
 | 1 | Robot model + spheres | **Complete** |
-| 1.1 | Target-scale collision-sphere coverage | **Complete** |
+| 1.1 | Target-scale collision-sphere coverage | **Option A (disarmed)** |
 | 2 | Task frames / roll goals | **Complete** |
 | 3 | `plan_grasp` nominal planning | **Complete** |
 | 4 | Independent validation | **Complete** |
@@ -39,7 +43,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 7 | Isaac Sim closed-loop viz/validation | **Complete** |
 | 7.1 | Unknown-start cube approach visualization | **Complete** |
 | 7.2 | Multi-target tip-contact clearance suite | **Complete** |
-| 7.3 | Controllable target-block placement (+ CI fixes) | **Under consideration** |
+| 7.3 | Controllable target-block placement (+ CI fixes) | **Complete** |
 | 8 | Bounded residual RL (sim only) | Planned |
 | 9 | Fabricated contact test tool | Requirements finalized |
 | 9.1 | Contact test tool evaluation | Requirements finalized |
@@ -48,14 +52,14 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Implemented
 
-- Phase 1.1 target-scale collision spheres: DAE mesh cover overlay (128 spheres
-  for `E = 0.014 m`); suite rejects `target_edge_m < E`.
-- Phase 7.3 (partial, on `wip_phase7_3`): GitHub Actions CI interpreter/deps
-  fix; viewport-visible multi-target ID labels (red 7-segment geometry with
-  parent-local Z offset); yellow/green/red contact-state cube highlights; tip
-  collision left enabled vs non-contact targets; grid mid-Z variability over
-  `0.5 * arm_z_motion_range_m`. Broader placement APIs remain under
-  consideration.
+- Phase 1.1 (partial): regenerator + overlay candidate (128 / `E=0.014 m`);
+  suite rejects `target_edge_m < E`; adapter strips project-only keys. Overlay
+  **not** loaded by default (self-collision infeasible).
+- Phase 7.3: `placement: random` / `layout` (`rows`, `arc`) with
+  `min_center_separation_m`, `keep_outs`, episode-diverse seeds; example
+  configs `config/phase7_3_*.yml`; module `mycobot_curobo.target_placement`.
+  Also: GitHub Actions CI bootstrap; viewport ID labels; contact highlights;
+  tip collision vs non-contact targets; grid mid-Z variability.
 - Phase 7.2 multi-target tip-contact suite: `TargetField`,
   `MultiTargetEpisodeRunner`, three-tier failure budgets
   (`max_planning_failure_per_target` default 5, `max_target_failures` default
@@ -75,9 +79,12 @@ planning-success claims, or hardware-readiness claims carry forward.
 - [x] Parameterized `target_count` / `episode_count`; grid and manual;
       shuffle and listed; retain and remove-after-contact; seeded replay.
 - [x] Flange-normal tip/EE contact; body–target contact fails closed.
-- [x] Per-target planning retries; target/episode/suite budgets as specified.
-- [x] Tip contact not required for planning-failed targets; tip miss after a
-      successful plan aborts the episode.
+- [x] Per-target planning retries; target/episode/suite budgets as landed.
+- [x] Landed: tip contact not required for planning-failed targets; tip miss
+      after a successful plan aborts the episode.
+- [ ] **Spec revision (pending impl):** deferral + reconsider; planning world
+      = remaining after tip-removals; playback = plan-creation order; FAIL if
+      any target remains unplanned.
 - [x] Dual console/JSON timing; host plan/play split; smoke gates wired.
 - [x] Container CI (unit tests + Ruff) green for the landed change set.
 - [x] Host GUI evidence: seed 123, `--targets 10 --episodes 1`, suite accepted
@@ -85,32 +92,32 @@ planning-success claims, or hardware-readiness claims carry forward.
       `--no-auto-exit`.
 - [x] No physical command, alternate planner, or physical-accuracy claim.
 
-## Next step / resume after delay (2026-07-20)
+## Next step / resume (2026-07-21)
 
-**Open investigation (do this next):**
+**Phase 7.2 orchestration revision — awaiting approval / then implement**
+(`spec.md` §8 Clearance, deferral, and reconsider): remaining-obstacle
+planning world, defer+reconsider skipped targets, plan-creation playback
+order, all-targets-planned episode gate.
 
-1. **Phase 1.1 collision spheres may not be effective in Isaac GUI smoke.**
-   Near-blocker / body-contact behavior still looked wrong; confirm the
-   planning process actually loads the overlay
-   (`config/robots/mycobot_280_m5_phase1_1_spheres.yml`, 128 spheres,
-   `min_detectable_obstacle_edge_m: 0.014`) via `load_curobo_robot_config`.
-2. **Planning console messages were missing or atypical** in the last GUI
-   run — verify the host plan step ran (`plan_multi_target_suite` / smoke
-   script) and that tip/body / plan_failed lines still print.
-3. **Existing sphere / clearance tests to consult first:**
-   - Unit: `tests/unit/test_collision_sphere_cover.py`,
-     `tests/unit/test_robot_model.py` (overlay count / `E`),
-     `tests/unit/test_inspect_robot_model.py`
-   - GPU / headless-style: `tests/integration/test_phase7_1_cube_suite_gpu.py`
-     (`test_phase7_1_cube_scene_plan_validates_with_evaluated_world_clearance`)
-   - GPU multi-target: `tests/integration/test_phase7_2_multi_target_gpu.py`
-   There is **no** dedicated headless Isaac test yet that asserts Phase 1.1
-   spheres reject a body-clipping trajectory against a target-sized cuboid;
-   add one if GPU gates still pass while GUI body-contacts persist.
+**Phase 1.1 — awaiting approval of revised cover approach** (see `spec.md`
+§8 Phase 1.1 “Proposed revision”). Headless findings:
 
-Continue Phase 7.3 placement brainstorm on `wip_phase7_3` only after the
-sphere / planning-message investigation. Preserve Phase 7 / 7.1 / 7.2 smoke
-gates for Isaac-path changes.
+1. **Fixed:** adapter stripped project-only keys so cuRobo can construct a
+   planner when an overlay is enabled.
+2. **Blocked:** greedy 128-sphere cover self-collides at every tested posture
+   (including zero); scaffolding (32) is self-clear. Overlay path commented out
+   in `mycobot_280_m5.yml`.
+3. **Proposed options in spec:** A thickness-capped cover (recommended), B dual
+   self/world sets, C distal-only densify, D scene-side keep-outs.
+
+Do **not** re-enable the overlay or iterate cover radii until an option is
+chosen. Phase 7.3 placement APIs are available with scaffolding spheres.
+
+**Integration smoke (opt-in final gate):** `smoke_phase7_2_integration_2x5.sh`
+— 2 episodes × 5 targets. Enable with
+`./scripts/run_verification.sh spark --with-integration-smoke`.
+Playback tip-face evidence uses terminal joint snap + FK/USD proximity
+(15 mm) so short headless holds do not drop tip contact after PhysX push-out.
 
 ## 2026-07-20 compliance note
 

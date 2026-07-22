@@ -1,5 +1,142 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-22 — Implement EE-clearance target spacing
+
+1. `ee_clearance_min_center_separation_m` helper; suite load defaults
+   `min_center_separation_m` to `target_edge_m + flange_diameter_assumption_m`
+   and rejects explicit values below that floor.
+2. Phase 7.3 example configs updated above the floor; unit tests cover default,
+   floor reject, and grid field validation.
+3. Spec/docs already describe the rule (prior entry).
+
+### Review recommended
+
+- Re-run integration 2×5 smoke; packing already sat above the 0.045 m floor but
+  mutual deadlock may still need a larger practical margin.
+
+---
+
+## 2026-07-22 — Spec: EE-clearance spacing for generated targets
+
+1. `spec.md` §8 Phase 7.2 placement (grid / Z-band): generated centres must keep
+   pairwise distance ≥ `target_edge_m + flange_diameter_assumption_m` (or a
+   stricter `min_center_separation_m`) so tip/EE approach is not mutually
+   deadlocked by adjacent remaining cubes.
+2. Phase 7.3 `min_center_separation_m` default/floor updated to the same
+   EE-clearance rule (legacy `2 * target_edge_m` alone is insufficient when
+   flange diameter > edge). Synced phase 7.2 / 7.3 design notes.
+
+---
+
+## 2026-07-21 — Implement Phase 7.2 deferral / reconsider + Option A spheres
+
+1. `MultiTargetEpisodeRunner`: defer after per-target planning budget; reconsider
+   deferred targets after tip-removals (`max_reconsider_passes`); FAIL with
+   `targets_unplanned` / `max_reconsider_passes_exceeded` if any target remains
+   unplanned. Playback keeps plan-creation order of validated legs.
+2. Unit tests for defer→remove→replan success and unplanned FAIL; play loader
+   deserializes `deferred_target_ids` / `planned_target_ids`.
+3. Phase 1.1 **Option A**: thickness-capped cover in
+   `collision_sphere_cover.py`; regenerated overlay **1012** spheres
+   (`radii ≤ E=0.014 m`). Trial GPU self-clear + body-clip detectability pass;
+   arming still regresses Phase 7.1/7.2 GPU planning — overlay left commented out.
+4. Spec/docs/STATUS updated: 7.2 deferral/reconsider implemented; Option A chosen
+   but disarmed pending planning reconciliation.
+
+### Review recommended
+
+- Tune Option A (or suite fixtures) until 7.1/7.2 GPU + integration 2×5 pass
+  with overlay armed; then uncomment `collision_sphere_overlay_path`.
+
+---
+
+## 2026-07-21 — Spec: Phase 7.2 deferral / reconsider / all-planned
+
+1. `spec.md` §8 Phase 7.2: planning world uses only obstacles remaining after
+   tip-contact removals (active contact cube still omitted for tip feasibility).
+2. Exceeding `max_planning_failure_per_target` **defers** a target; after
+   removals, deferred targets are **reconsidered** with the reduced field.
+3. Playback must follow **plan-creation order**.
+4. Episode PASS requires **every** target to end with a successful validated
+   plan; any unplanned target → `targets_unplanned` FAIL. Deprecates
+   `max_target_failures` as an episode-PASS escape hatch; introduces
+   `max_reconsider_passes` (default `target_count`).
+5. Implemented on `wip_phase7_3` (see entry above). Synced
+   `docs/phase7_2_multi_target_contact.md`.
+
+---
+
+## 2026-07-21 — Phase 7.3 controllable placement implemented
+
+1. Finalized `spec.md` §8 Phase 7.3: `random` and `layout` (`rows` / `arc`)
+   with `min_center_separation_m`, `keep_outs`, fail-closed sampling.
+2. Added `mycobot_curobo.target_placement` and wired
+   `multi_target.build_target_field` / suite config load.
+3. Example configs `config/phase7_3_multi_target_{random,layout_rows,layout_arc}.yml`.
+4. Unit tests `tests/unit/test_target_placement.py`; phase report + STATUS.
+5. Fixed Phase 3/4 GPU fixtures for tip-face `tool_approach_sign=+1`: known
+   reachable poses now use outward normal `-TCP_Z` so `plan_grasp` recovers
+   the FK goal (tests still used the pre-tip-face `+TCP_Z` normal).
+6. Hardened Phase 7.2 playback tip-face evidence: snap to terminal joints
+   (including after the hold so PhysX push-out cannot drop tip evidence),
+   FK+USD tip checks, 15 mm tolerance, longer headless hold; integration 2×5
+   grid `arm_z_motion_range_m` reduced so Z stays in the field AABB.
+7. Integration 2×5 final gate green: headless + GUI `success_rate=1.0`
+   (2/2 episodes, tip=7, body=0).
+
+### Review recommended
+
+- Host smoke a Phase 7.3 config under GUI if reviewing layouts visually.
+- Integration 2×5 smoke remains the opt-in final host gate.
+
+---
+
+## 2026-07-21 — Integration smoke 2×5 + Phase 1.1 acceptance wiring
+
+1. Config `phase7_2_multi_target_integration_2x5.yml` and host smoke
+   `smoke_phase7_2_integration_2x5.sh` (2 episodes × 5 targets).
+2. Grid placement accepts `placement_seed` so episodes get distinct fields;
+   sampling passes `episode_seed` for grid suites.
+3. `run_verification.sh spark --with-integration-smoke` (or
+   `SPARK_RUN_INTEGRATION_SMOKE=1`) runs that smoke headless then GUI; not in
+   the default spark gate. CI notes/skips Isaac integration smoke.
+4. `spec.md` Phase 1.1 acceptance names this integration smoke for
+   self-collision + unremoved-target evidence before re-arming overlays.
+
+---
+
+## 2026-07-21 — Phase 1.1 acceptance: headless+GUI self/unremoved-target gates
+
+1. `spec.md` §8 Phase 1.1 acceptance: before re-arming any overlay, host
+   headless **and** GUI smokes must evidence self-collision hard-gate behavior
+   and fail-closed world collision vs **unremoved** non-contact targets.
+2. Clarified relationship text: collision spheres originate in **Phase 1**;
+   Phase 1.1 revises coverage; Phase 7.3 is placement only (not sphere intro).
+
+---
+
+## 2026-07-21 — Phase 1.1 headless verify: adapter fix + cover revision proposal
+
+1. **Bug fixed:** `load_curobo_robot_config` stripped project-only keys after
+   overlay merge so cuRobo `KinematicsLoaderCfg` can construct a planner.
+2. Restored the 128-sphere overlay after a bad regenerate (~17k mm-scale
+   centres). Regenerator refuses `|center| > 0.5 m` or `total > 512`.
+3. **Cover blocked:** greedy Phase 1.1 spheres self-collide at the zero pose
+   (and all sampled postures); scaffolding (32) is self-clear. Overlay path
+   commented out in `mycobot_280_m5.yml`.
+4. **`spec.md` §8 Phase 1.1** marked needs revision; proposed options A–D
+   (recommend thickness-capped cover). Awaiting approval before further cover
+   work.
+5. GPU: scaffolding loads + zero pose self-clear; enabling overlay fails the
+   self-collision hard gate.
+
+### Review recommended
+
+- Approve a Phase 1.1 revision option (A–D) in `spec.md` before re-arming
+  any overlay.
+
+---
+
 ## 2026-07-20 — STATUS resume note + push Phase 1.1 / 7.2 viz work
 
 1. `STATUS.md` Next step documents the open investigation: Phase 1.1 spheres

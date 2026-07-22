@@ -41,14 +41,24 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "--gui --auto-exit" in verification
     assert "smoke_phase7_1_cube_suite.sh --gui --auto-exit --all-modes" in verification
     assert "smoke_phase7_2_multi_target.sh --gui --auto-exit" in verification
+    assert "--with-integration-smoke" in verification
+    assert "smoke_phase7_2_integration_2x5.sh" in verification
+    assert "SPARK_RUN_INTEGRATION_SMOKE" in verification
     smoke72 = (ROOT / "scripts/host/smoke_phase7_2_multi_target.sh").read_text(encoding="utf-8")
+    smoke72_int = (ROOT / "scripts/host/smoke_phase7_2_integration_2x5.sh").read_text(
+        encoding="utf-8"
+    )
     gpu72 = (ROOT / "scripts/host/run_phase7_2_gpu.sh").read_text(encoding="utf-8")
     assert "test_phase7_2_multi_target_gpu.py" in gpu72
     assert "--targets" in smoke72
     assert 'plan_args+=(--targets "${targets}")' in smoke72
     assert "--episodes" in smoke72
     assert 'plan_args+=(--episodes "${episodes}")' in smoke72
+    assert "--config" in smoke72
     assert "plan_status" in smoke72
+    assert "phase7_2_multi_target_integration_2x5.yml" in smoke72_int
+    assert "--targets 5" in smoke72_int
+    assert "--episodes 2" in smoke72_int
     player72 = (ROOT / "isaac_sim" / "play_multi_target_suite.py").read_text(encoding="utf-8")
     assert "replaying episodes" in player72
     assert "Kit window closed" in player72
