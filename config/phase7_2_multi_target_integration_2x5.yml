@@ -1,23 +1,32 @@
 # Integration-only Phase 7.2 smoke: 2 episodes × 5 targets.
-# Flange-face containment: cubes are flange-sized (edge ≥ flange Ø) so tip
-# contact does not overhang. Field sized from tip-contact workspace map
-# (forward-biased X≥0; full ±Y under rim) with EE floor edge+flange+clearance.
+# Surround-capable open arc (~240°) about g_base so targets occupy more than
+# one quadrant (including −X). A full closed ring left a brittle rear pose
+# under shuffle; this span keeps multi-quadrant coverage with reliable
+# plan_grasp. Keep-out clears home start. Flange-sized cubes + face containment.
 # Invoked via smoke_phase7_2_integration_2x5.sh.
 episode_count: 2
 target_count: 5
 root_seed: 4242
 frame: g_base
-placement: grid
+placement: layout
 order: shuffle
 retain_targets_after_contact: false
+layout:
+  name: arc
+  radius_m: 0.20
+  # ~240° open arc centered on +X (start −2.1 rad).
+  span_rad: 4.2
+  center_xy_m: [0.0, 0.0]
+  z_m: 0.16
+  start_angle_rad: -2.1
 tip_allow_link_names:
   - joint6_flange
 field_aabb:
-  minimum_m: [0.02, -0.22, 0.12]
-  maximum_m: [0.30, 0.22, 0.22]
+  minimum_m: [-0.24, -0.24, 0.12]
+  maximum_m: [0.24, 0.24, 0.22]
 keep_outs:
-  - minimum_m: [-0.08, -0.08, 0.10]
-    maximum_m: [0.08, 0.08, 0.24]
+  - minimum_m: [-0.12, -0.12, 0.10]
+    maximum_m: [0.12, 0.12, 0.24]
 arm_z_motion_range_m: 0.28
 # Match flange diameter so require_flange_face_containment can pass.
 target_edge_m: 0.031

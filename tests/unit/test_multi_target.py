@@ -147,7 +147,7 @@ def test_integration_2x5_episodes_differ_in_placement_and_seeds() -> None:
     )
     assert config.episode_count == 2
     assert config.target_count == 5
-    assert config.placement is PlacementPolicy.GRID
+    assert config.placement is PlacementPolicy.LAYOUT
     assert config.order is OrderPolicy.SHUFFLE
     episodes = sample_multi_target_episodes(config)
     assert len(episodes) == 2

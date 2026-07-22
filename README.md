@@ -380,7 +380,7 @@ can override the count:
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 5
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 10 --episodes 5
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --manual
-# Integration-only (2×5; forward-biased field AABB + base keep-out):
+# Integration-only (2×5; multi-quadrant open arc + base keep-out):
 ./scripts/host/smoke_phase7_2_integration_2x5.sh --gui --auto-exit
 ./scripts/run_verification.sh spark --with-integration-smoke
 ```

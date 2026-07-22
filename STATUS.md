@@ -15,9 +15,10 @@ distant 1000), widened forward-biased integration 2×5 AABB + base keep-out,
 content-aware GUI framing (`compute_viewport_framing`), TrajOpt collision
 activation `0.01` m on benchmark/high-effort, tip-classify hardening,
 measured +Z tip-contact workspace artifact, `planning_high_effort` IK seeds
-**32**, and integration 2×5 **flange-face containment** with flange-sized
-cubes (`target_edge_m: 0.031`, `require_flange_face_containment: true`).
-Integration stays on `benchmark_reproducible`. See `spec.md` §8 Phase 7.2.
+**32**, and integration 2×5 **flange-face containment** with flange-sized cubes on a
+multi-quadrant open arc (`placement: layout` / `arc`, span ~240°) rather than
+a forward-only grid. Integration stays on `benchmark_reproducible`.
+See `spec.md` §8 Phase 7.2.
 
 **Phase 7.3 — Controllable target-block placement: IMPLEMENTED**
 `random` / `layout` (`rows`, `arc`) placement with keep-outs and approach-plane

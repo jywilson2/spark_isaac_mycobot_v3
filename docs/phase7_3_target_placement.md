@@ -65,9 +65,9 @@ Before expanding integration `field_aabb` further, measure +Z tip-face
 Artifact declaration: `measured_tip_contact_candidate_region_v1`. Host GPU
 evidence (2026-07-22): **86/114** successes; success AABB roughly
 `[-0.22,-0.22,0.10]…[0.26,0.26,0.22]` m in `g_base`. This is **not** a claim
-that the full geometric disk is dexterous. Integration 2×5 later consumed a
-forward-biased subset of that region with flange-sized cubes
-(`target_edge_m: 0.031`, rim `0.36`) under flange-face containment.
+that the full geometric disk is dexterous. Integration 2×5 uses a
+multi-quadrant open arc (`layout: arc`, R=0.20 m, span≈240°) of flange-sized
+cubes under flange-face containment (not a forward-only AABB grid).
 
 CPU unit coverage: `tests/unit/test_tip_contact_workspace.py`.
 

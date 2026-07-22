@@ -1,5 +1,30 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-22 — Surround open-arc integration 2×5 (multi-quadrant)
+
+1. Root cause of “one quadrant” clustering: integration `field_aabb` was
+   X≥0-only with a rectangular grid phase — targets could never leave the
+   forward half.
+2. Integration 2×5 now uses `placement: layout` / `arc` with
+   `radius_m: 0.20`, `span_rad: 4.2` (~240° about `g_base`), keep-out ±0.12,
+   and field `[-0.24,-0.24]…[0.24,0.24]`. Centres span ±X and ±Y (including
+   −X). A full closed ring left a brittle rear pose; the open arc keeps
+   multi-quadrant coverage with reliable clearance.
+3. Host A/B: open-arc shuffle and listed both 2/2 with **0** plan fails.
+
+### Review recommended
+
+- Closed full ring (span≈2π·4/5) still fails some shuffle seeds on a rear
+  target; revisit after a flange-sized tip-contact workspace remasure.
+
+### Verification
+
+- `./scripts/run_verification.sh ci` — unit/ruff green after test updates.
+- Headless integration 2×5 — exit 0, 2/2, 10 tip contacts, 0 plan fails.
+- GUI integration 2×5 — exit 0, 2/2, 10 tip contacts, `framed=True`.
+
+---
+
 ## 2026-07-22 — Flange-face containment validation; flange-sized integration cubes
 
 1. Added CPU flange-disk vs contact-face overhang metric

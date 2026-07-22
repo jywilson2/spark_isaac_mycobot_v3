@@ -54,22 +54,26 @@ def test_rows_and_arc_layouts_load() -> None:
 
 
 def test_integration_2x5_packs_under_rim_with_reproducible_planner() -> None:
-    """Integration smoke: flange-sized cubes under rim + base keep-out."""
+    """Integration smoke: multi-quadrant open arc + flange-sized cubes."""
 
     import math
+
+    from mycobot_curobo.target_placement import LayoutName
 
     config = load_multi_target_suite_config(
         ROOT / "config/phase7_2_multi_target_integration_2x5.yml"
     )
-    assert config.placement is PlacementPolicy.GRID
+    assert config.placement is PlacementPolicy.LAYOUT
+    assert config.layout is not None
+    assert config.layout.name is LayoutName.ARC
     assert config.fixed_roll_rad == pytest.approx(0.0)
     assert config.planner_profile == "benchmark_reproducible"
     assert config.require_flange_face_containment is True
     assert config.target_edge_m == pytest.approx(0.031)
     assert config.max_target_radial_m == pytest.approx(0.36)
     assert config.arm_z_motion_range_m == pytest.approx(0.28)
-    assert config.field_minimum_m == pytest.approx((0.02, -0.22, 0.12))
-    assert config.field_maximum_m == pytest.approx((0.30, 0.22, 0.22))
+    assert config.field_minimum_m == pytest.approx((-0.24, -0.24, 0.12))
+    assert config.field_maximum_m == pytest.approx((0.24, 0.24, 0.22))
     assert len(config.keep_outs) == 1
     assert config.minimum_world_collision_clearance_m == pytest.approx(0.004)
     assert config.pre_approach_distance_m == pytest.approx(0.01)
@@ -77,6 +81,13 @@ def test_integration_2x5_packs_under_rim_with_reproducible_planner() -> None:
     assert len(episodes) == 2
     keep = config.keep_outs[0]
     for episode in episodes:
+        xs = [t.center_m[0] for t in episode.field.targets]
+        ys = [t.center_m[1] for t in episode.field.targets]
+        # Surround-capable: not confined to a single forward half-plane.
+        assert min(xs) < 0.0
+        assert max(xs) > 0.0
+        assert min(ys) < 0.0
+        assert max(ys) > 0.0
         for target in episode.field.targets:
             extent = math.hypot(target.center_m[0], target.center_m[1]) + 0.5 * target.edge_m
             assert extent <= config.max_target_radial_m + 1.0e-9

@@ -304,13 +304,12 @@ are still animated.
 
 ### Placement / viewport / anti-graze (integration 2×5)
 
-- Widened forward-biased `field_aabb` ≈ `[0.0,-0.17]…[0.24,0.17]` under
-  `max_target_radial_m: 0.28`, with base `keep_outs` (±0.08) and
-  `arm_z_motion_range_m: 0.28`. A full ±0.18 square around the origin packs
-  under the rim but put rear cubes into home start-collision; X≥0 keeps the
-  field surround-capable in Y while remaining planable. EE floor remains a
-  spacing lower bound; grid pitch widens with the AABB. Phase-shifted grids
-  retry seed offsets when a lattice phase would hit the keep-out.
+- Multi-quadrant **open arc** (`placement: layout`, `radius_m: 0.20`,
+  `span_rad: 4.2` ≈ 240° about `g_base`, keep-out ±0.12, field
+  `[-0.24,-0.24]…[0.24,0.24]`, rim `0.36`). Replaces the prior X≥0 forward
+  grid that clustered all centres in the +X half. Centres span ±X and ±Y
+  (including −X). A closed full ring left a brittle rear tip-contact under
+  some shuffle seeds; the open arc is the accepted integration trade-off.
 - GUI framing: `compute_viewport_framing` from arm envelope ∪ all target
   bounds (closest view that keeps content in frame; defaults remain fallback).
 - Anti-graze: `optimizer_collision_activation_distance_m: 0.01` on

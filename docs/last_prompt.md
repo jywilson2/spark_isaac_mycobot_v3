@@ -1,3 +1,11 @@
+## BEGIN: 2026-07-22 14:28 -0700
+
+Execution of the smoke gui test with a 2 episode and 5 target configuration rarely achieves planning (and removal) of all targets. The target distribution still appears clustered about one quadrant.
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-07-22 11:08 -0700
 
 Can you add a validation test to detect a flange colliision?
@@ -5,8 +13,6 @@ Can you add a validation test to detect a flange colliision?
 Can you continue to iterate on a solution until the GUI (and headless) smoke test passes? I will not be able to advise, so just keep working. Once you have succes, update the documentation, particular CHANGES.md, and commit/push the branch to github.
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-22 10:46 -0700
 
