@@ -1,5 +1,36 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-23 — `--record FILE.mp4` GUI video capture on Phase 7.2 smokes
+
+1. `scripts/host/smoke_phase7_2_multi_target.sh`: new `--record FILE.mp4`
+   option (GUI only; named wrappers forward it). Waits for the Isaac Sim Kit
+   window on `$DISPLAY` via `xwininfo` (skipping the mutter decoration
+   frame), then records exactly that region with `ffmpeg` x11grab at 30 fps;
+   SIGINT on playback exit finalizes the mp4 (H.264 yuv420p, `+faststart`).
+2. ffmpeg resolution: system binary when present, else the static build
+   bundled with Isaac Sim's python (`imageio_ffmpeg` wheel) — no host
+   install and no sudo required.
+3. Fail-closed: `--record` with `--headless` exits 2; missing `xwininfo` or
+   ffmpeg exits 2 with a clear error. A Kit window that never appears only
+   prints a warning; recording never changes the suite exit status and is
+   not a verification gate.
+4. Recorder hardening: the background capture subshell relaxes inherited
+   `set -e` / `pipefail` (a `head`-induced SIGPIPE in the window poll
+   silently killed the first implementation).
+5. Docs: phase 7.2 report Host CLI overrides, README Phase 7.2 section,
+   REFERENCES host-CLI notes, spec §9 host entry points.
+6. Wiring assertions added to `tests/unit/test_isaac_viz_smoke.py`.
+
+### Verification
+
+- `pytest tests/unit` — 202 passed; Ruff check/format clean.
+- Host GUI: `smoke_phase7_2_multi_target.sh --gui --auto-exit --root-seed 123
+  --record /tmp/phase7_2_record_demo.mp4` — exit 0, 1/1 episodes, 2/2 tip
+  contacts; wrote a 20.6 s 2880×1800 30 fps H.264 mp4 (1.5 MB) whose frames
+  show the viewport playback.
+
+---
+
 ## 2026-07-23 — Densest 2×20 multi-target suite (two-ring manual field)
 
 1. Added `config/phase7_2_multi_target_standard_2x20.yml` and

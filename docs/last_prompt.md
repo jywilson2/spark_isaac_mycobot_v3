@@ -1,3 +1,11 @@
+## BEGIN: 2026-07-23 04:27 -0700
+
+Yes, please add an option --record parameter. Document and push to the branch and main on github.
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-07-23 04:21 -0700
 
 Commit and push to github for the working branch. Then rebase with main and push to github again.

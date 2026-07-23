@@ -115,7 +115,9 @@ Phase 7.2 report gained decision guidance: dedicated suite vs
 `--targets`/`--episodes`, base-suite selection for reduced counts, the
 wrapper-gate table, and `manual` placement terminology. README carries a
 timestamped project-size + AI-context snapshot. `wip_phase7_3` committed,
-rebased onto `origin/main`, and pushed.
+rebased onto `origin/main`, and pushed. Smoke wrappers now accept
+`--record FILE.mp4` (GUI-only ffmpeg x11grab capture of the Kit window for
+demo videos; validated live — 20.6 s mp4 from the default suite, exit 0).
 
 **Next steps:**
 
