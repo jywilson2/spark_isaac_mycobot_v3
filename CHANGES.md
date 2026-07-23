@@ -1,5 +1,25 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-23 — README streams the demo via a user-attachments inline player
+
+1. The demo video was uploaded through the GitHub web editor, producing the
+   permanent asset `github.com/user-attachments/assets/e1632486-…`; the
+   accompanying web-editor commit (`749d36d`, direct to `main`) left the
+   bare URL above the README title. `wip_phase7_3` was fast-forwarded onto
+   that commit to keep the fast-forward-only branch policy intact.
+2. README: stray top-of-file URL removed; the Phase 7.2 suite section now
+   embeds the asset URL on its own line, which GitHub renders as an inline
+   streaming player for the full 1:58 video (replacing the 18 s GIF embed;
+   the pasted signed `private-user-images…?jwt=…` variant expires within
+   minutes and must not be committed — the canonical asset URL redirects to
+   a fresh signed `video/mp4` URL on every view, verified unauthenticated
+   with `curl -I`).
+3. `docs/videos/` (mp4, GIF excerpt, poster) is retained and documented as
+   the canonical offline copy for forks and non-GitHub renderers; the
+   Phase 7.3 report records the asset URL and upload date.
+
+---
+
 ## 2026-07-23 — Autoplaying GIF preview replaces static poster in README
 
 1. Diagnosis of "click does not start playback": GitHub serves committed
