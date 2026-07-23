@@ -1,5 +1,26 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-23 — Phase 7.3 demo video committed under docs/videos
+
+1. New `docs/videos/` directory with `mycobot_280_m5_2x20.mp4` (1:58,
+   2880×1800 @ 30 fps, H.264, 6.4 MB): GUI playback of the densest standard
+   2×20 suite recorded on the DGX Spark host with the smoke wrapper's
+   `--record` option.
+2. Presented as the completed-Phase 7.3 demonstration in
+   `docs/phase7_3_target_placement.md` (new "Demo video" section listing the
+   Phase 7.3 machinery visible in the clip: fail-closed placement, shuffle
+   order/seeds, ID labels and contact highlights, deferral/reconsider).
+3. README: video linked from the Phase 7 header, the implemented-features
+   list, and the Phase 7.2 suite-commands section; stale "Not implemented —
+   Phase 7.3 (under consideration)" bullet moved to the implemented list.
+4. REFERENCES: demo-video entry.
+5. Note: the source file was supplied as `~/Videos/mycobot_280_m5_2x10.mp4`,
+   but frame and console inspection shows the 2×20 two-ring suite (target
+   IDs up to 20), so the committed copy is renamed `…_2x20.mp4` to keep the
+   documentation accurate.
+
+---
+
 ## 2026-07-23 — `--record FILE.mp4` GUI video capture on Phase 7.2 smokes
 
 1. `scripts/host/smoke_phase7_2_multi_target.sh`: new `--record FILE.mp4`

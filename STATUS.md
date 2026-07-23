@@ -118,6 +118,9 @@ timestamped project-size + AI-context snapshot. `wip_phase7_3` committed,
 rebased onto `origin/main`, and pushed. Smoke wrappers now accept
 `--record FILE.mp4` (GUI-only ffmpeg x11grab capture of the Kit window for
 demo videos; validated live — 20.6 s mp4 from the default suite, exit 0).
+A recorded 2×20 GUI run is committed as the Phase 7.3 demo video at
+`docs/videos/mycobot_280_m5_2x20.mp4` (presented in
+`docs/phase7_3_target_placement.md`).
 
 **Next steps:**
 
