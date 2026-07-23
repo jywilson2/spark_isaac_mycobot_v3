@@ -57,9 +57,11 @@ excerpt embedded in the README) and `videos/mycobot_280_m5_2x20_poster.jpg`
 (still frame). Note GitHub does not stream repository mp4s in the browser —
 raw links are served as `application/octet-stream` with `nosniff`, so
 clicking the mp4 downloads it; play it locally with any H.264-capable
-player. In-browser streaming would require a manually uploaded
-`user-attachments` asset (drag-and-drop in the GitHub web editor) or
-GitHub Pages serving `docs/`.
+player. The README streams the same recording in an inline player via the
+manually uploaded GitHub `user-attachments` asset
+`https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28`
+(uploaded 2026-07-23 through the GitHub web editor; the repository copies
+here remain the canonical offline artifacts).
 
 ## Example configs
 

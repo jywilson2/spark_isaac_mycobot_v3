@@ -1,7 +1,3 @@
-
-
-https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28
-
 # MyCobot 280 M5 Constrained Approach Planner
 
 Deterministic, collision-aware surface-normal approach planning for the
@@ -57,7 +53,7 @@ and [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 A demo video of the completed Phase 7.3 work (densest 2×20 suite, GUI
 playback) is at
 [`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
-(autoplaying animated preview in the Phase 7.2 suite section below).
+(inline streaming player in the Phase 7.2 suite section below).
 
 Full roadmap (Phases 0–11, including decimal Phases 7.1–7.3 and 9.1):
 [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -432,12 +428,12 @@ can override the count:
 
 A recorded 2×20 GUI run is committed as the Phase 7.3 demo (see
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md)).
-The preview below plays automatically (18 s excerpt); click it to open the
-full 1:58 video file. GitHub does not stream repository mp4s in the browser
-(raw links are served as `application/octet-stream`), so the click offers
-the file for download/viewing instead of starting playback in place:
+The player below streams the full 1:58 video. It is a GitHub
+`user-attachments` asset — the only source GitHub renders as an inline
+player; repository copies (mp4, animated GIF excerpt, poster still) live in
+[`docs/videos/`](docs/videos/) for forks and offline use:
 
-[![Phase 7.3 demo — densest 2×20 suite GUI playback (animated preview; click for the full video file)](docs/videos/mycobot_280_m5_2x20_preview.gif)](docs/videos/mycobot_280_m5_2x20.mp4)
+https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28
 
 `--no-auto-exit` keeps replaying episodes indefinitely after the first pass
 (close the window or Ctrl+C to finish). Playback still runs if planning reports
