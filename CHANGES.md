@@ -1,5 +1,24 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-22 — CLI `--root-seed` with varying default
+
+1. Host plan/smoke accept `--root-seed N` (non-negative integer) to fix suite
+   placement and episode planner seeds.
+2. When omitted, each invocation draws a fresh seed in `[0, 2**31)` so layouts
+   vary for coverage; YAML `root_seed` is library/API default only.
+3. Effective seed logged as `phase7_2_plan: root_seed=N (cli|random)` and stored
+   in the plan bundle. Documented in `spec.md`, phase 7.2 design, and README.
+
+### Review recommended
+
+- None beyond confirming operators use `--root-seed N` when reproducing a run.
+
+### Verification
+
+- Unit tests for `resolve_invocation_root_seed` and smoke CLI wiring.
+
+---
+
 ## 2026-07-22 — Flange-rim anti-graze on transit
 
 1. Root cause: `joint6_flange` collision spheres were r=0.008 while the assumed

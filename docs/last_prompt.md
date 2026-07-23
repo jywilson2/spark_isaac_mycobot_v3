@@ -1,10 +1,42 @@
+## BEGIN: 2026-07-22 22:28 -0700
+
+Can you generate the command for a 3 episode run with 10 targets, a gui, and no auto-exit.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-22 22:22 -0700
+
+Create an option that allows the seed to be specified on the command-line. Be default, however, the seed should vary on each invocation in order to maximize test converage.
+
+Document this in the appropriate design documentation, along the the name and syntax of the parameter.
+
+## END
+
+## BEGIN: 2026-07-22 22:18 -0700
+
+Why does the placement of the targets remain the same for invocation of this command?
+
+## END
+
+## BEGIN: 2026-07-22 15:18 -0700
+
+Can you give me the comamnd to execute this from a host shell?
+
+## END
+
+## BEGIN: 2026-07-22 15:15 -0700
+
+Execute a gui smoke test with 2 episodes and 5 targets.
+
+## END
+
 ## BEGIN: 2026-07-22 14:55 -0700
 
 The edge of the flange is still grazing when the arm moves to the next target.
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-22 14:28 -0700
 
