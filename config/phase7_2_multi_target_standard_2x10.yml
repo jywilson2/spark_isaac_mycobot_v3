@@ -1,14 +1,12 @@
-# Integration-only Phase 7.2 smoke: 2 episodes × 5 targets.
-# Surround-capable open arc (~240°) about g_base so targets occupy more than
-# one quadrant (including −X). A full closed ring left a brittle rear pose
-# under shuffle; this span keeps multi-quadrant coverage with reliable
-# plan_grasp. Keep-out clears home start. Flange-sized cubes + face containment.
-# Invoked via smoke_phase7_2_integration_2x5.sh.
+# Standard Phase 7.2 smoke: 2 episodes × 10 targets.
+# Open arc (~258°) about g_base at r=0.22 m so 10 flange-sized cubes clear the
+# approach-plane EE floor while spanning multiple quadrants. Keep-out clears
+# home start. Same flange-face containment policy as integration 2×5.
+# Invoked via smoke_phase7_2_standard_2x10.sh.
 # YAML root_seed is the library/API default only. Host plan/smoke CLI draws an
-# independent random seed per episode unless --root-seed N is passed (use 4242
-# to match the historical reproducible layout).
+# independent random seed per episode unless --root-seed N is passed.
 episode_count: 2
-target_count: 5
+target_count: 10
 root_seed: 4242
 frame: g_base
 placement: layout
@@ -16,17 +14,17 @@ order: shuffle
 retain_targets_after_contact: false
 layout:
   name: arc
-  radius_m: 0.20
-  # ~240° open arc centered on +X (start −2.1 rad).
-  span_rad: 4.2
+  radius_m: 0.22
+  # ~258° open arc centered on +X.
+  span_rad: 4.5
   center_xy_m: [0.0, 0.0]
   z_m: 0.16
-  start_angle_rad: -2.1
+  start_angle_rad: -2.25
 tip_allow_link_names:
   - joint6_flange
 field_aabb:
-  minimum_m: [-0.24, -0.24, 0.12]
-  maximum_m: [0.24, 0.24, 0.22]
+  minimum_m: [-0.28, -0.28, 0.12]
+  maximum_m: [0.28, 0.28, 0.22]
 keep_outs:
   - minimum_m: [-0.12, -0.12, 0.10]
     maximum_m: [0.12, 0.12, 0.24]
@@ -42,7 +40,7 @@ max_target_radial_m: 0.36
 start_joint_position_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 planner_profile: benchmark_reproducible
 validation_profile: simulation_initial
-scene_revision_prefix: phase7_2-integration-2x5
+scene_revision_prefix: phase7_2-standard-2x10
 artifact_path: artifacts/phase7_2
 minimum_self_collision_clearance_m: 0.0
 # Flange rim anti-graze vs remaining cubes (pairs with Ø31 mm flange spheres).

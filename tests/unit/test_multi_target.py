@@ -24,6 +24,7 @@ from mycobot_curobo.multi_target import (
     deserialize_episode,
     load_multi_target_suite_config,
     override_suite_target_count,
+    resolve_invocation_root_seed,
     sample_multi_target_episodes,
     serialize_episode,
 )
@@ -161,6 +162,45 @@ def test_integration_2x5_episodes_differ_in_placement_and_seeds() -> None:
     assert episodes[0].field.contact_order_ids != episodes[1].field.contact_order_ids
 
 
+def test_standard_2x10_episodes_differ_in_placement_and_seeds() -> None:
+    config = load_multi_target_suite_config(
+        ROOT / "config/phase7_2_multi_target_standard_2x10.yml"
+    )
+    assert config.episode_count == 2
+    assert config.target_count == 10
+    assert config.placement is PlacementPolicy.LAYOUT
+    assert config.order is OrderPolicy.SHUFFLE
+    assert config.require_flange_face_containment is True
+    episodes = sample_multi_target_episodes(config)
+    assert len(episodes) == 2
+    assert episodes[0].episode_seed != episodes[1].episode_seed
+    centers_a = tuple(target.center_m for target in episodes[0].field.targets)
+    centers_b = tuple(target.center_m for target in episodes[1].field.targets)
+    assert centers_a != centers_b
+    assert len(set(centers_a)) == 10
+    assert len(set(centers_b)) == 10
+
+
+def test_standard_2x20_episodes_share_placement_but_differ_in_order_and_seeds() -> None:
+    config = load_multi_target_suite_config(
+        ROOT / "config/phase7_2_multi_target_standard_2x20.yml"
+    )
+    assert config.episode_count == 2
+    assert config.target_count == 20
+    assert config.placement is PlacementPolicy.MANUAL
+    assert config.order is OrderPolicy.SHUFFLE
+    episodes = sample_multi_target_episodes(config)
+    assert len(episodes) == 2
+    assert episodes[0].episode_seed != episodes[1].episode_seed
+    assert episodes[0].order_seed != episodes[1].order_seed
+    centers_a = tuple(target.center_m for target in episodes[0].field.targets)
+    centers_b = tuple(target.center_m for target in episodes[1].field.targets)
+    # Manual placement: identical field every episode; order/planner seeds vary.
+    assert centers_a == centers_b
+    assert len(set(centers_a)) == 20
+    assert episodes[0].field.contact_order_ids != episodes[1].field.contact_order_ids
+
+
 def test_grid_z_varies_across_half_arm_range() -> None:
     config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_grid.yml")
     assert config.arm_z_motion_range_m == pytest.approx(0.28)
@@ -205,6 +245,34 @@ def test_grid_listed_field_builds_four_targets() -> None:
     field = build_target_field(config, order_seed=0)
     assert field.contact_order_ids == ("1", "2", "3", "4")
     assert len(field.targets) == 4
+
+
+def test_resolve_invocation_root_seed_requires_cli_value() -> None:
+    assert resolve_invocation_root_seed(0) == 0
+    assert resolve_invocation_root_seed(4242) == 4242
+    with pytest.raises(ConfigurationError, match="--root-seed"):
+        resolve_invocation_root_seed(None)
+    with pytest.raises(ConfigurationError, match="--root-seed"):
+        resolve_invocation_root_seed(-1)
+
+
+def test_independent_random_episode_seeds_differ() -> None:
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target.yml")
+    config = override_suite_target_count(config, 10)
+    episodes = sample_multi_target_episodes(
+        config, episode_count=3, independent_random_episode_seeds=True
+    )
+    assert len(episodes) == 3
+    episode_seeds = [episode.episode_seed for episode in episodes]
+    order_seeds = [episode.order_seed for episode in episodes]
+    assert len(set(episode_seeds)) == 3
+    assert len(set(order_seeds)) == 3
+    assert all(episode.root_seed == episode.episode_seed for episode in episodes)
+    # Distinct random roots should produce distinct fields for grid fallback.
+    centers = [
+        tuple(tuple(target.center_m) for target in episode.field.targets) for episode in episodes
+    ]
+    assert centers[0] != centers[1] or centers[0] != centers[2]
 
 
 def test_episodes_replay_exactly() -> None:
@@ -688,3 +756,13 @@ def test_override_target_count_switches_to_grid_when_manual_too_short() -> None:
     assert (
         field.contact_order_ids == build_target_field(overridden, order_seed=0).contact_order_ids
     )
+
+
+def test_override_target_count_packs_ten_for_cli_smoke() -> None:
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target.yml")
+    overridden = override_suite_target_count(config, 10)
+    assert overridden.placement is PlacementPolicy.GRID
+    episodes = sample_multi_target_episodes(overridden, root_seed=4242, episode_count=3)
+    assert len(episodes) == 3
+    assert all(len(episode.field.targets) == 10 for episode in episodes)
+    assert episodes[0].episode_seed != episodes[1].episode_seed

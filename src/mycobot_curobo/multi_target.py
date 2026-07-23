@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import secrets
 import time
 from collections import Counter
 from dataclasses import asdict, dataclass, field, replace
@@ -758,31 +759,79 @@ class MultiTargetEpisode:
     retain_targets_after_contact: bool
 
 
+def resolve_invocation_root_seed(cli_seed: int | None = None) -> int:
+    """Resolve a CLI-provided root seed (non-negative integer).
+
+    Callers that omit ``--root-seed`` should use
+    ``sample_multi_target_episodes(..., independent_random_episode_seeds=True)``
+    instead of this helper so each episode draws its own seed.
+    """
+
+    if cli_seed is None:
+        raise ConfigurationError("--root-seed must be a non-negative integer")
+    if isinstance(cli_seed, bool) or not isinstance(cli_seed, int):
+        raise ConfigurationError("--root-seed must be a non-negative integer")
+    if cli_seed < 0:
+        raise ConfigurationError("--root-seed must be a non-negative integer")
+    return int(cli_seed)
+
+
+def _draw_distinct_episode_seeds(count: int) -> tuple[tuple[int, int], ...]:
+    """Draw a distinct (episode_seed, order_seed) pair for each episode."""
+
+    pairs: list[tuple[int, int]] = []
+    used: set[int] = set()
+    for _ in range(count):
+        episode_seed = int(secrets.randbelow(2**31))
+        while episode_seed in used:
+            episode_seed = int(secrets.randbelow(2**31))
+        used.add(episode_seed)
+        order_seed = int(secrets.randbelow(2**31))
+        while order_seed in used:
+            order_seed = int(secrets.randbelow(2**31))
+        used.add(order_seed)
+        pairs.append((episode_seed, order_seed))
+    return tuple(pairs)
+
+
 def sample_multi_target_episodes(
     config: MultiTargetSuiteConfig,
     *,
     root_seed: int | None = None,
     episode_count: int | None = None,
+    independent_random_episode_seeds: bool = False,
 ) -> tuple[MultiTargetEpisode, ...]:
-    """Sample deterministic multi-target episodes from the suite configuration."""
+    """Sample multi-target episodes from the suite configuration.
 
-    seed = config.root_seed if root_seed is None else int(root_seed)
+    When ``independent_random_episode_seeds`` is true, each episode draws its
+    own fresh ``episode_seed`` / ``order_seed`` (and stores that episode seed as
+    ``root_seed``). When false, episodes derive deterministic seeds from
+    ``root_seed`` (or YAML ``config.root_seed`` when ``root_seed`` is None).
+    """
+
     count = (
         config.episode_count
         if episode_count is None
         else _positive_int(episode_count, "episode_count")
     )
+    if independent_random_episode_seeds:
+        seed_pairs = _draw_distinct_episode_seeds(count)
+        shared_root: int | None = None
+    else:
+        seed = config.root_seed if root_seed is None else int(root_seed)
+        shared_root = seed
+        seed_pairs = tuple(
+            (seed + 1009 * (index + 1), seed + 9176 * (index + 1)) for index in range(count)
+        )
     episodes: list[MultiTargetEpisode] = []
-    for index in range(count):
-        episode_seed = seed + 1009 * (index + 1)
-        order_seed = seed + 9176 * (index + 1)
-        # Grid suites use episode_seed so each episode gets a distinct field;
-        # manual suites ignore placement_seed (listed centres are fixed).
+    for index, (episode_seed, order_seed) in enumerate(seed_pairs):
+        # Grid / random / layout suites use episode_seed so each episode gets a
+        # distinct field; manual suites ignore placement_seed (fixed centres).
         field = build_target_field(config, order_seed=order_seed, placement_seed=episode_seed)
         episodes.append(
             MultiTargetEpisode(
                 episode_index=index,
-                root_seed=seed,
+                root_seed=episode_seed if shared_root is None else shared_root,
                 episode_seed=episode_seed,
                 order_seed=order_seed,
                 field=field,

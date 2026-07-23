@@ -34,6 +34,7 @@ from mycobot_curobo.multi_target import (  # noqa: E402
     format_suite_summary,
     load_multi_target_suite_config,
     override_suite_target_count,
+    resolve_invocation_root_seed,
     sample_multi_target_episodes,
     serialize_episode,
     suite_acceptance_passed,
@@ -70,6 +71,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Override config target_count (positive). Manual lists shorter than N "
         "switch to grid placement in the configured field AABB.",
+    )
+    parser.add_argument(
+        "--root-seed",
+        type=int,
+        default=None,
+        help="Suite root seed for reproducible placement and episode planner "
+        "seeds (episode_seed = root_seed + 1009*(i+1)). Omit to draw a "
+        "distinct random seed for each episode (maximizes coverage). "
+        "YAML root_seed is not used unless this flag is set to that value.",
     )
     parser.add_argument("--output-bundle", type=Path, required=True)
     return parser.parse_args(argv)
@@ -280,6 +290,17 @@ def main(argv: list[str] | None = None) -> int:
         raise ConfigurationError("--episodes must be a positive integer")
     if args.targets is not None and args.targets <= 0:
         raise ConfigurationError("--targets must be a positive integer")
+    independent_episode_seeds = args.root_seed is None
+    root_seed: int | None
+    if independent_episode_seeds:
+        root_seed = None
+        print(
+            "phase7_2_plan: episode seeds=independent_random (no --root-seed)",
+            flush=True,
+        )
+    else:
+        root_seed = resolve_invocation_root_seed(args.root_seed)
+        print(f"phase7_2_plan: root_seed={root_seed} (cli)", flush=True)
     config = load_multi_target_suite_config(args.config)
     if args.targets is not None:
         before = config
@@ -291,8 +312,17 @@ def main(argv: list[str] | None = None) -> int:
                 flush=True,
             )
     episodes = sample_multi_target_episodes(
-        config, root_seed=config.root_seed, episode_count=args.episodes
+        config,
+        root_seed=root_seed,
+        episode_count=args.episodes,
+        independent_random_episode_seeds=independent_episode_seeds,
     )
+    for episode in episodes:
+        print(
+            f"phase7_2_plan: episode={episode.episode_index} "
+            f"episode_seed={episode.episode_seed} order_seed={episode.order_seed}",
+            flush=True,
+        )
     results, trajectories = plan_and_validate(
         episodes,
         validation_profile_name=config.validation_profile,
@@ -303,13 +333,18 @@ def main(argv: list[str] | None = None) -> int:
         require_flange_face_containment=config.require_flange_face_containment,
         flange_face_overhang_tolerance_m=config.flange_face_overhang_tolerance_m,
     )
-    summary = aggregate_multi_target_results(results, root_seed=config.root_seed)
+    summary_seed = root_seed if root_seed is not None else int(episodes[0].episode_seed)
+    summary = aggregate_multi_target_results(results, root_seed=summary_seed)
     for result in results:
         print(format_episode_console_row(result, count=len(results)), flush=True)
     print(format_suite_summary(summary), flush=True)
     payload = {
         "schema_version": 1,
-        "root_seed": config.root_seed,
+        "root_seed": root_seed,
+        "seed_mode": (
+            "independent_random_per_episode" if independent_episode_seeds else "cli_root"
+        ),
+        "episode_seeds": [int(episode.episode_seed) for episode in episodes],
         "tip_allow_link_names": list(config.tip_allow_link_names),
         "retain_targets_after_contact": config.retain_targets_after_contact,
         "lighting": config.lighting,

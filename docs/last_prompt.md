@@ -1,10 +1,80 @@
+## BEGIN: 2026-07-23 04:21 -0700
+
+Commit and push to github for the working branch. Then rebase with main and push to github again.
+
+Upate the appropriate document on where we left off and what should be next steps.
+
+Question: Is it possible to generate a video file of a paritcular window on the DGX Spark? This would allow me to document the result of a demo.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-23 04:11 -0700
+
+Can you update the @README.md with a timestamped reference to the number of lines of code and files in this project. Make the change in the section of the document that describes the project architecture.
+
+Can you also describe how much of the AI context is generally used when thinking about complex changes that impact the whole project. I consider this our worst case upper bound on context utilization.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-23 04:02 -0700
+
+Document if needed:
+
+What is the meaning of the term "manual" when it refers to the positioning of cubes? This is confusing since the cubes are in fact positioned automatically, just within a manually calculated configuration.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-23 03:43 -0700
+
+Let's create one more 2x20 configuration. When finished execute the GUI for visualization.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-23 03:38 -0700
+
+Document if necessary:
+
+Which named wrappers are run as gates?
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-23 03:32 -0700
+
+Document this as well if needed:
+
+How do you know which suite to use when using a --targets parameter which is lower than either of two existing suites?
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-23 03:21 -0700
+
+Document when a new suite needs to be created versus simply using the --target and --episodes parameter files.
+
+## END
+
+## BEGIN: 2026-07-23 03:16 -0700
+
+Produce a new standard size of 2 x 10, and retest with the visual smoke for validation.
+
+## END
+
 ## BEGIN: 2026-07-23 03:09 -0700
 
 Elaborate: "For a new “standard” size that isn’t a one-off CLI override, add a dedicated YAML rather than continually retuning the default."
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-23 03:05 -0700
 

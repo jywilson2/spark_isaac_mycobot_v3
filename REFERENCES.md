@@ -231,6 +231,15 @@ compute-capability warning is retained in that report and is not suppressed.
 - High-effort bisect helper:
   `scripts/host/bisect_high_effort_profile.py` (one-knob profile variants;
   does not rewrite repo YAML).
+- Host CLI seed: `--root-seed N` on `plan_multi_target_suite.py` /
+  `smoke_phase7_2_multi_target.sh` (and integration 2×5 / standard 2×10
+  wrappers). Omit for an independent random seed per episode; see phase 7.2
+  report Host CLI overrides.
+- Standard denser suite: `config/phase7_2_multi_target_standard_2x10.yml` via
+  `scripts/host/smoke_phase7_2_standard_2x10.sh` (2 episodes × 10 targets).
+- Densest suite: `config/phase7_2_multi_target_standard_2x20.yml` via
+  `scripts/host/smoke_phase7_2_standard_2x20.sh` (2 episodes × 20 targets;
+  two-ring manual field, 14 mm cubes).
 
 ## Phase 7.3 target placement
 

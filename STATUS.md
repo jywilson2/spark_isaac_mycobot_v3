@@ -1,6 +1,6 @@
 # STATUS — MyCobot 280 M5 Constrained Approach Planner
 
-Last updated: **2026-07-22**
+Last updated: **2026-07-23**
 
 ## Current phase
 
@@ -94,9 +94,10 @@ planning-success claims, or hardware-readiness claims carry forward.
 - [x] Per-target planning retries; target/episode/suite budgets as landed.
 - [x] Landed: tip contact not required for planning-failed targets; tip miss
       after a successful plan aborts the episode.
-- [ ] **Spec revision (pending impl):** deferral + reconsider; planning world
-      = remaining after tip-removals; playback = plan-creation order; FAIL if
-      any target remains unplanned.
+- [x] Spec revision landed: deferral + reconsider; planning world =
+      remaining after tip-removals; playback = plan-creation order; FAIL if
+      any target remains unplanned (exercised live by 2×20 seed-4242 GUI run:
+      `start→1` deferred, replanned via reconsider as final leg `7→1`).
 - [x] Dual console/JSON timing; host plan/play split; smoke gates wired.
 - [x] Container CI (unit tests + Ruff) green for the landed change set.
 - [x] Host GUI evidence: seed 123, `--targets 10 --episodes 1`, suite accepted
@@ -104,12 +105,28 @@ planning-success claims, or hardware-readiness claims carry forward.
       `--no-auto-exit`.
 - [x] No physical command, alternate planner, or physical-accuracy claim.
 
-## Next step / resume (2026-07-21)
+## Next step / resume (2026-07-23)
 
-**Phase 7.2 orchestration revision — awaiting approval / then implement**
-(`spec.md` §8 Clearance, deferral, and reconsider): remaining-obstacle
-planning world, defer+reconsider skipped targets, plan-creation playback
-order, all-targets-planned episode gate.
+**Where we left off:** the named-suite family is complete and documented —
+standard 2×10 (open arc, flange-sized cubes) and densest 2×20 (two-ring
+manual field, 14 mm cubes; GUI evidence seed 4242: exit 0, 2/2 episodes,
+40/40 tip contacts, 0 body contacts, deferral/reconsider exercised live).
+Phase 7.2 report gained decision guidance: dedicated suite vs
+`--targets`/`--episodes`, base-suite selection for reduced counts, the
+wrapper-gate table, and `manual` placement terminology. README carries a
+timestamped project-size + AI-context snapshot. `wip_phase7_3` committed,
+rebased onto `origin/main`, and pushed.
+
+**Next steps:**
+
+1. Review `wip_phase7_3` and fast-forward `main` to the tested commit per
+   branch policy (no merge commits into phase branches).
+2. Build unseeded 2×20 failure-rate evidence (repeat runs without
+   `--root-seed`); nudge ring radii (inner 0.15 / outer 0.23) only if
+   deferrals accumulate on close-in or far legs.
+3. Phase 1.1 cover-option decision (below) remains the gate for denser
+   collision spheres; integration 2×5 must stay green when re-arming.
+4. Then Phase 8 (bounded residual RL, sim only) per the roadmap.
 
 **Phase 1.1 — awaiting approval of revised cover approach** (see `spec.md`
 §8 Phase 1.1 “Proposed revision”). Headless findings:
@@ -130,6 +147,13 @@ chosen. Phase 7.3 placement APIs are available with scaffolding spheres.
 `./scripts/run_verification.sh spark --with-integration-smoke`.
 Playback tip-face evidence uses terminal joint snap + FK/USD proximity
 (15 mm) so short headless holds do not drop tip contact after PhysX push-out.
+
+**Standard denser suite:** `smoke_phase7_2_standard_2x10.sh` — 2 episodes ×
+10 targets (dedicated open-arc YAML). Not part of the default spark gate.
+
+**Densest suite:** `smoke_phase7_2_standard_2x20.sh` — 2 episodes × 20
+targets (two-ring manual field, 14 mm cubes). Not part of the default spark
+gate.
 
 ## 2026-07-20 compliance note
 

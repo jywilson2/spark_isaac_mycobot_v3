@@ -1,0 +1,99 @@
+# Standard Phase 7.2 smoke: 2 episodes × 20 targets.
+# Two-ring manual field (open ~258° arcs about g_base): outer ring r=0.23 m
+# (11 targets, 0.45 rad step) and inner ring r=0.15 m (9 targets, 0.5625 rad
+# step). The 0.08 m radial ring gap satisfies the approach-plane EE floor
+# (0.014 + 0.031 + 0.031 = 0.076 m) for any angle pairing; within-ring chords
+# are 0.1026 m (outer) and 0.0833 m (inner).
+# 20 reachable targets cannot pack with flange-sized (31 mm) cubes: the 0.093 m
+# floor exceeds the reachable annulus capacity. This suite therefore uses the
+# default 14 mm cube regime; require_flange_face_containment stays off (the
+# Ø31 mm flange always overhangs a 14 mm face; PhysX tip classification still
+# treats active-target flange/edge contact as allowed tip).
+# Manual placement: the field is identical across episodes; per-episode
+# variation comes from shuffle contact order and planner seeds.
+# Keep-out is ±0.10 m (vs ±0.12 m in 2×10) so the inner ring clears the box;
+# nearest inner cube edge stays >= 0.02 m outside it.
+# Invoked via smoke_phase7_2_standard_2x20.sh.
+# YAML root_seed is the library/API default only. Host plan/smoke CLI draws an
+# independent random seed per episode unless --root-seed N is passed.
+episode_count: 2
+target_count: 20
+root_seed: 4242
+frame: g_base
+placement: manual
+order: shuffle
+retain_targets_after_contact: false
+tip_allow_link_names:
+  - joint6_flange
+# Manual targets ignore this AABB; it sizes the grid fallback for --targets > 20.
+field_aabb:
+  minimum_m: [-0.26, -0.26, 0.12]
+  maximum_m: [0.26, 0.26, 0.22]
+keep_outs:
+  - minimum_m: [-0.10, -0.10, 0.10]
+    maximum_m: [0.10, 0.10, 0.24]
+arm_z_motion_range_m: 0.28
+target_edge_m: 0.014
+outward_normal_base: [0.0, 0.0, 1.0]
+flange_diameter_assumption_m: 0.031
+require_flange_face_containment: false
+max_target_radial_m: 0.36
+targets:
+  # Outer ring: r=0.23, angles -2.25 + 0.45k (k=0..10), z=0.16.
+  - target_id: "1"
+    center_m: [-0.14448, -0.178957, 0.16]
+  - target_id: "2"
+    center_m: [-0.052256, -0.223985, 0.16]
+  - target_id: "3"
+    center_m: [0.050372, -0.224416, 0.16]
+  - target_id: "4"
+    center_m: [0.14297, -0.180165, 0.16]
+  - target_id: "5"
+    center_m: [0.207103, -0.100042, 0.16]
+  - target_id: "6"
+    center_m: [0.23, 0.0, 0.16]
+  - target_id: "7"
+    center_m: [0.207103, 0.100042, 0.16]
+  - target_id: "8"
+    center_m: [0.14297, 0.180165, 0.16]
+  - target_id: "9"
+    center_m: [0.050372, 0.224416, 0.16]
+  - target_id: "10"
+    center_m: [-0.052256, 0.223985, 0.16]
+  - target_id: "11"
+    center_m: [-0.14448, 0.178957, 0.16]
+  # Inner ring: r=0.15, angles -2.25 + 0.5625k (k=0..8), z=0.16.
+  - target_id: "12"
+    center_m: [-0.094226, -0.116711, 0.16]
+  - target_id: "13"
+    center_m: [-0.017466, -0.14898, 0.16]
+  - target_id: "14"
+    center_m: [0.064676, -0.13534, 0.16]
+  - target_id: "15"
+    center_m: [0.126889, -0.079995, 0.16]
+  - target_id: "16"
+    center_m: [0.15, 0.0, 0.16]
+  - target_id: "17"
+    center_m: [0.126889, 0.079995, 0.16]
+  - target_id: "18"
+    center_m: [0.064676, 0.13534, 0.16]
+  - target_id: "19"
+    center_m: [-0.017466, 0.14898, 0.16]
+  - target_id: "20"
+    center_m: [-0.094226, 0.116711, 0.16]
+start_joint_position_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+planner_profile: benchmark_reproducible
+validation_profile: simulation_initial
+scene_revision_prefix: phase7_2-standard-2x20
+artifact_path: artifacts/phase7_2
+minimum_self_collision_clearance_m: 0.0
+# Flange rim anti-graze vs remaining cubes (pairs with Ø31 mm flange spheres).
+minimum_world_collision_clearance_m: 0.006
+lighting:
+  dome_intensity: 400.0
+  distant_intensity: 1000.0
+  distant_angle_deg: [45.0, -30.0, 0.0]
+  color: [1.0, 1.0, 1.0]
+pre_approach_distance_m: 0.01
+fixed_roll_rad: 0.0
+warn_planning_duration_s: 30.0

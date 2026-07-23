@@ -14,6 +14,32 @@ residual implementation, distance-dependent recovery, and legacy cuRobo
 The authoritative requirements are in [`spec.md`](spec.md). Cursor guidance in
 [`.cursor/rules/`](.cursor/rules/) is also authoritative.
 
+### Project size (snapshot 2026-07-23)
+
+Tracked files excluding vendored `third_party/`, `assets/`, and `artifacts/`
+(regenerate with `git ls-files | grep -Ev '^(third_party/|assets/|artifacts/)'
+| xargs wc -l`):
+
+| Type | Files | Lines |
+|------|-------|-------|
+| Python (`.py`) | 84 | 17,382 |
+| Shell (`.sh`) | 20 | 1,855 |
+| YAML (`.yml`) | 18 | 5,888 |
+| Markdown (`.md`) | 32 | 11,729 |
+| Other (rules, TOML, JSON, …) | 25 | ~6,020 |
+| **Total** | **179** | **42,874** |
+
+**AI context utilization (worst case).** The tracked corpus is ~1.6 MB of
+text, roughly 400k LLM tokens — about **2×** a ~200k-token agent context
+window, so "read everything" is impossible and the agent works by selective
+retrieval. A complex cross-cutting change typically carries ~15–20k tokens
+of fixed overhead (system prompt, workspace rules, tool schemas) plus
+60–120k tokens of retrieved content (`spec.md` sections, several core
+modules, tests, configs, phase docs) and conversation/tool output, i.e.
+**50–80% of the window per turn**; long sessions reach 100% and older
+context is summarized. Treat one full window (~200k tokens ≈ a quarter to a
+half of the corpus per pass) as the practical worst-case upper bound.
+
 ## Current phase
 
 **Phase 7 — Isaac Sim validated-plan playback: complete. Phase 7.1 —
@@ -382,7 +408,13 @@ can override the count:
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --manual
 # Integration-only (2×5; multi-quadrant open arc + base keep-out):
 ./scripts/host/smoke_phase7_2_integration_2x5.sh --gui --auto-exit
+# Reproduce a prior layout (seed is logged as phase7_2_plan: root_seed=N):
+./scripts/host/smoke_phase7_2_integration_2x5.sh --gui --auto-exit --root-seed 4242
 ./scripts/run_verification.sh spark --with-integration-smoke
+# Standard denser suite (2×10; dedicated YAML, not a default CLI override):
+./scripts/host/smoke_phase7_2_standard_2x10.sh --gui --auto-exit
+# Densest suite (2×20; two-ring manual field, 14 mm cubes):
+./scripts/host/smoke_phase7_2_standard_2x20.sh --gui --auto-exit
 ```
 
 `--no-auto-exit` keeps replaying episodes indefinitely after the first pass
@@ -397,13 +429,22 @@ Measured +Z tip-contact candidate map (before further field expand):
 Integration 2×5 enables `require_flange_face_containment` with flange-sized
 cubes (`target_edge_m: 0.031`) so tip contact does not overhang the face.
 
-`--targets N` and `--episodes N` are defined in [`spec.md`](spec.md) §8 Phase 7.2 / §9.
-Failure budgets: per-target planning retries
+`--targets N`, `--episodes N`, and `--root-seed N` are defined in
+[`spec.md`](spec.md) §8 Phase 7.2 / §9. Omitting `--root-seed` draws an
+independent random seed for each episode (maximize coverage); pass
+`--root-seed N` to reproduce. Failure budgets: per-target planning retries
 (`max_planning_failure_per_target`, default 3), then deferral / reconsider
 (`max_reconsider_passes`, default `target_count`); suite episode ceiling
 (`max_failed_episodes`, default 0). Episodes FAIL if any target remains
 unplanned. See
 [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md).
+
+The overrides change counts only; field geometry, budgets, and validation
+flags stay with the selected YAML. For one-off runs that fit the existing
+field, use `--targets` / `--episodes`; for a recurring named size or any
+retuned field/budget, add a dedicated YAML plus a pinned wrapper script. See
+[`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md)
+§ When to create a dedicated suite vs `--targets` / `--episodes`.
 
 ## Planned Phase 9/9.1 contact tool
 

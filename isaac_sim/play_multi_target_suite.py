@@ -381,7 +381,11 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
     tip_links = tuple(bundle["tip_allow_link_names"])
     retain = bool(bundle["retain_targets_after_contact"])
     lighting_config = IsaacLightingConfig.from_mapping(bundle["lighting"])
-    root_seed = int(bundle["root_seed"])
+    if bundle.get("root_seed") is None:
+        episode_seeds = bundle.get("episode_seeds") or []
+        root_seed = int(episode_seeds[0]) if episode_seeds else 0
+    else:
+        root_seed = int(bundle["root_seed"])
     usd = _resolve_prepared_usd(args.repo_root.resolve(), args.usd)
 
     configure_kit_for_stage_lighting()

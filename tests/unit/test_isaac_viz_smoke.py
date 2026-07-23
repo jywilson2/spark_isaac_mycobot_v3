@@ -48,17 +48,35 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     smoke72_int = (ROOT / "scripts/host/smoke_phase7_2_integration_2x5.sh").read_text(
         encoding="utf-8"
     )
+    smoke72_std = (ROOT / "scripts/host/smoke_phase7_2_standard_2x10.sh").read_text(
+        encoding="utf-8"
+    )
+    smoke72_std20 = (ROOT / "scripts/host/smoke_phase7_2_standard_2x20.sh").read_text(
+        encoding="utf-8"
+    )
     gpu72 = (ROOT / "scripts/host/run_phase7_2_gpu.sh").read_text(encoding="utf-8")
     assert "test_phase7_2_multi_target_gpu.py" in gpu72
     assert "--targets" in smoke72
     assert 'plan_args+=(--targets "${targets}")' in smoke72
     assert "--episodes" in smoke72
     assert 'plan_args+=(--episodes "${episodes}")' in smoke72
+    assert "--root-seed" in smoke72
+    assert 'plan_args+=(--root-seed "${root_seed}")' in smoke72
     assert "--config" in smoke72
     assert "plan_status" in smoke72
     assert "phase7_2_multi_target_integration_2x5.yml" in smoke72_int
     assert "--targets 5" in smoke72_int
     assert "--episodes 2" in smoke72_int
+    assert "--root-seed" in smoke72_int
+    assert "phase7_2_multi_target_standard_2x10.yml" in smoke72_std
+    assert "--targets 10" in smoke72_std
+    assert "--episodes 2" in smoke72_std
+    assert "phase7_2_multi_target_standard_2x20.yml" in smoke72_std20
+    assert "--targets 20" in smoke72_std20
+    assert "--episodes 2" in smoke72_std20
+    planner72 = (ROOT / "isaac_sim" / "plan_multi_target_suite.py").read_text(encoding="utf-8")
+    assert "--root-seed" in planner72
+    assert "resolve_invocation_root_seed" in planner72
     player72 = (ROOT / "isaac_sim" / "play_multi_target_suite.py").read_text(encoding="utf-8")
     assert "replaying episodes" in player72
     assert "Kit window closed" in player72

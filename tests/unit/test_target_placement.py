@@ -53,6 +53,73 @@ def test_rows_and_arc_layouts_load() -> None:
     assert len(field_arc.targets) == 4
 
 
+def test_standard_2x10_packs_under_rim_with_reproducible_planner() -> None:
+    """Standard 2×10 smoke: denser open arc + flange-sized cubes."""
+
+    from mycobot_curobo.target_placement import LayoutName
+
+    config = load_multi_target_suite_config(
+        ROOT / "config/phase7_2_multi_target_standard_2x10.yml"
+    )
+    assert config.placement is PlacementPolicy.LAYOUT
+    assert config.layout is not None
+    assert config.layout.name is LayoutName.ARC
+    assert config.target_count == 10
+    assert config.episode_count == 2
+    assert config.require_flange_face_containment is True
+    assert config.target_edge_m == pytest.approx(0.031)
+    assert config.layout.radius_m == pytest.approx(0.22)
+    assert config.layout.span_rad == pytest.approx(4.5)
+    assert config.planner_profile == "benchmark_reproducible"
+    episodes = sample_multi_target_episodes(config, root_seed=4242)
+    assert len(episodes) == 2
+    for episode in episodes:
+        xs = [t.center_m[0] for t in episode.field.targets]
+        ys = [t.center_m[1] for t in episode.field.targets]
+        assert min(xs) < 0.0
+        assert max(xs) > 0.0
+        assert min(ys) < 0.0
+        assert max(ys) > 0.0
+        assert len(episode.field.targets) == 10
+
+
+def test_standard_2x20_two_ring_manual_packs_above_ee_floor() -> None:
+    """Standard 2×20 smoke: two-ring manual field with 14 mm cubes."""
+
+    import math
+
+    config = load_multi_target_suite_config(
+        ROOT / "config/phase7_2_multi_target_standard_2x20.yml"
+    )
+    assert config.placement is PlacementPolicy.MANUAL
+    assert config.target_count == 20
+    assert config.episode_count == 2
+    assert config.target_edge_m == pytest.approx(0.014)
+    assert config.require_flange_face_containment is False
+    assert config.min_center_separation_m == pytest.approx(0.076)
+    assert config.planner_profile == "benchmark_reproducible"
+    assert len(config.keep_outs) == 1
+    # build_target_field fail-closed validates separation / keep-outs / rim.
+    field = build_target_field(config, order_seed=7)
+    assert len(field.targets) == 20
+    radii = sorted({round(math.hypot(t.center_m[0], t.center_m[1]), 3) for t in field.targets})
+    assert radii == [0.15, 0.23]
+    outer = [t for t in field.targets if math.hypot(t.center_m[0], t.center_m[1]) > 0.2]
+    inner = [t for t in field.targets if math.hypot(t.center_m[0], t.center_m[1]) < 0.2]
+    assert len(outer) == 11
+    assert len(inner) == 9
+    xs = [t.center_m[0] for t in field.targets]
+    ys = [t.center_m[1] for t in field.targets]
+    assert min(xs) < 0.0 < max(xs)
+    assert min(ys) < 0.0 < max(ys)
+    separations = [
+        approach_plane_separation_m(a.center_m, b.center_m, config.outward_normal_base)
+        for idx, a in enumerate(field.targets)
+        for b in field.targets[idx + 1 :]
+    ]
+    assert min(separations) >= config.min_center_separation_m
+
+
 def test_integration_2x5_packs_under_rim_with_reproducible_planner() -> None:
     """Integration smoke: multi-quadrant open arc + flange-sized cubes."""
 

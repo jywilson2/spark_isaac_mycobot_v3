@@ -81,6 +81,24 @@ orchestration over successive validated plans with an explicit world revision.
   normal, roll policy). No position sampling; lists fail closed if they
   violate the effective EE-clearance minimum.
 
+**Terminology — "manual" describes where the coordinates come from, not how
+cubes are positioned.** At runtime every placement policy spawns cubes
+automatically; the policy names distinguish who decides the centres:
+
+- `grid` / `layout` / `random` **compute** centres at episode-sampling time
+  from parameters (AABB, arc spec, seed), so the field can vary per episode.
+- `manual` **declares** centres: the suite YAML pins the exact numbered
+  poses, the loader validates them fail-closed, and the field is byte-for-
+  byte identical for every episode and run. Read it as "explicitly listed" /
+  "author-supplied".
+
+"Manual" says nothing about how the listed values were obtained — they may
+be hand-taught, FK-derived (default 2-target suite), or precomputed offline
+by a script (standard 2×20 two-ring geometry). What matters to the runner is
+only that the coordinates are fixed configuration rather than sampled. This
+is also the policy that maps to taught/measured poses on hardware
+(`placement=manual`, `order=listed` in the transfer table below).
+
 ### Contact order
 
 - **`shuffle`:** seeded random permutation; exactly replayable from root seed.
@@ -275,11 +293,126 @@ Host CLI overrides (normative detail in `spec.md` §8 / §9):
 
 - `--targets N` / `--episodes N` on `plan_multi_target_suite.py` and
   `smoke_phase7_2_multi_target.sh`.
+- `--root-seed N` (non-negative integer): fix the suite root seed for
+  reproducible placement and episode planner seeds
+  (`episode_seed = N + 1009*(i+1)`). **Default (flag omitted):** each episode
+  draws its own independent random seed in `[0, 2**31)` so a multi-episode run
+  explores distinct layouts. Logged as
+  `phase7_2_plan: episode=i episode_seed=…` (plus `root_seed=N (cli)` when set)
+  and stored in the plan bundle (`seed_mode`, `episode_seeds`).
 - Artifact tags: `N`, `epM`, or `NxM` when overrides are set.
 
 ```bash
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 10 --episodes 5
+# Reproduce a prior layout:
+./scripts/host/smoke_phase7_2_multi_target.sh --gui --auto-exit --targets 10 --episodes 5 --root-seed 4242
 ```
+
+### When to create a dedicated suite vs `--targets` / `--episodes`
+
+`--targets N` / `--episodes N` change **counts only**. Every other suite
+parameter — field AABB, arc `radius_m` / `span_rad`, `target_edge_m`,
+keep-out and rim guard, clearance margins, failure budgets, validation
+flags, profiles, lighting — still comes from whichever YAML `--config`
+selects. Two consequences drive the decision:
+
+- Placement fails closed: if N centres cannot satisfy the approach-plane
+  EE-clearance minimum inside the *unchanged* field, sampling raises
+  `ConfigurationError` rather than squeezing targets closer.
+- On a `placement: manual` YAML, `--targets N` larger than the listed poses
+  silently switches to grid placement in the declared field AABB (a
+  different layout than the curated poses); a long-enough list is truncated
+  to the first N ids. `max_reconsider_passes` re-defaults to the new count
+  unless explicitly pinned.
+
+**Use the CLI overrides when all of the following hold:**
+
+- The run is a one-off exploration, debug session, or capacity probe — not
+  evidence you expect to cite or repeat as a gate.
+- The selected YAML's existing field geometry already accommodates N (the
+  fail-closed check passes without touching spacing or the AABB).
+- No other knob needs to change (budgets, containment flags, clearances,
+  profiles). Overridden runs are tagged `N` / `epM` / `NxM` in artifact
+  names, and reproduction requires re-supplying the same flags plus
+  `--root-seed`.
+
+**Create a dedicated YAML (plus a pinned wrapper script) when any of these
+apply:**
+
+- The size becomes a recurring **named standard** cited in docs, STATUS, or
+  verification gates (as with integration 2×5 and standard 2×10). A wrapper
+  that pins `--targets` / `--episodes` keeps evidence comparable across runs
+  and immune to default-YAML drift.
+- The count requires re-tuned geometry: a larger/denser field AABB or arc,
+  different `target_edge_m`, keep-out, or clearance margins. Counts-only
+  overrides cannot express any of that.
+- Any non-count parameter differs from the base suite:
+  `max_failed_episodes`, `max_planning_failure_per_target`,
+  `require_flange_face_containment`, `minimum_world_collision_clearance_m`,
+  planner/validation profiles, or lighting.
+- You need curated `placement: manual` poses at the new count (the override
+  would fall back to grid instead).
+
+Do **not** retune the shared default `config/phase7_2_multi_target.yml` for
+a new standard size; it is the 2-target quick-smoke baseline that other
+docs and tests reference. Follow the existing naming pattern:
+`config/phase7_2_multi_target_<name>_<E>x<T>.yml` with
+`scripts/host/smoke_phase7_2_<name>_<E>x<T>.sh` pinning the counts.
+
+#### Choosing the base suite for a lower `--targets` count
+
+When the desired count is smaller than an existing suite's native count
+(for example `--targets 4` with both integration 2×5 and standard 2×10
+available), the count itself is **not** the selection criterion. Because
+`--targets` never touches geometry or policy, pick the YAML whose
+**non-count regime** matches what the run is meant to exercise:
+
+| Base suite | Regime a reduced-count run inherits |
+|------------|-------------------------------------|
+| `phase7_2_multi_target.yml` (default) | Quick-smoke baseline: EE-floor grid fallback, 14 mm cubes, no face containment |
+| `phase7_2_multi_target_integration_2x5.yml` | Open arc `radius_m: 0.20`, flange-sized cubes (31 mm), face containment, anti-graze clearance |
+| `phase7_2_multi_target_standard_2x10.yml` | Denser open arc `radius_m: 0.22`, `span_rad: 4.5`, same tip-contact policy as integration |
+| `phase7_2_multi_target_standard_2x20.yml` | Two-ring manual field (r=0.15 / r=0.23), 14 mm cubes, no face containment; lower `--targets` truncates the list to the first N ids |
+
+Lowering the count is always geometrically safe: fewer centres in the same
+field satisfy the clearance minimum trivially (layout arcs place N centres
+along the same arc; manual lists truncate to the first N ids). If you are
+thinning a run as a precursor to a named gate — for example isolating a
+failure seen at 2×10 — stay on that gate's YAML so the field, margins, and
+validation flags are identical. Reach for the default YAML only when the
+regime does not matter and you want the fastest baseline smoke.
+
+The named wrappers pin their counts, so run a reduced count through the
+generic smoke with an explicit `--config`:
+
+```bash
+./scripts/host/smoke_phase7_2_multi_target.sh --gui --auto-exit \
+  --config config/phase7_2_multi_target_standard_2x10.yml --targets 7 --episodes 1
+```
+
+A reduced-count run is tagged by its override counts in artifact names and
+is **not** evidence for the named gate; the gate still requires its pinned
+wrapper at full count.
+
+#### Which named wrappers run as gates
+
+`./scripts/run_verification.sh spark` (after unit tests and Ruff) is the
+authoritative gate wiring:
+
+| Wrapper | Invocation in `spark` mode | Gate status |
+|---------|----------------------------|-------------|
+| `smoke_isaac_viz.sh` | `--gui --auto-exit` | **Required** (Phase 7 validated-plan GUI smoke) |
+| `smoke_phase7_1_cube_suite.sh` | `--gui --auto-exit --all-modes` | **Required** (Phase 7.1 cube suite) |
+| `smoke_phase7_2_multi_target.sh` | `--gui --auto-exit` (default 2-target YAML) | **Required** (Phase 7.2 default suite) |
+| `smoke_phase7_2_integration_2x5.sh` | `--headless` then `--gui`, `--auto-exit` | **Opt-in**: `--with-integration-smoke` or `SPARK_RUN_INTEGRATION_SMOKE=1`; required by Phase 1.1 acceptance before re-arming denser collision spheres |
+| `smoke_phase7_2_standard_2x10.sh` | not invoked | **Not a gate**: on-demand named evidence suite, run manually |
+| `smoke_phase7_2_standard_2x20.sh` | not invoked | **Not a gate**: on-demand named evidence suite, run manually |
+
+The three required wrappers are the "GUI smoke exits 0" precondition for
+pushing any Isaac-path change (workflow rule; do not bypass with
+`SPARK_RUN_ISAAC_GUI_SMOKE=0`). `ci` mode never runs Isaac wrappers; it
+notes and skips the integration smoke even when requested. GPU integration
+tests (`--with-gpu`) are pytest-based, not a named wrapper.
 
 ### Integration smoke (2 episodes × 5 targets)
 
@@ -288,19 +421,77 @@ Opt-in host gate (not part of default spark GUI smoke):
 ```bash
 ./scripts/host/smoke_phase7_2_integration_2x5.sh --headless --auto-exit
 ./scripts/host/smoke_phase7_2_integration_2x5.sh --gui --auto-exit
+# Reproduce historical layout (YAML library default 4242):
+./scripts/host/smoke_phase7_2_integration_2x5.sh --gui --auto-exit --root-seed 4242
 # or
 ./scripts/run_verification.sh spark --with-integration-smoke
 ```
 
-Uses `config/phase7_2_multi_target_integration_2x5.yml` (grid + shuffle). Each
-episode gets a distinct grid `placement_seed` and planner `episode_seed` so
-target placement and planned paths differ. Required by Phase 1.1 acceptance
-before re-arming denser collision spheres (`spec.md` §8 Phase 1.1).
+Uses `config/phase7_2_multi_target_integration_2x5.yml` (open-arc layout +
+shuffle). Host CLI omits `--root-seed` by default so each episode draws an
+independent random seed (distinct fields and planner seeds); pass
+`--root-seed N` to reproduce a deterministic suite. Required by Phase 1.1
+acceptance before re-arming denser collision spheres (`spec.md` §8 Phase 1.1).
+
+### Standard smoke (2 episodes × 10 targets)
+
+Named denser suite (not the default spark GUI gate; not a CLI override of the
+2-target default YAML):
+
+```bash
+./scripts/host/smoke_phase7_2_standard_2x10.sh --gui --auto-exit
+./scripts/host/smoke_phase7_2_standard_2x10.sh --gui --no-auto-exit
+./scripts/host/smoke_phase7_2_standard_2x10.sh --gui --auto-exit --root-seed 4242
+```
+
+Uses `config/phase7_2_multi_target_standard_2x10.yml`: open arc at
+`radius_m: 0.22`, `span_rad: 4.5` (~258°), flange-sized cubes
+(`target_edge_m: 0.031`) with face containment, base keep-out, and the same
+anti-graze world clearance as integration 2×5. Counts are pinned by the wrapper
+(`--targets 10 --episodes 2`).
 
 With `--no-auto-exit`, Kit **replays** episodes indefinitely after the first
 pass (close the window or Ctrl+C). Planning non-zero exit does not skip
 playback when a bundle was written; plan-failed episodes with validated legs
 are still animated.
+
+### Standard smoke (2 episodes × 20 targets)
+
+Named densest suite (not a gate):
+
+```bash
+./scripts/host/smoke_phase7_2_standard_2x20.sh --gui --auto-exit
+./scripts/host/smoke_phase7_2_standard_2x20.sh --gui --auto-exit --root-seed 4242
+```
+
+Uses `config/phase7_2_multi_target_standard_2x20.yml`: a **two-ring manual
+field** — outer ring `r=0.23` m (11 targets, 0.45 rad step) and inner ring
+`r=0.15` m (9 targets, 0.5625 rad step), both open ~258° arcs about `g_base`
+at `z=0.16`. The 0.08 m radial ring gap satisfies the approach-plane EE floor
+for any angle pairing; within-ring chords are 0.1026 m (outer) and 0.0833 m
+(inner). Counts are pinned by the wrapper (`--targets 20 --episodes 2`).
+
+Design constraints that shaped this suite:
+
+- **14 mm cubes, containment off.** With flange-sized (31 mm) cubes the EE
+  floor is 0.093 m; 20 such centres exceed the reachable annulus capacity, so
+  the suite uses the default 14 mm regime (floor
+  `0.014 + 0.031 + 0.031 = 0.076` m). `require_flange_face_containment`
+  stays off — the Ø31 mm flange always overhangs a 14 mm face; PhysX tip
+  classification still treats active-target flange/edge contact as allowed
+  tip.
+- **Manual placement.** Two concentric rings are not expressible in the
+  single-arc `layout` schema, so the 20 poses are curated YAML. The field is
+  identical across episodes; per-episode variation comes from shuffle contact
+  order and planner seeds only.
+- **Keep-out ±0.10 m** (vs ±0.12 in 2×10) so the inner ring clears the box;
+  the nearest inner cube edge stays ≥ 0.02 m outside it. Anti-graze world
+  clearance (0.006 m) matches the 2×10 / integration policy.
+
+First host GUI evidence (`--root-seed 4242`): exit 0, 2/2 episodes, 40/40
+tip contacts, 0 body contacts, 3 planning failures (episode 1 `start→1`
+failed validation three times, was deferred, and was replanned successfully
+by the reconsider pass as the final leg `7→1`).
 
 ### Placement / viewport / anti-graze (integration 2×5)
 

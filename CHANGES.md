@@ -1,5 +1,90 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-23 — Densest 2×20 multi-target suite (two-ring manual field)
+
+1. Added `config/phase7_2_multi_target_standard_2x20.yml` and
+   `scripts/host/smoke_phase7_2_standard_2x20.sh` (2 episodes × 20 targets).
+2. Two-ring manual field: outer r=0.23 m (11 targets, 0.45 rad step), inner
+   r=0.15 m (9 targets, 0.5625 rad step), z=0.16; 0.08 m radial ring gap ≥
+   the 0.076 m approach-plane EE floor for any angle pairing.
+3. 14 mm cube regime (flange-sized cubes cannot pack 20 reachable centres at
+   the 0.093 m floor); `require_flange_face_containment` off. Keep-out
+   shrunk to ±0.10 m so the inner ring clears it. Anti-graze world clearance
+   0.006 m retained.
+4. Manual placement: field identical across episodes; shuffle order and
+   planner seeds vary per episode.
+5. Unit tests: two-ring packing above the EE floor (`test_target_placement`),
+   episode sampling shares placement but varies order/seeds
+   (`test_multi_target`), wrapper wiring (`test_isaac_viz_smoke`).
+6. Ruff format applied to `isaac_sim/plan_multi_target_suite.py` (pre-existing
+   drift) and `tests/unit/test_multi_target.py`.
+
+### Review recommended
+
+- Inner ring r=0.15 close-in tip contacts and outer ring r=0.23 reach: watch
+  GUI planning failures/deferrals; radii may need a nudge after evidence.
+
+### Verification
+
+- `pytest tests/unit` — 202 passed; Ruff check/format clean.
+- Host GUI: `smoke_phase7_2_standard_2x20.sh --gui --auto-exit --root-seed 4242`
+  — exit 0, 2/2 episodes, 40/40 tip contacts, 0 body contacts, 3 planning
+  failures (ep1 `start→1` validation ×3 → deferred, replanned via reconsider
+  as final leg `7→1`), plan p50/p95 = 4.44 s / 7.25 s.
+
+---
+
+## 2026-07-23 — Document dedicated-suite vs CLI-override decision
+
+1. `docs/phase7_2_multi_target_contact.md`: new subsection "When to create a
+   dedicated suite vs `--targets` / `--episodes`" — overrides change counts
+   only; placement fails closed when N cannot pack the unchanged field;
+   manual YAMLs silently fall back to grid when the list is shorter than N.
+   Dedicated YAML + pinned wrapper required for recurring named sizes,
+   retuned field geometry, or any non-count parameter change.
+2. `README.md`: short pointer to the new subsection. Docs-only change.
+3. Follow-up: "Choosing the base suite for a lower `--targets` count" —
+   select the base YAML by its non-count regime (field/arc geometry, cube
+   size, containment, clearances), not by native count. Reduced counts run
+   through the generic smoke with `--config <named suite YAML>`; such runs
+   are not evidence for the named gate.
+4. Follow-up: "Which named wrappers run as gates" — table mirroring
+   `run_verification.sh spark`: Phase 7 / 7.1 / 7.2-default GUI smokes are
+   required gates, integration 2×5 is opt-in (`--with-integration-smoke`),
+   standard 2×10 is on-demand only (not wired into verification).
+5. Follow-up: Placement terminology note — `manual` means the centres are
+   declared in YAML (author-supplied, validated fail-closed, identical every
+   episode), not that cubes are positioned by hand at runtime; computed
+   policies (`grid`/`layout`/`random`) sample centres per episode instead.
+6. `README.md`: timestamped project-size snapshot (179 tracked files,
+   42,874 lines excluding third_party/assets/artifacts) plus an AI context
+   utilization note — corpus ≈ 400k tokens ≈ 2× a ~200k-token window;
+   complex cross-cutting turns run ~50–80% of the window, worst case one
+   full window with summarization.
+
+---
+
+## 2026-07-23 — Standard 2×10 multi-target suite
+
+1. Added dedicated `config/phase7_2_multi_target_standard_2x10.yml` and
+   `scripts/host/smoke_phase7_2_standard_2x10.sh` (2 episodes × 10 targets).
+2. Open arc at r=0.22 m / span 4.5 rad with flange-sized cubes and face
+   containment (same tip-contact policy as integration 2×5, denser field).
+3. Documented as a named standard size (not a retune of the default 2-target
+   YAML). GUI visual smoke used for validation.
+
+### Review recommended
+
+- Confirm GUI 2×10 tip contacts and transit clearance look clean under shuffle.
+
+### Verification
+
+- Unit packing/smoke wiring tests.
+- Host GUI: `smoke_phase7_2_standard_2x10.sh --gui --auto-exit --root-seed 4242`
+  — exit 0, 2/2, 20 tip contacts, 0 plan fails, 0 body contacts.
+
+---
+
 ## 2026-07-22 — Fix `--targets 10` pack + per-episode random seeds
 
 1. Default `phase7_2_multi_target.yml` `field_aabb` was too small for a 10-target

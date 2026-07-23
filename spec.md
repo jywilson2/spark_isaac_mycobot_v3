@@ -1344,6 +1344,16 @@ over successive independently validated plans with an explicit world revision.
   explicitly.
 - Host planning/smoke may override `episode_count` with CLI `--episodes N`
   (positive integer).
+- Host planning/smoke may set the suite root seed with CLI `--root-seed N`
+  (non-negative integer). When set, episode planner/placement seeds derive
+  deterministically as `episode_seed = N + 1009*(i+1)` (and a distinct
+  `order_seed`). When omitted, each episode draws its own independent random
+  seed in `[0, 2**31)` so multi-episode runs maximize coverage across layouts.
+  YAML `root_seed` remains the library/API default when sampling without an
+  explicit seed; host CLI does not read YAML `root_seed` unless the operator
+  passes that value via `--root-seed`. Seeds are logged as
+  `phase7_2_plan: episode=i episode_seed=…` (and `root_seed=N (cli)` when the
+  flag is set) and stored in the plan bundle (`seed_mode`, `episode_seeds`).
 - `max_planning_failure_per_target` (default **`3`**) and
   `max_failed_episodes` (default **`0`**) do not auto-follow `target_count`.
   `max_reconsider_passes` defaults to `target_count` when omitted.
@@ -1920,14 +1930,15 @@ Use a validated named YAML configuration for:
 
 Host entry points:
 
-- `isaac_sim/plan_multi_target_suite.py --targets N` and `--episodes N`
-  override YAML `target_count` / `episode_count` as defined under Scene and
-  episode model above;
-- `scripts/host/smoke_phase7_2_multi_target.sh --targets N --episodes N`
-  forwards the same overrides into the plan process and writes
+- `isaac_sim/plan_multi_target_suite.py --targets N`, `--episodes N`, and
+  `--root-seed N` override YAML `target_count` / `episode_count` / invocation
+  seed as defined under Scene and episode model above;
+- `scripts/host/smoke_phase7_2_multi_target.sh --targets N --episodes N
+  --root-seed N` forwards the same overrides into the plan process and writes
   `artifacts/reports/phase7_2_multi_target_<tag>.{bundle.json,json}` unless
   `SPARK_PHASE7_2_BUNDLE` / `SPARK_PHASE7_2_REPORT` are set. Artifact tags are
-  `N` (targets only), `epM` (episodes only), or `NxM` (both).
+  `N` (targets only), `epM` (episodes only), or `NxM` (both). Omitting
+  `--root-seed` draws an independent random seed per episode.
 
 ### Phase 9 optional tool profile
 

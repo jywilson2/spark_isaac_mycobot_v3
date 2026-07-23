@@ -3,12 +3,12 @@
 set -euo pipefail
 
 usage() {
-  printf 'Usage: %s [--headless|--gui] [--auto-exit|--no-auto-exit] [--manual] [--config PATH] [--targets N] [--episodes N]\n' "$0"
+  printf 'Usage: %s [--headless|--gui] [--auto-exit|--no-auto-exit] [--manual] [--config PATH] [--targets N] [--episodes N] [--root-seed N]\n' "$0"
 }
 
 main() {
   local root mode auto_exit manual vendor_urdf prepared_usd nested_prepared_usd
-  local report bundle suite_status config targets episodes artifact_tag config_override
+  local report bundle suite_status config targets episodes root_seed artifact_tag config_override
   local -a plan_args
 
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -17,6 +17,7 @@ main() {
   manual=0
   targets=""
   episodes=""
+  root_seed=""
   config_override=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -48,6 +49,14 @@ main() {
         episodes="$2"
         shift 2
         ;;
+      --root-seed)
+        if [[ $# -lt 2 ]]; then
+          printf 'ERROR: --root-seed requires a non-negative integer\n' >&2
+          return 2
+        fi
+        root_seed="$2"
+        shift 2
+        ;;
       -h|--help)
         usage
         return 0
@@ -68,6 +77,12 @@ main() {
   if [[ -n "${episodes}" ]]; then
     if ! [[ "${episodes}" =~ ^[1-9][0-9]*$ ]]; then
       printf 'ERROR: --episodes must be a positive integer, got %s\n' "${episodes}" >&2
+      return 2
+    fi
+  fi
+  if [[ -n "${root_seed}" ]]; then
+    if ! [[ "${root_seed}" =~ ^(0|[1-9][0-9]*)$ ]]; then
+      printf 'ERROR: --root-seed must be a non-negative integer, got %s\n' "${root_seed}" >&2
       return 2
     fi
   fi
@@ -139,6 +154,9 @@ main() {
   fi
   if [[ -n "${episodes}" ]]; then
     plan_args+=(--episodes "${episodes}")
+  fi
+  if [[ -n "${root_seed}" ]]; then
+    plan_args+=(--root-seed "${root_seed}")
   fi
 
   # Always attempt playback when a bundle exists, even if planning reported
