@@ -50,6 +50,9 @@ controllable target-block placement: implemented on `wip_phase7_3`.** See
 [`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md),
 [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md),
 and [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
+A demo video of the completed Phase 7.3 work (densest 2×20 suite, GUI
+playback) is at
+[`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4).
 
 Full roadmap (Phases 0–11, including decimal Phases 7.1–7.3 and 9.1):
 [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -99,12 +102,15 @@ Implemented now:
 - illuminated Isaac Phase 7.1 plan/playback split (cuRobo process then Kit),
   drive-target motion, PhysX prohibited-contact evidence, and null tip metrics;
 - Phase 7.2 multi-target tip-contact clearance suite (three-tier failure
-  budgets, tip-contact rule, host plan/play smoke, `--no-auto-exit` replay).
+  budgets, tip-contact rule, host plan/play smoke, `--no-auto-exit` replay);
+- Phase 7.3 controllable target-block placement (grid/random/layout policies,
+  fail-closed separation and keep-outs —
+  [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md);
+  demo video
+  [`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4)).
 
 Not implemented:
 
-- Phase 7.3 controllable target-block placement (under consideration —
-  [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md));
 - generic non-empty-world collision-clearance evaluation beyond the Phase 7.1
   cube adapter (still fails closed);
 - non-zero residual correction (Phase 8);
@@ -418,6 +424,11 @@ can override the count:
 # Record the Kit window to an mp4 for demo documentation (GUI only):
 ./scripts/host/smoke_phase7_2_standard_2x20.sh --gui --auto-exit --record /tmp/phase7_2_demo.mp4
 ```
+
+A recorded 2×20 GUI run is committed at
+[`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
+(Phase 7.3 demo; see
+[`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md)).
 
 `--no-auto-exit` keeps replaying episodes indefinitely after the first pass
 (close the window or Ctrl+C to finish). Playback still runs if planning reports

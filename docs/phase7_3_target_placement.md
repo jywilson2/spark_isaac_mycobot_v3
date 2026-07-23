@@ -32,6 +32,29 @@ Shared controls:
 
 Core module: `mycobot_curobo.target_placement`.
 
+## Demo video
+
+[`videos/mycobot_280_m5_2x20.mp4`](videos/mycobot_280_m5_2x20.mp4)
+(1 min 58 s, 2880×1800 @ 30 fps, H.264, 6.4 MB; captured 2026-07-23 on the
+DGX Spark host with the smoke wrapper's `--record` option).
+
+The clip shows `smoke_phase7_2_standard_2x20.sh --gui` — the densest named
+suite (2 episodes × 20 targets on the two-ring manual field, 14 mm cubes) —
+and demonstrates the completed Phase 7.3 machinery end to end:
+
+- fail-closed placement: 20 centres validated against the approach-plane
+  EE-clearance floor and the ±0.10 m base keep-out before planning starts;
+- per-episode shuffle contact order and planner seeds over an identical
+  manual field;
+- viewport 7-segment target ID labels and contact-state cube highlights
+  (the active target renders yellow, contacted cubes are removed);
+- deferral / reconsider replanning when a leg fails validation mid-episode
+  (console warnings show per-leg `TIP CONTACT a->b plan_s/motion_s/ttc_s`).
+
+The file is named for the robot and suite size (`mycobot_280_m5` + `2x20`).
+GitHub renders the mp4 inline on the blob page; locally any H.264-capable
+player works.
+
 ## Example configs
 
 - `config/phase7_3_multi_target_random.yml`
