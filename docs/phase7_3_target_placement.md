@@ -52,8 +52,14 @@ and demonstrates the completed Phase 7.3 machinery end to end:
   (console warnings show per-leg `TIP CONTACT a->b plan_s/motion_s/ttc_s`).
 
 The file is named for the robot and suite size (`mycobot_280_m5` + `2x20`).
-GitHub renders the mp4 inline on the blob page; locally any H.264-capable
-player works.
+Companion assets: `videos/mycobot_280_m5_2x20_preview.gif` (18 s autoplaying
+excerpt embedded in the README) and `videos/mycobot_280_m5_2x20_poster.jpg`
+(still frame). Note GitHub does not stream repository mp4s in the browser —
+raw links are served as `application/octet-stream` with `nosniff`, so
+clicking the mp4 downloads it; play it locally with any H.264-capable
+player. In-browser streaming would require a manually uploaded
+`user-attachments` asset (drag-and-drop in the GitHub web editor) or
+GitHub Pages serving `docs/`.
 
 ## Example configs
 

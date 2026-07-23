@@ -53,7 +53,7 @@ and [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 A demo video of the completed Phase 7.3 work (densest 2×20 suite, GUI
 playback) is at
 [`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
-(clickable poster image in the Phase 7.2 suite section below).
+(autoplaying animated preview in the Phase 7.2 suite section below).
 
 Full roadmap (Phases 0–11, including decimal Phases 7.1–7.3 and 9.1):
 [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -428,9 +428,12 @@ can override the count:
 
 A recorded 2×20 GUI run is committed as the Phase 7.3 demo (see
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md)).
-Click the image to play the video:
+The preview below plays automatically (18 s excerpt); click it to open the
+full 1:58 video file. GitHub does not stream repository mp4s in the browser
+(raw links are served as `application/octet-stream`), so the click offers
+the file for download/viewing instead of starting playback in place:
 
-[![Phase 7.3 demo — densest 2×20 suite GUI playback (click to play)](docs/videos/mycobot_280_m5_2x20_poster.jpg)](docs/videos/mycobot_280_m5_2x20.mp4)
+[![Phase 7.3 demo — densest 2×20 suite GUI playback (animated preview; click for the full video file)](docs/videos/mycobot_280_m5_2x20_preview.gif)](docs/videos/mycobot_280_m5_2x20.mp4)
 
 `--no-auto-exit` keeps replaying episodes indefinitely after the first pass
 (close the window or Ctrl+C to finish). Playback still runs if planning reports
