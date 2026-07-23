@@ -1,5 +1,25 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-23 — Autoplaying GIF preview replaces static poster in README
+
+1. Diagnosis of "click does not start playback": GitHub serves committed
+   repository mp4s as `application/octet-stream` with
+   `X-Content-Type-Options: nosniff` (verified with `curl -I`) and its
+   README sanitizer only renders inline `<video>` players for manually
+   uploaded `user-attachments` assets — so no repo-committed link can
+   start playback in the browser.
+2. New `docs/videos/mycobot_280_m5_2x20_preview.gif` (18 s excerpt,
+   t=30–48 s, 720 px @ 10 fps, palette-optimized, 0.76 MB): autoplays
+   inline in the README, showing active-target highlight, arm motion, and
+   cube removal. Clicking it still opens the full mp4 file.
+3. README wording now states the mp4 click offers the file rather than
+   streaming; the Phase 7.3 report's incorrect "GitHub renders the mp4
+   inline on the blob page" claim is corrected and documents the two
+   manual upgrade paths (user-attachments upload or GitHub Pages).
+4. Poster jpg retained as a still-frame companion asset.
+
+---
+
 ## 2026-07-23 — README demo video as clickable poster image
 
 1. New `docs/videos/mycobot_280_m5_2x20_poster.jpg` (1280-wide frame from

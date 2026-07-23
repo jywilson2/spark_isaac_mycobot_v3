@@ -1,3 +1,9 @@
+## BEGIN: 2026-07-23 05:25 -0700
+
+The link to the video in @README.md goes to the file in repo, but does not start playback.
+
+## END
+
 ## BEGIN: 2026-07-23 05:21 -0700
 
 Can you modify README.md to show the video as a clickable image file? If so, change and push to the branch and main.
