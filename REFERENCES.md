@@ -235,6 +235,11 @@ compute-capability warning is retained in that report and is not suppressed.
   `smoke_phase7_2_multi_target.sh` (and integration 2×5 / standard 2×10
   wrappers). Omit for an independent random seed per episode; see phase 7.2
   report Host CLI overrides.
+- Host CLI recording: `--record FILE.mp4` on
+  `smoke_phase7_2_multi_target.sh` (all named wrappers pass through). GUI
+  only; captures the Kit window with ffmpeg x11grab (system ffmpeg or the
+  Isaac-bundled `imageio_ffmpeg` static build); see phase 7.2 report Host
+  CLI overrides.
 - Standard denser suite: `config/phase7_2_multi_target_standard_2x10.yml` via
   `scripts/host/smoke_phase7_2_standard_2x10.sh` (2 episodes × 10 targets).
 - Densest suite: `config/phase7_2_multi_target_standard_2x20.yml` via

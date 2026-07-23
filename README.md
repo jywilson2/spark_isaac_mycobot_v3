@@ -415,6 +415,8 @@ can override the count:
 ./scripts/host/smoke_phase7_2_standard_2x10.sh --gui --auto-exit
 # Densest suite (2×20; two-ring manual field, 14 mm cubes):
 ./scripts/host/smoke_phase7_2_standard_2x20.sh --gui --auto-exit
+# Record the Kit window to an mp4 for demo documentation (GUI only):
+./scripts/host/smoke_phase7_2_standard_2x20.sh --gui --auto-exit --record /tmp/phase7_2_demo.mp4
 ```
 
 `--no-auto-exit` keeps replaying episodes indefinitely after the first pass
@@ -432,7 +434,10 @@ cubes (`target_edge_m: 0.031`) so tip contact does not overhang the face.
 `--targets N`, `--episodes N`, and `--root-seed N` are defined in
 [`spec.md`](spec.md) §8 Phase 7.2 / §9. Omitting `--root-seed` draws an
 independent random seed for each episode (maximize coverage); pass
-`--root-seed N` to reproduce. Failure budgets: per-target planning retries
+`--root-seed N` to reproduce. `--record FILE.mp4` (GUI only) captures the
+Isaac Sim window via `ffmpeg` x11grab — system ffmpeg or the static build
+bundled with Isaac Sim's python — for demo videos; it never affects the
+suite result (see the phase 7.2 report, Host CLI overrides). Failure budgets: per-target planning retries
 (`max_planning_failure_per_target`, default 3), then deferral / reconsider
 (`max_reconsider_passes`, default `target_count`); suite episode ceiling
 (`max_failed_episodes`, default 0). Episodes FAIL if any target remains

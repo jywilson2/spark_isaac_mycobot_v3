@@ -64,6 +64,11 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert 'plan_args+=(--root-seed "${root_seed}")' in smoke72
     assert "--config" in smoke72
     assert "plan_status" in smoke72
+    assert "--record" in smoke72
+    assert "x11grab" in smoke72
+    assert "record_kit_window" in smoke72
+    assert "imageio_ffmpeg" in smoke72
+    assert "--record requires --gui" in smoke72
     assert "phase7_2_multi_target_integration_2x5.yml" in smoke72_int
     assert "--targets 5" in smoke72_int
     assert "--episodes 2" in smoke72_int

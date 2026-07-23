@@ -1939,6 +1939,14 @@ Host entry points:
   `SPARK_PHASE7_2_BUNDLE` / `SPARK_PHASE7_2_REPORT` are set. Artifact tags are
   `N` (targets only), `epM` (episodes only), or `NxM` (both). Omitting
   `--root-seed` draws an independent random seed per episode.
+- `scripts/host/smoke_phase7_2_multi_target.sh --record FILE.mp4` (GUI mode
+  only; named wrappers forward it) captures the Isaac Sim Kit window with
+  `ffmpeg` x11grab for demo documentation. ffmpeg resolves to the system
+  binary, else the static build bundled with Isaac Sim's python
+  (`imageio_ffmpeg`). The wrapper fails closed (exit 2) when combined with
+  `--headless` or when `xwininfo`/ffmpeg are unavailable; a missing Kit
+  window downgrades to a warning. Recording never changes the suite exit
+  status and is not part of any verification gate.
 
 ### Phase 9 optional tool profile
 

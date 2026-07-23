@@ -301,11 +301,26 @@ Host CLI overrides (normative detail in `spec.md` §8 / §9):
   `phase7_2_plan: episode=i episode_seed=…` (plus `root_seed=N (cli)` when set)
   and stored in the plan bundle (`seed_mode`, `episode_seeds`).
 - Artifact tags: `N`, `epM`, or `NxM` when overrides are set.
+- `--record FILE.mp4` (GUI only, host convenience — not part of any gate):
+  capture the Isaac Sim Kit window to an H.264 mp4 for demo documentation.
+  The wrapper waits for the Kit window on `$DISPLAY` (via `xwininfo`, skipping
+  the mutter decoration frame), then records exactly that region with
+  `ffmpeg x11grab` at 30 fps until playback exits (SIGINT finalizes the mp4).
+  ffmpeg resolves to the system binary when installed, else the static build
+  bundled with Isaac Sim's python (`imageio_ffmpeg` wheel under
+  `$ISAACSIM_PATH/kit/python/…`) — no host install needed. Fails closed with
+  a clear error when `xwininfo` or every ffmpeg candidate is missing, and
+  rejects `--headless` (nothing to capture). If the Kit window never appears
+  the run continues and prints a recording-skipped warning; the suite result
+  is never affected by recording. Named wrappers (`integration_2x5`,
+  `standard_2x10`, `standard_2x20`, `densest_2x20`) pass the flag through.
 
 ```bash
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 10 --episodes 5
 # Reproduce a prior layout:
 ./scripts/host/smoke_phase7_2_multi_target.sh --gui --auto-exit --targets 10 --episodes 5 --root-seed 4242
+# Record a demo video of the playback window:
+./scripts/host/smoke_phase7_2_standard_2x20.sh --gui --auto-exit --root-seed 4242 --record /tmp/phase7_2_demo.mp4
 ```
 
 ### When to create a dedicated suite vs `--targets` / `--episodes`

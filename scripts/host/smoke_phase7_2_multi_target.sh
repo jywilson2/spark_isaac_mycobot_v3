@@ -3,12 +3,71 @@
 set -euo pipefail
 
 usage() {
-  printf 'Usage: %s [--headless|--gui] [--auto-exit|--no-auto-exit] [--manual] [--config PATH] [--targets N] [--episodes N] [--root-seed N]\n' "$0"
+  printf 'Usage: %s [--headless|--gui] [--auto-exit|--no-auto-exit] [--manual] [--config PATH] [--targets N] [--episodes N] [--root-seed N] [--record FILE.mp4]\n' "$0"
+}
+
+# Resolve an ffmpeg binary: system ffmpeg, else the static build bundled with
+# Isaac Sim's python (imageio_ffmpeg wheel). Prints nothing on failure.
+resolve_record_ffmpeg() {
+  if command -v ffmpeg 2>/dev/null; then
+    return 0
+  fi
+  local isaac_root="${ISAACSIM_PATH:-${HOME}/isaacsim}" candidate
+  for candidate in "${isaac_root}"/kit/python/lib/python3*/site-packages/imageio_ffmpeg/binaries/ffmpeg-*; do
+    if [[ -x "${candidate}" ]]; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Wait for the Isaac Sim Kit window on $DISPLAY, then exec ffmpeg x11grab of
+# exactly that window region until stopped with SIGINT (clean mp4 finalize).
+record_kit_window() {
+  # Runs as a background subshell; polling must tolerate empty matches and
+  # head-induced SIGPIPE, so relax the inherited strict modes here.
+  set +e +o pipefail
+  local output="$1" ffmpeg_bin="$2" display="${DISPLAY:-:1}"
+  local attempt wid="" info x y w h
+  for attempt in $(seq 1 90); do
+    # Kit titles its window "Isaac Sim <edition> <version>"; skip the mutter
+    # decoration frame so we capture the client window only.
+    wid="$(xwininfo -display "${display}" -root -tree 2>/dev/null \
+      | grep -v 'mutter-x11-frames' \
+      | sed -n 's/^ *\(0x[0-9a-f]*\) "[^"]*Isaac[- ]Sim[^"]*".*/\1/p' | head -n 1)"
+    if [[ -n "${wid}" ]]; then
+      break
+    fi
+    sleep 1
+  done
+  if [[ -z "${wid}" ]]; then
+    printf 'WARNING: --record: no Isaac Sim window appeared on %s; skipping recording\n' \
+      "${display}" >&2
+    return 0
+  fi
+  info="$(xwininfo -display "${display}" -id "${wid}")"
+  x="$(sed -n 's/.*Absolute upper-left X: *\([0-9-]*\).*/\1/p' <<<"${info}")"
+  y="$(sed -n 's/.*Absolute upper-left Y: *\([0-9-]*\).*/\1/p' <<<"${info}")"
+  w="$(sed -n 's/.*Width: *\([0-9]*\).*/\1/p' <<<"${info}")"
+  h="$(sed -n 's/.*Height: *\([0-9]*\).*/\1/p' <<<"${info}")"
+  # yuv420p requires even dimensions.
+  w=$((w / 2 * 2))
+  h=$((h / 2 * 2))
+  # Give the viewport a moment to settle before the first frame.
+  sleep 2
+  printf '--record: capturing window %s (%sx%s at +%s,%s) to %s\n' \
+    "${wid}" "${w}" "${h}" "${x}" "${y}" "${output}"
+  exec "${ffmpeg_bin}" -loglevel error -y -f x11grab -framerate 30 \
+    -video_size "${w}x${h}" -i "${display}+${x},${y}" \
+    -c:v libx264 -preset veryfast -pix_fmt yuv420p -movflags +faststart \
+    "${output}"
 }
 
 main() {
   local root mode auto_exit manual vendor_urdf prepared_usd nested_prepared_usd
   local report bundle suite_status config targets episodes root_seed artifact_tag config_override
+  local record_file record_ffmpeg recorder_pid
   local -a plan_args
 
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -19,6 +78,9 @@ main() {
   episodes=""
   root_seed=""
   config_override=""
+  record_file=""
+  record_ffmpeg=""
+  recorder_pid=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --headless|--gui) mode="$1"; shift ;;
@@ -57,6 +119,14 @@ main() {
         root_seed="$2"
         shift 2
         ;;
+      --record)
+        if [[ $# -lt 2 ]]; then
+          printf 'ERROR: --record requires an output file path (e.g. demo.mp4)\n' >&2
+          return 2
+        fi
+        record_file="$2"
+        shift 2
+        ;;
       -h|--help)
         usage
         return 0
@@ -86,12 +156,29 @@ main() {
       return 2
     fi
   fi
+  if [[ -n "${record_file}" && "${mode}" != "--gui" ]]; then
+    printf 'ERROR: --record requires --gui (nothing to capture headless)\n' >&2
+    return 2
+  fi
 
   # shellcheck source=./env.isaac_host.sh
   # shellcheck disable=SC1091
   source "${root}/scripts/host/env.isaac_host.sh"
   spark_host_require_native_shell
   "${root}/scripts/host/check_prereqs.sh"
+
+  if [[ -n "${record_file}" ]]; then
+    if ! command -v xwininfo >/dev/null 2>&1; then
+      printf 'ERROR: --record requires xwininfo (x11-utils package)\n' >&2
+      return 2
+    fi
+    record_ffmpeg="$(resolve_record_ffmpeg || true)"
+    if [[ -z "${record_ffmpeg}" || ! -x "${record_ffmpeg}" ]]; then
+      printf 'ERROR: --record: no ffmpeg found (system PATH or Isaac imageio_ffmpeg)\n' >&2
+      return 2
+    fi
+    mkdir -p "$(dirname "${record_file}")"
+  fi
 
   vendor_urdf="${root}/third_party/mycobot_ros2/mycobot_description/urdf/mycobot_280_m5/mycobot_280_m5.urdf"
   prepared_usd="${root}/assets/mycobot_280_m5/prepared/mycobot_280_m5.usd"
@@ -176,6 +263,11 @@ main() {
       "${plan_status}" >&2
   fi
 
+  if [[ -n "${record_file}" ]]; then
+    record_kit_window "${record_file}" "${record_ffmpeg}" &
+    recorder_pid=$!
+  fi
+
   set +e
   spark_host_run_python "${root}/isaac_sim/play_multi_target_suite.py" \
     --repo-root "${root}" \
@@ -186,6 +278,18 @@ main() {
     --output-report "${report}"
   suite_status=$?
   set -e
+
+  if [[ -n "${recorder_pid}" ]]; then
+    kill -INT "${recorder_pid}" 2>/dev/null || true
+    wait "${recorder_pid}" 2>/dev/null || true
+    recorder_pid=""
+    if [[ -s "${record_file}" ]]; then
+      printf -- '--record: wrote %s (%s)\n' "${record_file}" \
+        "$(du -h "${record_file}" | awk '{print $1}')"
+    else
+      printf 'WARNING: --record: no video was written\n' >&2
+    fi
+  fi
   if [[ ! -f "${report}" ]]; then
     printf 'ERROR: Phase 7.2 suite did not write report: %s\n' "${report}" >&2
     return 1
