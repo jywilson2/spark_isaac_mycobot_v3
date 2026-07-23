@@ -1,10 +1,16 @@
+## BEGIN: 2026-07-23 03:09 -0700
+
+Elaborate: "For a new “standard” size that isn’t a one-off CLI override, add a dedicated YAML rather than continually retuning the default."
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-07-23 03:05 -0700
 
 How will the @config/phase7_2_multi_target.yml get updated if I change the number of targets in future tests?
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-22 22:34 -0700
 
