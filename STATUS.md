@@ -18,7 +18,8 @@ measured +Z tip-contact workspace artifact, `planning_high_effort` IK seeds
 **32**, and integration 2×5 **flange-face containment** with flange-sized cubes on a
 multi-quadrant open arc, plus flange-rim anti-graze (Ø31 mm flange spheres +
 neighbor clearance). Host plan/smoke use `--root-seed N` for reproducible
-layouts; omitting it draws a fresh seed each invocation. Integration stays on
+layouts; omitting it draws an independent random seed per episode. Default
+YAML field AABB packs `--targets 10` grid fallback. Integration stays on
 `benchmark_reproducible`. See `spec.md` §8 Phase 7.2.
 
 **Phase 7.3 — Controllable target-block placement: IMPLEMENTED**

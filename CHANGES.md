@@ -1,5 +1,26 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-22 — Fix `--targets 10` pack + per-episode random seeds
+
+1. Default `phase7_2_multi_target.yml` `field_aabb` was too small for a 10-target
+   EE-floor grid (`--targets 10` failed at placement). Expanded to pack a 3×4
+   lattice at ~0.076 m separation.
+2. Omitting `--root-seed` now draws an independent random seed for **each**
+   episode (not one shared suite seed). `--root-seed N` keeps deterministic
+   `episode_seed = N + 1009*(i+1)`.
+3. Plan logs `episode_seed` / `order_seed` per episode; bundle adds `seed_mode`
+   and `episode_seeds`. Docs updated.
+
+### Review recommended
+
+- Confirm GUI `--targets 10 --episodes 3 --no-auto-exit` places and plays.
+
+### Verification
+
+- Unit: 10-target pack + independent episode seeds; smoke CLI wiring.
+
+---
+
 ## 2026-07-22 — CLI `--root-seed` with varying default
 
 1. Host plan/smoke accept `--root-seed N` (non-negative integer) to fix suite

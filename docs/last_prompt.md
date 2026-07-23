@@ -1,10 +1,29 @@
+## BEGIN: 2026-07-23 03:05 -0700
+
+How will the @config/phase7_2_multi_target.yml get updated if I change the number of targets in future tests?
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-07-22 22:34 -0700
+
+This command is broken:
+
+cd /home/jywilson/workspaces/isaac_ros-dev/src/spark_isaac_mycobot_v3
+./scripts/host/smoke_phase7_2_multi_target.sh --gui --no-auto-exit --targets 10 --episodes 3
+
+Also, if the seed is *not* provided on the command line, make sure that each episode uses a different random seed.
+
+Add the latter to the documentation.
+
+## END
+
 ## BEGIN: 2026-07-22 22:28 -0700
 
 Can you generate the command for a 3 episode run with 10 targets, a gui, and no auto-exit.
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-22 22:22 -0700
 
