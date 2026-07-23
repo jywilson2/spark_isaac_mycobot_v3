@@ -52,7 +52,8 @@ controllable target-block placement: implemented on `wip_phase7_3`.** See
 and [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 A demo video of the completed Phase 7.3 work (densest 2×20 suite, GUI
 playback) is at
-[`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4).
+[`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
+(clickable poster image in the Phase 7.2 suite section below).
 
 Full roadmap (Phases 0–11, including decimal Phases 7.1–7.3 and 9.1):
 [`docs/implementation_phases.md`](docs/implementation_phases.md).
@@ -425,10 +426,11 @@ can override the count:
 ./scripts/host/smoke_phase7_2_standard_2x20.sh --gui --auto-exit --record /tmp/phase7_2_demo.mp4
 ```
 
-A recorded 2×20 GUI run is committed at
-[`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
-(Phase 7.3 demo; see
+A recorded 2×20 GUI run is committed as the Phase 7.3 demo (see
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md)).
+Click the image to play the video:
+
+[![Phase 7.3 demo — densest 2×20 suite GUI playback (click to play)](docs/videos/mycobot_280_m5_2x20_poster.jpg)](docs/videos/mycobot_280_m5_2x20.mp4)
 
 `--no-auto-exit` keeps replaying episodes indefinitely after the first pass
 (close the window or Ctrl+C to finish). Playback still runs if planning reports
