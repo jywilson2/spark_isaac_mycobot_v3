@@ -1,3 +1,11 @@
+## BEGIN: 2026-07-23 05:21 -0700
+
+Can you modify README.md to show the video as a clickable image file? If so, change and push to the branch and main.
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-07-23 05:11 -0700
 
 Can you add the file "~/Videos/mycobot_280_m5_2x10.mp4" to a newly created project directory ./docs/videos? Then modify the documentation to present this file as demonstration of the completed Phase 7.3 work.
@@ -5,8 +13,6 @@ Can you add the file "~/Videos/mycobot_280_m5_2x10.mp4" to a newly created proje
 Push to the branch and main on github.
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-23 04:27 -0700
 
@@ -23,8 +29,6 @@ Upate the appropriate document on where we left off and what should be next step
 Question: Is it possible to generate a video file of a paritcular window on the DGX Spark? This would allow me to document the result of a demo.
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-07-23 04:11 -0700
 

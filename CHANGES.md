@@ -1,5 +1,18 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-07-23 — README demo video as clickable poster image
+
+1. New `docs/videos/mycobot_280_m5_2x20_poster.jpg` (1280-wide frame from
+   the demo mp4, ~101 KB) extracted with the Isaac-bundled ffmpeg.
+2. README Phase 7.2 suite section now shows the poster as a clickable image
+   (`[![…](poster.jpg)](….mp4)`); clicking it opens the mp4 on GitHub,
+   which plays it inline on the blob page. The Phase 7 header link points
+   to the poster location.
+3. `docs/last_prompt.md`: removed two duplicated `# Old prompts:` headers
+   introduced near the top by recent turns.
+
+---
+
 ## 2026-07-23 — Phase 7.3 demo video committed under docs/videos
 
 1. New `docs/videos/` directory with `mycobot_280_m5_2x20.mp4` (1:58,
