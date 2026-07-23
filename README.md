@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28
+
 # MyCobot 280 M5 Constrained Approach Planner
 
 Deterministic, collision-aware surface-normal approach planning for the
