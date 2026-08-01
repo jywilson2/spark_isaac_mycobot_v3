@@ -1,5 +1,43 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — Phase 1.1 Option B revision drafted (spec proposal; docs only)
+
+Drafted on the new `wip_phase1_1b` branch (cut from `main` after Phase 7.3
+completion; spec's earlier note that Phase 1.1 work may share `wip_phase7_3`
+is updated accordingly).
+
+1. `spec.md` §8 Phase 1.1: new section **"Proposed revision (2026-08-01):
+   Option B — dual-role sphere split"** (status: proposed, not accepted or
+   implemented). Scaffolding (32 spheres) remains the only self-collision
+   participant; the Option A cover (1012 spheres) is reused unchanged as a
+   world-only set, keeping self-collision semantics/cost byte-identical and
+   reducing the planning-time question to the linear world-checking term.
+   Normative design if accepted: (1) combined sphere list with extended
+   ignore map and a fail-closed unit test asserting the active self-pair
+   count; (2) cuRobo v0.8.0 ignore-granularity verification from source
+   before implementation (virtual child frames as the per-link fallback);
+   (3) a single shared world-builder helper enforcing active-target and
+   just-contacted exclusions across 7.1/7.2/validation/fixture paths — no
+   per-sphere disables or contact carve-outs; (4) a config-time
+   dense-sphere-vs-neighbor-face clearance check per named suite.
+   Precondition: diagnose the armed-Option-A regression mechanism first
+   (not established; Phase 7.2 already omits the active cube). Acceptance
+   gate: Option A gate + planning-time criterion + armed unseeded 2×20
+   batch within existing (unrelaxed) budgets. Options table row B now
+   reads "Proposed 2026-08-01"; status paragraph and the Phase 7.3
+   relationship bullet (branch note) updated.
+2. `docs/phase1_1_target_scale_collision_spheres.md`: status header points
+   to the proposal and branch.
+3. `STATUS.md`: Phase 1.1 headline, roadmap row, next-steps item 2, and the
+   Phase 1.1 block gain the proposal summary.
+4. `REFERENCES.md`: Phase 1.1 entry notes the proposed revision.
+
+**Review needed:** the Option B section is a proposal; accepting it (and
+starting implementation) is a separate decision. First implementation task
+is the regression diagnosis, not sphere-list changes.
+
+---
+
 ## 2026-08-01 — Planning-failure behavior narrative completed (docs only)
 
 1. `docs/phase7_2_multi_target_contact.md` § "Failures — planning, target,

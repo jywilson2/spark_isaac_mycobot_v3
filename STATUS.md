@@ -27,11 +27,14 @@ YAML field AABB packs `--targets 10` grid fallback. Integration stays on
 EE-clearance separation floor; CI bootstrap; labels / grid Z. See
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 
-**Phase 1.1 — Target-scale collision-sphere coverage: OPTION A (DISARMED)**
+**Phase 1.1 — Target-scale collision-sphere coverage: OPTION A (DISARMED);
+OPTION B PROPOSED (2026-08-01)**
 Thickness-capped overlay (1012 spheres, radii ≤ `E`) regenerated; GPU
 self-clear + body-clip detectability pass under trial enable, but arming
 regresses Phase 7.1 / 7.2 GPU planning. Default robot uses scaffolding (32).
-See [`spec.md`](spec.md) §8 Phase 1.1.
+A dual-role split (scaffolding = self-collision only, Option A cover =
+world-only) is drafted in spec §8 Phase 1.1 "Proposed revision: Option B";
+development branch `wip_phase1_1b`. See [`spec.md`](spec.md) §8 Phase 1.1.
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
 Authoritative criteria: [`spec.md`](spec.md) §8 (Phases 0–11)  
@@ -46,7 +49,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 |-------|-------|--------|
 | 0 | Env / version guard | **Complete** |
 | 1 | Robot model + spheres | **Complete** |
-| 1.1 | Target-scale collision-sphere coverage | **Option A (disarmed)** |
+| 1.1 | Target-scale collision-sphere coverage | **Option A (disarmed); Option B proposed** |
 | 2 | Task frames / roll goals | **Complete** |
 | 3 | `plan_grasp` nominal planning | **Complete** |
 | 4 | Independent validation | **Complete** |
@@ -130,8 +133,11 @@ report ("Standard smoke 2×20") and
    pass-through reproducing Phase 6 baseline metrics.
 2. Phase 1.1 cover-option decision (below) remains the parallel gate for
    denser collision spheres; integration 2×5 must stay green when
-   re-arming. Note: a residual policy trained under scaffolding spheres
-   may need retraining if Phase 1.1 later re-arms a denser set.
+   re-arming. An **Option B (dual-role split) revision is drafted**
+   (2026-08-01, spec §8 Phase 1.1) on `wip_phase1_1b`; its first task is
+   diagnosing the exact mechanism of the armed-Option-A regression. Note:
+   a residual policy trained under scaffolding spheres may need retraining
+   if Phase 1.1 later re-arms a denser set.
 3. Watch the host NVIDIA driver flake (580.173.02 Vulkan segfault at Kit
    startup, ~1-in-10 headless playback launches on 2026-07-31); if it
    recurs, investigate driver/Kit versions rather than suite code.
@@ -159,6 +165,19 @@ The gate also includes a planning-time criterion (spec §8 Phase 1.1, added
 device calibration run if an embedded planner target (e.g. Jetson Orin AGX)
 is in scope, and review against a budget declared for the deployment
 target. Phase 7.3 placement APIs are available with scaffolding spheres.
+
+**Proposed revision (2026-08-01): Option B — dual-role sphere split**, spec
+§8 Phase 1.1. Scaffolding (32) stays the only self-collision participant;
+the Option A cover (1012) is reused as world-only, so self-collision cost
+and semantics are unchanged and the planning-time question reduces to the
+linear world term. Preconditions and gates: diagnose the armed-Option-A
+regression first (mechanism is not established — Phase 7.2 already omits
+the active cube), verify cuRobo v0.8.0 ignore-map granularity from source,
+centralize world construction in one shared helper (active-target and
+just-contacted exclusions; no contact carve-outs), add a config-time
+dense-sphere-vs-neighbor-face check per named suite, then pass the Option A
+gate + timing criterion + an armed unseeded 2×20 batch within existing
+budgets. Development on `wip_phase1_1b`; not yet accepted or implemented.
 
 **Integration smoke (opt-in final gate):** `smoke_phase7_2_integration_2x5.sh`
 — 2 episodes × 5 targets. Enable with

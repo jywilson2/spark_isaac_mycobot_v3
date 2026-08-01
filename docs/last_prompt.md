@@ -1,3 +1,11 @@
+## BEGIN: 2026-08-01 09:26 -0700
+
+Yes, go ahead and draft the spec change.
+
+Will the change be made in a new "wip_" branch as well? If so, will this be propogated to all subsequent branches, or just the branch for Phase 8?
+
+## END
+
 ## BEGIN: 2026-08-01 09:17 -0700
 
 Add the narrative under items 1 through 3 to documentation that describes the project design. It should appear in a section the defines the behavior for a planning failure. If this already exists, then just veriify that it is just as accurate and comprehensive.
