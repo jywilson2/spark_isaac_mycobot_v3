@@ -1,5 +1,35 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — Phase 1.1 Option B implementation started
+
+Accepted the dual-role proposal and began implementation on `wip_phase1_1b`.
+
+1. **Diagnosis** (`scripts/host/diagnose_phase1_1_option_a_regression.sh`):
+   with Option A `replace`, Phase 7.1 start is clear but tip-contact
+   `plan_grasp` fails (`Start or End state in collision` / unreachable goal
+   set) because the active cube remains in the planning world. cuRobo
+   v0.8.0 `self_collision_ignore` confirmed per-link.
+2. **Dual-role merge** in `robot_model.apply_collision_sphere_overlay`
+   (default role `dual`): scaffolding spheres stay on real links; dense
+   cover attaches to FIXED `*_world_cover` children fully ignored for
+   self-collision; active self-pair count preserved. Role `replace` kept
+   for diagnosis. Strip `collision_sphere_overlay_role` before cuRobo.
+3. **Shared world builder** `mycobot_curobo.planning_world` omits the
+   active contact cube; wired into `MultiTargetEpisodeRunner` and Phase
+   7.1 tip-contact plan/validate (start preflight and Mode C still keep
+   the cube).
+4. Unit tests: Option B dual merge, planning-world invariant, named-suite
+   dense-radius packing check. GPU Phase 1.1 tests updated for dual role;
+   Phase 7.1 GPU tip path uses omit-active.
+5. Spec/STATUS/phase report: Option B marked accepted/implementing;
+   diagnosis recorded. Overlay remains commented out in default robot YAML.
+
+**Review needed:** host GPU gates with dual overlay trial-armed (self-clear,
+body-clip, 7.1/7.2, integration 2×5) and planning-time evidence before
+re-arming.
+
+---
+
 ## 2026-08-01 — Phase 1.1 Option B revision drafted (spec proposal; docs only)
 
 Drafted on the new `wip_phase1_1b` branch (cut from `main` after Phase 7.3
