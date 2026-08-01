@@ -11,7 +11,6 @@ import pytest
 
 from mycobot_curobo.errors import ConfigurationError
 from mycobot_curobo.multi_target import (
-    GRID_Z_VARIABILITY_FRACTION,
     ContactEvent,
     ContactKind,
     MultiTargetEpisodeRunner,
@@ -29,6 +28,7 @@ from mycobot_curobo.multi_target import (
     serialize_episode,
 )
 from mycobot_curobo.planner import NominalPlan, PlanningFailure, PlanningOutcome
+from mycobot_curobo.target_placement import GRID_Z_VARIABILITY_FRACTION
 from mycobot_curobo.trajectory import JointTrajectory
 from mycobot_curobo.validation import ValidatedPlan, ValidationMetrics, ValidationReport
 

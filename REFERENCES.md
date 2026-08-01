@@ -255,10 +255,19 @@ compute-capability warning is retained in that report and is not suppressed.
   `scripts/host/smoke_phase7_2_standard_2x20.sh` (2 episodes × 20 targets;
   two-ring manual field, 14 mm cubes).
 
+## Phase 7.4 Z variability
+
+- Design: [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md)
+- Spec: [`spec.md`](spec.md) §8 Phase 7.4 (`z_band_fraction`, `delta_z_m`,
+  Z-aware floor, arm-reach substitute retries).
+- Example: `config/phase7_4_multi_target_widened_z.yml`.
+- Branch: `wip_phase7_4`.
+
 ## Phase 7.3 target placement
 
 - Design: [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md)
 - Spec: [`spec.md`](spec.md) §8 Phase 7.3 (`random` / `layout` / keep-outs).
+  EE-clearance constant floor superseded by Phase 7.4 when Δz ≠ 0.
 - Branch: `wip_phase7_3`.
 - CI bootstrap: CPU-safe deps + `SPARK_PYTEST_PYTHON` in
   `.github/workflows/pytest.yml`

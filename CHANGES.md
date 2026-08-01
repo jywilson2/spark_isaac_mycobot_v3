@@ -1,29 +1,29 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — Phase 7.4 Z variability + Z-aware spacing implemented
+
+1. Suite keys: `z_band_fraction` (default 0.5 ≈ 50% of `arm_z_motion_range_m`),
+   optional unclamped `delta_z_m` (full band width), `z_separation_gain`
+   (default 1.0, must be ≥ 1.0).
+2. Pairwise Z-aware approach-plane floor:
+   `edge+flange+clearance + gain*min(Δz_top, pre_approach)`.
+3. Arm-reach validation: discard out-of-reach / infeasible centres and
+   substitute (≤3 retries per target) then fail suite generation.
+4. Example `config/phase7_4_multi_target_widened_z.yml`; unit tests
+   `tests/unit/test_phase7_4_z_variability.py`.
+5. Widened default grid / `--targets 10` field AABBs for Z-aware nearest-neighbour
+   spacing.
+
+**Host evidence:** CI 224 passed + Ruff; densest standard 2×20 GUI
+(`--root-seed 4242 --auto-exit`) suite_status 0 — 40 tip / 0 body / 0 plan
+fails.
+
+---
+
 ## 2026-08-01 — Phase 7.4 specified: extended Z variability (spec only)
 
-1. **New spec section** `spec.md` §8 Phase 7.4: configurable
-   `z_band_fraction` (default 0.5 preserves existing generated fields) and a
-   pairwise **Z-aware EE-clearance floor**
-   `edge + flange + ee_approach_clearance_m + z_separation_gain *
-   min(Δz_top_faces, pre_approach_distance_m)` (gain default 1.0, 45° escape
-   cone) protecting the `plan_grasp` linear terminal descent beside taller
-   neighbors. Rationale: the free-space approach segment routes over taller
-   cubes via normal collision-aware trajectory optimization, but the linear
-   descent cannot curve, and the Phase 7.2 constant floor is XY-only.
-2. Supersession pointers added to Phase 7.2 EE-clearance rule 2 and
-   Phase 7.3 placement rule 1 (constant floor remains the `Δz = 0` case).
-3. New design notes `docs/phase7_4_z_variability.md`;
-   `docs/implementation_phases.md` phase map gains 7.3 and 7.4 rows, mermaid
-   node, and a Phase 7.4 section; README "Not implemented" lists Phase 7.4.
-4. Branch `wip_phase7_4` created from `main` tip (`4d2643f`) and pushed.
-   **No code changed**; implementation (target_placement, config parsing,
-   tests, widened-band smoke, graph-seeding confirmation) is pending on this
-   branch.
-
-**Review needed:** clamped vs unclamped `z_separation_gain` (spec ships the
-clamp at `pre_approach_distance_m`); confirm `plan_grasp` retries use
-graph-seeded warmup before widening bands in integration suites.
+1. Spec section drafted on `wip_phase7_4` (later implemented; see entry above).
+2. Design notes `docs/phase7_4_z_variability.md`; implementation_phases map.
 
 ---
 

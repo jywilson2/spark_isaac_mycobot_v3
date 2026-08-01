@@ -1,3 +1,17 @@
+## BEGIN: 2026-08-01 12:08 -0700
+
+Implement the new Phase 7.4. Set the default Z variability (used in testing) to around 50 percent of the maximum addressable range of motion of the arm. If a target's position is outside the arms range of motion, then discard it and generate a substitute.  If a suitable target cannot be generated after 3 retries then fail the generation of targets for the suite.
+
+Allow a delta Z to be provided as a parameter in test suite generation and do not clamp the value. The validation of the target's position and the limited number of retries should suffice.
+
+Update the project documentation with the above testing requirements.
+
+If all tests pass, then verify the most dense test suite with the GUI, and push to the branch and main.
+
+After the push is complete, run the dense test suite with the GUI in a loop.
+
+## END
+
 ## BEGIN: 2026-08-01 11:54 -0700
 
 Go ahead and make the spec changes as generated. Nice work!

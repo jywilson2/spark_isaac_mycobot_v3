@@ -44,18 +44,18 @@ half of the corpus per pass) as the practical worst-case upper bound.
 
 **Phase 7 — Isaac Sim validated-plan playback: complete. Phase 7.1 —
 unknown-start cube approach suite: complete. Phase 7.2 — multi-target
-tip-contact clearance suite: complete (widened forward-biased integration
-2×5 field, content-aware GUI framing, TrajOpt activation 0.01 m). Phase 7.3 —
-controllable target-block placement: implemented on `wip_phase7_3`.** See
+tip-contact clearance suite: complete. Phase 7.3 — controllable
+target-block placement: complete. Phase 7.4 — extended Z variability and
+Z-aware EE-clearance spacing: complete on `wip_phase7_4`.** See
 [`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md),
 [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md),
-and [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
-A demo video of the completed Phase 7.3 work (densest 2×20 suite, GUI
-playback) is at
+[`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md),
+and [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
+A demo video of the densest 2×20 suite (GUI playback) is at
 [`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
 (inline streaming player in the Phase 7.2 suite section below).
 
-Full roadmap (Phases 0–11, including decimal Phases 7.1–7.3 and 9.1):
+Full roadmap (Phases 0–11, including decimal Phases 7.1–7.4 and 9.1):
 [`docs/implementation_phases.md`](docs/implementation_phases.md).
 
 ```mermaid
@@ -108,13 +108,13 @@ Implemented now:
   fail-closed separation and keep-outs —
   [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md);
   demo video
-  [`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4)).
+  [`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4));
+- Phase 7.4 Z band (`z_band_fraction` / unclamped `delta_z_m`), Z-aware EE
+  floor, and arm-reach substitute retries (≤3) —
+  [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
 
 Not implemented:
 
-- Phase 7.4 extended Z variability and Z-aware EE-clearance spacing (spec
-  landed on `wip_phase7_4`;
-  [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md));
 - generic non-empty-world collision-clearance evaluation beyond the Phase 7.1
   cube adapter (still fails closed);
 - non-zero residual correction (Phase 8);

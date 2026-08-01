@@ -28,11 +28,11 @@ EE-clearance separation floor; CI bootstrap; labels / grid Z. See
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 
 **Phase 7.4 — Extended Z variability & Z-aware EE-clearance spacing:
-SPECIFIED (`wip_phase7_4`)**
-Spec landed 2026-08-01: configurable `z_band_fraction` (default 0.5) and
-pairwise Z-aware separation floor (`z_separation_gain` default 1.0, clamped
-at `pre_approach_distance_m`). Implementation pending. See
-[`spec.md`](spec.md) §8 Phase 7.4 and
+COMPLETE (`wip_phase7_4`)**
+Default testing Z band ≈ 50% of `arm_z_motion_range_m`
+(`z_band_fraction: 0.5`); optional unclamped `delta_z_m`; Z-aware EE floor
+(`z_separation_gain` default 1.0); out-of-reach centres discarded with ≤3
+substitutes then fail closed. See [`spec.md`](spec.md) §8 Phase 7.4 and
 [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
 
 **Phase 1.1 — Target-scale collision-sphere coverage: COMPLETE / OPTION B
@@ -66,7 +66,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 7.1 | Unknown-start cube approach visualization | **Complete** |
 | 7.2 | Multi-target tip-contact clearance suite | **Complete** |
 | 7.3 | Controllable target-block placement (+ CI fixes) | **Complete** |
-| 7.4 | Extended Z variability + Z-aware EE-clearance spacing | Specified |
+| 7.4 | Extended Z variability + Z-aware EE-clearance spacing | **Complete** |
 | 8 | Bounded residual RL (sim only) | Planned |
 | 9 | Fabricated contact test tool | Requirements finalized |
 | 9.1 | Contact test tool evaluation | Requirements finalized |
@@ -79,6 +79,9 @@ planning-success claims, or hardware-readiness claims carry forward.
   scaffolding (32) self-collision + Option A cover (1012) on `*_world_cover`
   for world checks; shared omit-active `planning_world`; suite rejects
   `target_edge_m < E`; adapter strips project-only keys.
+- Phase 7.4: `z_band_fraction` / unclamped `delta_z_m`, Z-aware EE floor,
+  arm-reach discard + ≤3 substitutes; example
+  `config/phase7_4_multi_target_widened_z.yml`.
 - Phase 7.3: `placement: random` / `layout` (`rows`, `arc`) with
   `min_center_separation_m`, `keep_outs`, episode-diverse seeds; example
   configs `config/phase7_3_*.yml`; module `mycobot_curobo.target_placement`.
@@ -119,21 +122,16 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Next step / resume (2026-08-01)
 
-**Where we left off:** Phase 1.1 Option B is complete and armed on
-`wip_phase1_1b` (default dual overlay). Phase 7.3 remains complete on
-`main`. Scaffolding-era unseeded 2×20 evidence (2026-07-31) and Option B
-armed unseeded 2×20 (2026-08-01, 10/10) are both recorded locally under
-`artifacts/reports/`.
+**Where we left off:** Phase 7.4 is complete on `wip_phase7_4` (Z band /
+`delta_z_m`, Z-aware EE floor, arm-reach substitutes). Phase 1.1 Option B
+remains armed; Phase 7.3 complete.
 
 **Next steps:**
 
 1. Phase 8 (bounded residual RL, sim only) on a new `wip_phase8` branch.
-   Entry criteria verified 2026-07-31: Phase 7.2 accepted, Phase 5 seam
-   stable, Phase 6 baselines recorded, remote CI green, Isaac Lab 0.54.4
-   present on host. First milestone: training-env contract + zero-residual
-   pass-through reproducing Phase 6 baseline metrics. **Note:** residual
-   policies trained under scaffolding-only spheres may need retraining
-   under the denser world-cover set now armed by default.
+   Entry criteria verified 2026-07-31. **Note:** residual policies trained
+   under scaffolding-only spheres may need retraining under the denser
+   world-cover set now armed by default.
 2. Optional: Orin AGX plan-time calibration if Phase 10+ embedded planning
    is in scope (spec: device claims need device runs).
 3. Watch the host NVIDIA driver flake (580.173.02 Vulkan segfault at Kit

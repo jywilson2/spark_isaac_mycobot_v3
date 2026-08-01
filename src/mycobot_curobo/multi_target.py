@@ -32,7 +32,7 @@ from mycobot_curobo.planner import (
 from mycobot_curobo.planning_world import leg_world_geometries
 from mycobot_curobo.robot_model import TCP_LINK
 from mycobot_curobo.target_placement import (
-    GRID_Z_VARIABILITY_FRACTION,
+    DEFAULT_Z_BAND_FRACTION,
     KeepOutAabb,
     LayoutSpec,
     build_layout_centers,
@@ -40,7 +40,10 @@ from mycobot_curobo.target_placement import (
     ee_clearance_min_center_separation_m,
     parse_keep_outs,
     parse_layout_spec,
+    replace_out_of_reach_centers,
+    resolve_z_band_half_m,
     validate_centers_separation,
+    z_band_bounds,
 )
 from mycobot_curobo.targets import SurfaceTarget
 from mycobot_curobo.validation import ValidatedPlan, ValidationMetrics
@@ -251,6 +254,10 @@ class MultiTargetSuiteConfig:
     keep_outs: tuple[KeepOutAabb, ...] = ()
     max_placement_attempts: int = 1000
     layout: LayoutSpec | None = None
+    # Phase 7.4 Z band / Z-aware spacing (defaults preserve Phase 7.2/7.3 fields).
+    z_band_fraction: float = DEFAULT_Z_BAND_FRACTION
+    delta_z_m: float | None = None
+    z_separation_gain: float = 1.0
 
 
 def _tuple3(value: Any, label: str) -> tuple[float, float, float]:
@@ -446,6 +453,24 @@ def load_multi_target_suite_config(
         or flange_face_overhang_tolerance_m < 0.0
     ):
         raise ConfigurationError("flange_face_overhang_tolerance_m must be finite and >= 0")
+    fraction_raw = payload.get("z_band_fraction", DEFAULT_Z_BAND_FRACTION)
+    z_band_fraction = float(fraction_raw)
+    if not math.isfinite(z_band_fraction) or z_band_fraction <= 0.0:
+        raise ConfigurationError("z_band_fraction must be positive finite")
+    delta_raw = payload.get("delta_z_m")
+    delta_z_m = None if delta_raw is None else float(delta_raw)
+    if delta_z_m is not None and (not math.isfinite(delta_z_m) or delta_z_m <= 0.0):
+        raise ConfigurationError("delta_z_m must be positive finite when set")
+    # Resolve once so invalid combinations fail at config load.
+    resolve_z_band_half_m(
+        arm_z_motion_range_m=arm_z_motion_range_m,
+        z_band_fraction=z_band_fraction,
+        delta_z_m=delta_z_m,
+    )
+    gain_raw = payload.get("z_separation_gain", 1.0)
+    z_separation_gain = float(gain_raw)
+    if not math.isfinite(z_separation_gain) or z_separation_gain < 1.0:
+        raise ConfigurationError("z_separation_gain must be finite and >= 1.0")
     warn = payload.get("warn_planning_duration_s")
     warn_s = None if warn is None else float(warn)
     if warn_s is not None and (not math.isfinite(warn_s) or warn_s <= 0.0):
@@ -493,6 +518,9 @@ def load_multi_target_suite_config(
         keep_outs=keep_outs,
         max_placement_attempts=max_placement_attempts,
         layout=layout,
+        z_band_fraction=z_band_fraction,
+        delta_z_m=delta_z_m,
+        z_separation_gain=z_separation_gain,
     )
 
 
@@ -562,14 +590,16 @@ def build_grid_centers(
     *,
     arm_z_motion_range_m: float,
     placement_seed: int | None = None,
+    z_band_fraction: float = DEFAULT_Z_BAND_FRACTION,
+    delta_z_m: float | None = None,
 ) -> tuple[tuple[float, float, float], ...]:
     """Place ``count`` centres on an XY lattice with mid-Z band variability.
 
     X/Y follow an evenly spaced grid inside the declared AABB. Z is centered on
-    the AABB mid-height and spaced evenly across a band whose width is
-    ``GRID_Z_VARIABILITY_FRACTION * arm_z_motion_range_m`` (50% of the declared
-    arm vertical envelope). The band is **not** clipped to the thin field AABB
-    Z span so variability is not silently zeroed.
+    the AABB mid-height and spaced evenly across a band of width
+    ``delta_z_m`` when set, else ``z_band_fraction * arm_z_motion_range_m``
+    (default fraction 0.5). The band is **not** clipped to ``field_aabb`` Z;
+    arm-reach validation and substitute retries reject unreachable centres.
 
     When ``placement_seed`` is set, apply a deterministic toroidal phase shift in
     X/Y/Z so multi-episode suites get distinct obstacle fields while remaining
@@ -578,13 +608,17 @@ def build_grid_centers(
 
     if count < 1:
         raise ConfigurationError("grid count must be positive")
-    if not math.isfinite(arm_z_motion_range_m) or arm_z_motion_range_m <= 0.0:
-        raise ConfigurationError("arm_z_motion_range_m must be positive and finite")
     lo = _tuple3(minimum_m, "minimum_m")
     hi = _tuple3(maximum_m, "maximum_m")
     rows, columns = _grid_layout_shape(count)
-    mid_z = 0.5 * (lo[2] + hi[2])
-    half_band = 0.5 * GRID_Z_VARIABILITY_FRACTION * arm_z_motion_range_m
+    mid_z, z_lo, z_hi = z_band_bounds(
+        lo,
+        hi,
+        arm_z_motion_range_m=arm_z_motion_range_m,
+        z_band_fraction=z_band_fraction,
+        delta_z_m=delta_z_m,
+    )
+    half_band = 0.5 * (z_hi - z_lo)
     phase_x = 0.0
     phase_y = 0.0
     phase_z = 0.0
@@ -603,7 +637,6 @@ def build_grid_centers(
             if count == 1:
                 z = mid_z
             else:
-                # Even spacing across [mid - half_band, mid + half_band].
                 z = (mid_z - half_band) + (index + 0.5) * (2.0 * half_band) / count
         else:
             x_frac = ((col + 0.5) / columns + phase_x) % 1.0
@@ -655,6 +688,12 @@ def build_target_field(
             keep_outs=config.keep_outs,
             outward_normal_base=config.outward_normal_base,
             max_target_radial_m=config.max_target_radial_m,
+            z_separation_gain=config.z_separation_gain,
+            pre_approach_distance_m=config.pre_approach_distance_m,
+            field_minimum_m=config.field_minimum_m,
+            field_maximum_m=config.field_maximum_m,
+            arm_z_motion_range_m=config.arm_z_motion_range_m,
+            require_arm_reach=True,
         )
     elif config.placement is PlacementPolicy.RANDOM:
         if placement_seed is None:
@@ -671,6 +710,10 @@ def build_target_field(
             max_placement_attempts=config.max_placement_attempts,
             outward_normal_base=config.outward_normal_base,
             max_target_radial_m=config.max_target_radial_m,
+            z_band_fraction=config.z_band_fraction,
+            delta_z_m=config.delta_z_m,
+            z_separation_gain=config.z_separation_gain,
+            pre_approach_distance_m=config.pre_approach_distance_m,
         )
         targets = _targets_from_centers(config, centers)
     elif config.placement is PlacementPolicy.LAYOUT:
@@ -688,14 +731,26 @@ def build_target_field(
             placement_seed=placement_seed,
             outward_normal_base=config.outward_normal_base,
             max_target_radial_m=config.max_target_radial_m,
+            z_band_fraction=config.z_band_fraction,
+            delta_z_m=config.delta_z_m,
+            z_separation_gain=config.z_separation_gain,
+            pre_approach_distance_m=config.pre_approach_distance_m,
         )
         targets = _targets_from_centers(config, centers)
     else:
         # Phase-shifted grids can land a lattice point in a base keep-out; search
         # deterministic seed offsets so surround-capable fields stay valid.
-        max_grid_seed_offsets = 64 if config.keep_outs else 1
+        # Keep-outs / phase-shifted Z-aware packs: search deterministic seed offsets.
+        max_grid_seed_offsets = 64
         last_error: ConfigurationError | None = None
         centers: tuple[tuple[float, float, float], ...] | None = None
+        _, z_lo_band, z_hi_band = z_band_bounds(
+            config.field_minimum_m,
+            config.field_maximum_m,
+            arm_z_motion_range_m=config.arm_z_motion_range_m,
+            z_band_fraction=config.z_band_fraction,
+            delta_z_m=config.delta_z_m,
+        )
         for offset in range(max_grid_seed_offsets):
             seed = None if placement_seed is None else int(placement_seed) + offset
             candidate = build_grid_centers(
@@ -704,8 +759,26 @@ def build_target_field(
                 config.field_maximum_m,
                 arm_z_motion_range_m=config.arm_z_motion_range_m,
                 placement_seed=seed,
+                z_band_fraction=config.z_band_fraction,
+                delta_z_m=config.delta_z_m,
             )
             try:
+                candidate = replace_out_of_reach_centers(
+                    candidate,
+                    field_minimum_m=config.field_minimum_m,
+                    field_maximum_m=config.field_maximum_m,
+                    arm_z_motion_range_m=config.arm_z_motion_range_m,
+                    edge_m=config.target_edge_m,
+                    min_center_separation_m=config.min_center_separation_m,
+                    keep_outs=config.keep_outs,
+                    outward_normal_base=config.outward_normal_base,
+                    max_target_radial_m=config.max_target_radial_m,
+                    z_lo_band=z_lo_band,
+                    z_hi_band=z_hi_band,
+                    z_separation_gain=config.z_separation_gain,
+                    pre_approach_distance_m=config.pre_approach_distance_m,
+                    placement_seed=seed,
+                )
                 validate_centers_separation(
                     candidate,
                     min_center_separation_m=config.min_center_separation_m,
@@ -713,6 +786,12 @@ def build_target_field(
                     keep_outs=config.keep_outs,
                     outward_normal_base=config.outward_normal_base,
                     max_target_radial_m=config.max_target_radial_m,
+                    z_separation_gain=config.z_separation_gain,
+                    pre_approach_distance_m=config.pre_approach_distance_m,
+                    field_minimum_m=config.field_minimum_m,
+                    field_maximum_m=config.field_maximum_m,
+                    arm_z_motion_range_m=config.arm_z_motion_range_m,
+                    require_arm_reach=True,
                 )
             except ConfigurationError as exc:
                 last_error = exc
@@ -721,7 +800,7 @@ def build_target_field(
             break
         if centers is None:
             raise ConfigurationError(
-                "grid placement could not satisfy keep_outs / separation / rim "
+                "grid placement could not satisfy keep_outs / separation / rim / reach "
                 f"after {max_grid_seed_offsets} seed offsets"
                 + ("" if last_error is None else f" (last: {last_error})")
             )

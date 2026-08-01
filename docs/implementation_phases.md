@@ -22,7 +22,7 @@ fallback, learned policy, simulator feature, or integration.
 | **7.1** | Unknown-start normal-approach cube visualization | Five-episode default; all A–D modes validated |
 | **7.2** | Multi-target tip-contact clearance suite | Clear/contact all targets per episode; tip OK; body fails |
 | **7.3** | Controllable target-block placement | Random/layout policies, fail-closed separation and keep-outs |
-| **7.4** | Extended Z variability & Z-aware EE-clearance spacing | Widened band fields pass integration smoke; Z-aware floor enforced |
+| **7.4** | Extended Z variability & Z-aware EE-clearance spacing | **Complete** — unclamped `delta_z_m`, ROM retries, Z-aware floor |
 | **8** | Bounded residual RL (Isaac Lab / Isaac Sim only) | Residual improves sim metrics; never replaces planner |
 | **9** | Fabricated contact test tool | OpenSCAD/STL, fit, optional TCP/collision profile |
 | **9.1** | Contact test tool evaluation | Calibration and remounting repeatability characterized |
@@ -293,19 +293,18 @@ treat PhysX as the planner collision oracle.
 
 **Branch:** `wip_phase7_4`
 
-**Status:** Specified (2026-08-01); implementation pending. See
-[`spec.md`](../spec.md) §8 Phase 7.4 and
-[`docs/phase7_4_z_variability.md`](phase7_4_z_variability.md).
+**Status:** **Complete** (2026-08-01). See [`spec.md`](../spec.md) §8 Phase
+7.4 and [`docs/phase7_4_z_variability.md`](phase7_4_z_variability.md).
 
-**Objective:** Configurable Z band width for generated target fields
-(`z_band_fraction`, default 0.5 preserves existing fields) plus a pairwise
-Z-aware EE-clearance floor (`z_separation_gain`, default 1.0) so the
-`plan_grasp` linear terminal descent keeps a guaranteed corridor beside
-taller neighbors.
+**Objective:** Configurable Z band (`z_band_fraction` default 0.5 ≈ 50% of
+`arm_z_motion_range_m`; optional unclamped `delta_z_m`) plus pairwise
+Z-aware EE-clearance (`z_separation_gain` default 1.0) and arm-reach
+discard/substitute (max 3 retries) so oversized bands fail closed without
+clamping.
 
-**Must not:** Add heuristic lift waypoints, another planner, or
-collision-geometry manipulation to shape trajectories; silently repack
-infeasible fields.
+**Must not:** Clamp `delta_z_m`; add heuristic lift waypoints, another
+planner, or collision-geometry manipulation; silently repack infeasible
+fields.
 
 **Entry criteria:** Phase 7.3 acceptance passes; Phase 1.1 Option B sphere
 work landed.

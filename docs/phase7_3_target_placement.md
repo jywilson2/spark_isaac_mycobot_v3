@@ -23,7 +23,10 @@ Shared controls:
 
 - `min_center_separation_m` (default / floor, **approach-plane** metric:
   `target_edge_m + flange_diameter_assumption_m + ee_approach_clearance_m`,
-  with `ee_approach_clearance_m` defaulting to `flange_diameter_assumption_m`)
+  with `ee_approach_clearance_m` defaulting to `flange_diameter_assumption_m`;
+  Phase 7.4 adds `z_separation_gain * min(Δz_top, pre_approach)` when Δz > 0)
+- `z_band_fraction` / `delta_z_m` — Phase 7.4 Z band (default fraction 0.5;
+  `delta_z_m` unclamped); arm-reach discard + ≤3 substitutes
 - `keep_outs` — optional AABB list; target cubes may not intersect
   (grid placement retries seed offsets when a phase would violate)
 - EE-clearance floor is a **lower bound** on centre spacing (not a packing

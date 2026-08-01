@@ -64,18 +64,13 @@ orchestration over successive validated plans with an explicit world revision.
 ### Placement
 
 - **`grid`:** build an evenly spaced **XY** lattice inside a declared `g_base`
-  AABB. Z centres are spaced evenly in a band of width
-  `0.5 * arm_z_motion_range_m` centered on the AABB mid-height
-  (`(z_min + z_max) / 2`). `arm_z_motion_range_m` is an explicit declared
-  vertical envelope (typically the vendor working radius); the Z band is not
-  clipped to the thin field AABB Z span. Geometry is deterministic from
-  config; only contact **order** is shuffled when `order: shuffle`.
-  Generated centres must also satisfy **approach-plane EE clearance** (see
-  `spec.md`): pairwise distance in the plane ⊥ `outward_normal_base` ≥
-  `target_edge_m + flange_diameter_assumption_m + ee_approach_clearance_m`
-  (default `ee_approach_clearance_m = flange_diameter_assumption_m`) so two
-  remaining neighbors cannot mutually deadlock tip/EE approach. Z-band
-  offsets must not count as clearance. Optional rim guard rejects
+  AABB. Z centres use band width `z_band_fraction * arm_z_motion_range_m`
+  (default fraction **0.5**) about AABB mid-Z, or absolute `delta_z_m` when
+  set (Phase 7.4; **not** clamped to AABB Z). Out-of-reach centres are
+  discarded with ≤3 substitutes. Geometry is deterministic from config;
+  only contact **order** is shuffled when `order: shuffle`. Generated
+  centres must satisfy **approach-plane EE clearance** (constant floor when
+  Δz = 0; Phase 7.4 Z-aware floor when Δz > 0). Optional rim guard rejects
   workspace-edge centres.
 - **`manual`:** caller provides the full numbered target list (id, position,
   normal, roll policy). No position sampling; lists fail closed if they

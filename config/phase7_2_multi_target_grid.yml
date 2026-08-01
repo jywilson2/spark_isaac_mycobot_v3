@@ -7,9 +7,11 @@ order: listed
 retain_targets_after_contact: false
 tip_allow_link_names:
   - joint6_flange
+# Sized for Phase 7.4 Z-aware floor: 2×2 lattice spacing >= 0.086 m
+# (0.076 EE floor + 0.01 pre_approach additive when Δz > 0).
 field_aabb:
   minimum_m: [0.12, -0.20, 0.14]
-  maximum_m: [0.28, 0.02, 0.18]
+  maximum_m: [0.30, 0.02, 0.18]
 # Declared arm vertical envelope (vendor working_radius_m). Grid Z centres are
 # spaced evenly in a band of width 0.5 * this value about AABB mid-Z.
 arm_z_motion_range_m: 0.28

@@ -13,11 +13,12 @@ retain_targets_after_contact: false
 # max_target_failures is deprecated (must not allow PASS with unplanned targets).
 tip_allow_link_names:
   - joint6_flange
-# Sized so --targets 10 grid fallback packs at approach-plane EE floor (~0.076 m)
-# on a 3×4 lattice (ceil(sqrt(10))=4 columns). Manual targets ignore this AABB.
+# Sized so --targets 10 grid fallback packs at the Phase 7.4 Z-aware floor
+# (~0.086 m = 0.076 EE + 0.01 pre_approach) on a 3×4 lattice. Manual targets
+# ignore this AABB.
 field_aabb:
   minimum_m: [0.08, -0.24, 0.12]
-  maximum_m: [0.40, 0.08, 0.22]
+  maximum_m: [0.44, 0.08, 0.22]
 # Declared arm vertical envelope (vendor working_radius_m). Grid Z band width
 # is 50% of this value centered on field AABB mid-Z (manual placement ignores it).
 arm_z_motion_range_m: 0.28

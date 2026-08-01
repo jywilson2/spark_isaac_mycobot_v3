@@ -1752,7 +1752,7 @@ Layout parameters (when `placement: layout`):
 
 ## Phase 7.4 — Extended Z variability and Z-aware EE-clearance spacing
 
-**Status:** Specified; implementation pending. **Branch:** `wip_phase7_4`.
+**Status:** Implemented (2026-08-01). **Branch:** `wip_phase7_4`.
 Design notes: [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
 
 ### Objective
@@ -1765,13 +1765,31 @@ must surface as structured planning outcomes, never as unsafe packing.
 
 ### Z band (normative)
 
-- New suite key **`z_band_fraction`** (float, default **`0.5`**, valid
-  `(0, 1]`): generated centres (`grid`, `random`, `layout` mid-Z default) use a
-  Z band of width `z_band_fraction * arm_z_motion_range_m` centered on the
-  `field_aabb` mid-Z, clamped to `field_aabb` Z. The default preserves all
-  Phase 7.2/7.3 fields bit-for-bit.
-- Explicit `layout.z_m` and manual target lists remain valid anywhere inside
-  `field_aabb` Z, as in Phase 7.3.
+- Suite key **`z_band_fraction`** (float, default **`0.5`**, must be `> 0`,
+  **not** upper-clamped): generated centres (`grid`, `random`, `layout`
+  mid-Z default) use a Z band of width
+  `z_band_fraction * arm_z_motion_range_m` centered on the `field_aabb`
+  mid-Z. The testing default (~50% of the declared arm vertical envelope)
+  preserves prior Phase 7.2/7.3 band width.
+- Suite key **`delta_z_m`** (optional positive float): absolute **full** band
+  width in metres. When set, overrides `z_band_fraction`. **Do not clamp**
+  `delta_z_m` (or an oversized fraction) to `field_aabb` Z or to the arm
+  reach envelope — arm-reach validation and substitute retries (below) are
+  the fail-closed path for unreachable samples.
+- Explicit `layout.z_m` and manual target lists remain author-owned poses;
+  they must still pass arm-reach and Z-aware separation checks.
+
+### Arm-reach validation and substitute retries (normative)
+
+1. A centre is **outside arm reach** when its Z lies outside
+   `arm_z_motion_range_m` centered on field mid-Z, or when it violates the
+   optional `max_target_radial_m` rim guard.
+2. For generated modes (`grid`, `random`, `layout`): discard an out-of-reach
+   (or Z-aware-infeasible) centre and generate a substitute (same XY where
+   applicable, Z resampled in band ∩ reach). After **3** failed substitutes
+   for one target, fail suite target generation (`ConfigurationError`).
+3. Manual lists do not substitute; they fail closed on reach / separation
+   violations.
 
 ### Z-aware EE-clearance spacing (normative)
 
@@ -1807,31 +1825,28 @@ the default upward normal). The minimum approach-plane centre separation is:
 
 ### Tasks
 
-1. Make the Z band fraction configurable in `target_placement.py`
-   (`z_band_bounds`) and suite config parsing; keep 0.5 default.
+1. Make the Z band configurable via `z_band_fraction` / `delta_z_m` in
+   `target_placement.py` and suite config parsing; default fraction 0.5;
+   no clamp of `delta_z_m`.
 2. Implement the pairwise Z-aware floor in `validate_centers_separation` and
-   `build_random_centers`; thread `pre_approach_distance_m` and
-   `z_separation_gain` from suite config.
-3. Confirm `plan_grasp` retry attempts use graph-seeded warmup
-   (`enable_graph_warmup`) on the plan path; record planning-duration
-   distributions at `z_band_fraction` 0.5 vs the widened setting (sim
-   timings only; no Orin SLA claim).
-4. Ship an example widened-band config (`config/phase7_4_*.yml`) and update
-   `docs/phase7_2_multi_target_contact.md` / `docs/phase7_3_target_placement.md`
-   supersession pointers.
-5. Unit tests: Z-aware floor positive/negative pairs, clamp behaviour,
-   gain-below-1 fail-closed, band-fraction bounds, seeded determinism and
-   episode diversity at widened bands.
+   generators; thread `pre_approach_distance_m` and `z_separation_gain`.
+3. Implement arm-reach discard + ≤3 substitute retries; fail closed afterward.
+4. Ship `config/phase7_4_*.yml` and update Phase 7.2/7.3 docs supersession
+   pointers.
+5. Unit tests: Z-aware floor pairs, unclamped `delta_z_m`, gain-below-1
+   fail-closed, ROM retry exhaustion, widened-band sampling, densest 2×20
+   pack under the Z-aware floor.
 
 ### Acceptance criteria
 
-- `z_band_fraction` default reproduces existing Phase 7.2/7.3 fields exactly
-  (regression-tested against pinned seeds).
+- Default `z_band_fraction=0.5` keeps the historical mid-Z band width
+  (~50% of `arm_z_motion_range_m`) for testing.
+- `delta_z_m` may be supplied without clamping; unreachable centres are
+  discarded and substituted (max 3), then suite generation fails closed.
 - Generated and manual fields enforce the pairwise Z-aware floor; violations
   are `ConfigurationError`, never silent repacking.
-- Multi-target integration smoke passes at the widened band with
-  `failed_episodes <= max_failed_episodes`; deferral/reconsider behaviour and
-  the omit-active planning-world invariant are unchanged.
+- Densest standard 2×20 smoke remains valid under the Z-aware floor; widened
+  example config loads and samples.
 - No alternate planner, no heuristic lift waypoints, no collision-geometry
   manipulation to shape trajectories.
 
