@@ -115,6 +115,12 @@ is also the policy that maps to taught/measured poses on hardware
 
 ### Failures — planning, target, episode
 
+Expected infeasibility is a **structured planning-failure result** — never an
+exception, never a fallback planner, never motion. cuRobo is the exclusive
+planner (spec §1, §3): a leg that cannot be planned and validated produces no
+trajectory to play, and the tiers below decide whether the episode can still
+succeed. Every level fails closed.
+
 Three tiers:
 
 1. **Planning failure:** each failed plan/validation attempt for the current
@@ -142,6 +148,20 @@ episode still **FAIL**s if any target remains unplanned at the end
 | `max_failed_episodes` | Config | **`0`** | Suite acceptance ceiling on failed episodes |
 | `max_target_failures` | Config (deprecated) | **`3`** | Must not allow PASS with unplanned targets |
 
+Deferral is effective because the world **changes between passes**: each tip
+contact removes a cube (when `retain_targets_after_contact` is false), so a
+leg that was infeasible in a crowded neighborhood is reconsidered against a
+smaller obstacle set (planning worlds are always built from remaining
+targets — see "Planning obstacles" below). The unseeded 2×20 batch is the
+measured example: all 6 deferrals eventually planned on reconsider.
+
+**Note on denser collision models (Phase 1.1):** arming a denser sphere
+cover makes world clearance see obstacles that the 32-sphere scaffolding
+geometrically misses, so planning-failure rates are **expected to rise**
+when a cover is armed. Interpret that as the correction of false negatives
+(plans that would body-clip in mesh reality), not as a suite regression:
+those failures flow through the same retry / deferral / reconsider budgets
+above and fail closed like any other infeasibility.
 
 ### Flange-normal approach
 
