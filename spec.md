@@ -550,6 +550,29 @@ host headless + GUI integration 2×5 smoke must also pass with the overlay
 armed (see Acceptance criteria). Default robot YAML keeps
 `collision_sphere_overlay_path` commented out until those gates pass.
 
+**Planning-time criterion (added 2026-08-01):** the cover multiplies
+collision-cost evaluation inside the planner (≈32× spheres for world checks;
+quadratic growth in candidate self-collision pairs), so re-arming also
+requires measured timing evidence:
+
+1. Measure per-leg planning time (p50 / p95) with the trial-enabled overlay
+   versus scaffolding on the host, same suite, seeds, and planner profile,
+   and record the ratio in the Phase 1.1 report.
+2. If an embedded planning target (e.g. Jetson Orin AGX) is in scope for
+   Phase 10+, additionally run a scaffolding-baseline calibration on that
+   device and record the measured (or measurement-derived) overlay planning
+   time there. Device planning-time claims require device measurements;
+   extrapolation from host hardware alone must be labeled as an estimate.
+3. Re-arming must not proceed until the recorded numbers are reviewed
+   against a planning-time budget **explicitly declared for the intended
+   deployment target at review time**. This spec deliberately does not
+   invent a numeric budget; adopting one requires the evidence above.
+
+Cost-mitigation alternatives (dense cover only in Phase 4 independent
+validation with scaffolding in the planner loop, or revisiting Option B's
+world-only overlay split) may be proposed at the same review if the measured
+regression is unacceptable for the deployment target.
+
 ### Objective
 
 Replace the Phase 1 reduced (four-spheres-per-link) set with a **static,

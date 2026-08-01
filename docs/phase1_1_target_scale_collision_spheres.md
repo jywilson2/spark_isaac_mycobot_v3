@@ -76,3 +76,9 @@ python3 scripts/host/regenerate_target_scale_collision_spheres.py
 4. Host headless + GUI integration smoke
    `smoke_phase7_2_integration_2x5.sh` (2 episodes × 5 targets; enable via
    `--with-integration-smoke`) per Phase 1.1 acceptance.
+5. Planning-time evidence (spec §8 Phase 1.1, added 2026-08-01) — **not yet
+   measured**: overlay-vs-scaffolding per-leg plan p50/p95 ratio on the host;
+   plus a device calibration run if an embedded planner target (e.g. Jetson
+   Orin AGX) is in scope for Phase 10+. Re-arming is reviewed against a
+   budget declared for the intended deployment target; no numeric budget is
+   invented ahead of the measurements.
