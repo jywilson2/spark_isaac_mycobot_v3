@@ -112,6 +112,9 @@ Implemented now:
 
 Not implemented:
 
+- Phase 7.4 extended Z variability and Z-aware EE-clearance spacing (spec
+  landed on `wip_phase7_4`;
+  [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md));
 - generic non-empty-world collision-clearance evaluation beyond the Phase 7.1
   cube adapter (still fails closed);
 - non-zero residual correction (Phase 8);

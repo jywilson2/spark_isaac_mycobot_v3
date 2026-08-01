@@ -21,6 +21,8 @@ fallback, learned policy, simulator feature, or integration.
 | **7** | Isaac Sim closed-loop visualization & sim validation | GUI/headless smoke of validated plans |
 | **7.1** | Unknown-start normal-approach cube visualization | Five-episode default; all A–D modes validated |
 | **7.2** | Multi-target tip-contact clearance suite | Clear/contact all targets per episode; tip OK; body fails |
+| **7.3** | Controllable target-block placement | Random/layout policies, fail-closed separation and keep-outs |
+| **7.4** | Extended Z variability & Z-aware EE-clearance spacing | Widened band fields pass integration smoke; Z-aware floor enforced |
 | **8** | Bounded residual RL (Isaac Lab / Isaac Sim only) | Residual improves sim metrics; never replaces planner |
 | **9** | Fabricated contact test tool | OpenSCAD/STL, fit, optional TCP/collision profile |
 | **9.1** | Contact test tool evaluation | Calibration and remounting repeatability characterized |
@@ -45,6 +47,7 @@ flowchart LR
   P71 --> P72[Phase 7.2 multi-target]
   P72 --> P11s[Phase 1.1 spheres review]
   P72 --> P73[Phase 7.3 placement]
+  P73 --> P74[Phase 7.4 Z variability]
   P72 --> P8[Phase 8 Residual RL]
   P8 --> P9[Phase 9 contact tool]
   P9 --> P91[Phase 9.1 tool evaluation]
@@ -283,6 +286,29 @@ repair. See [`spec.md`](../spec.md) §8 Phase 7.3 and
 treat PhysX as the planner collision oracle.
 
 **Entry criteria:** Phase 7.2 acceptance passes.
+
+---
+
+## Phase 7.4 — Extended Z variability and Z-aware EE-clearance spacing
+
+**Branch:** `wip_phase7_4`
+
+**Status:** Specified (2026-08-01); implementation pending. See
+[`spec.md`](../spec.md) §8 Phase 7.4 and
+[`docs/phase7_4_z_variability.md`](phase7_4_z_variability.md).
+
+**Objective:** Configurable Z band width for generated target fields
+(`z_band_fraction`, default 0.5 preserves existing fields) plus a pairwise
+Z-aware EE-clearance floor (`z_separation_gain`, default 1.0) so the
+`plan_grasp` linear terminal descent keeps a guaranteed corridor beside
+taller neighbors.
+
+**Must not:** Add heuristic lift waypoints, another planner, or
+collision-geometry manipulation to shape trajectories; silently repack
+infeasible fields.
+
+**Entry criteria:** Phase 7.3 acceptance passes; Phase 1.1 Option B sphere
+work landed.
 
 ---
 

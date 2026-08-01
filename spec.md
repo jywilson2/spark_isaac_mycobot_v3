@@ -1384,6 +1384,8 @@ over successive independently validated plans with an explicit world revision.
      violate it. If a generated field cannot satisfy the floor inside
      `field_aabb`, fail closed (`ConfigurationError`) rather than packing
      tighter.
+     *Rule 2 is superseded by the Phase 7.4 Z-aware floor once implemented;
+     the constant floor remains the `Δz = 0` case.*
   4. **Optional rim guard (recommended for grid/random/layout):** reject a
      generated centre when
      `hypot(x, y) + 0.5 * target_edge_m`
@@ -1681,6 +1683,8 @@ All non-manual policies must respect:
    with `ee_approach_clearance_m` defaulting to
    `flange_diameter_assumption_m`. An explicit larger value is allowed; an
    explicit smaller value is a configuration error.
+   *Superseded by the Phase 7.4 Z-aware floor once implemented; the constant
+   floor remains the `Δz = 0` case.*
 2. **`keep_outs`** (optional list of AABBs in `g_base`): a candidate is
    rejected if the target cube of edge `target_edge_m` would intersect a
    keep-out (base/pedestal exclusion). Phase-shifted `grid` placement retries
@@ -1743,6 +1747,93 @@ Layout parameters (when `placement: layout`):
   Isaac-path changes; integration 2×5 smoke is the opt-in final gate when
   requested.
 - No physical robot command; core package stays Isaac-free.
+
+---
+
+## Phase 7.4 — Extended Z variability and Z-aware EE-clearance spacing
+
+**Status:** Specified; implementation pending. **Branch:** `wip_phase7_4`.
+Design notes: [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
+
+### Objective
+
+Allow suite authors to widen the vertical placement band of generated target
+fields beyond the Phase 7.2 fixed mid-Z band, while preserving the guarantee
+that every generated (or manual) field leaves a feasible flange-normal descent
+corridor for each cube. cuRobo remains the sole planner; greater Z variation
+must surface as structured planning outcomes, never as unsafe packing.
+
+### Z band (normative)
+
+- New suite key **`z_band_fraction`** (float, default **`0.5`**, valid
+  `(0, 1]`): generated centres (`grid`, `random`, `layout` mid-Z default) use a
+  Z band of width `z_band_fraction * arm_z_motion_range_m` centered on the
+  `field_aabb` mid-Z, clamped to `field_aabb` Z. The default preserves all
+  Phase 7.2/7.3 fields bit-for-bit.
+- Explicit `layout.z_m` and manual target lists remain valid anywhere inside
+  `field_aabb` Z, as in Phase 7.3.
+
+### Z-aware EE-clearance spacing (normative)
+
+Supersedes the constant floor in Phase 7.2 EE-clearance rule 2 and Phase 7.3
+placement rule 1; the constant floor remains the `Δz = 0` case.
+
+For each cube pair, let `Δz` be the absolute difference of **top-face**
+positions along `outward_normal_base` (`z_center + 0.5 * target_edge_m` for
+the default upward normal). The minimum approach-plane centre separation is:
+
+    target_edge_m + flange_diameter_assumption_m + ee_approach_clearance_m
+      + z_separation_gain * min(Δz, pre_approach_distance_m)
+
+1. **Approach-plane metric unchanged.** Separation is still measured in the
+   plane perpendicular to `outward_normal_base`; `Δz` never inflates apparent
+   clearance, it only raises the required floor.
+2. **`z_separation_gain`** (float, default **`1.0`**): explicit larger values
+   are allowed; smaller values are a `ConfigurationError`. Rationale: the
+   `plan_grasp` terminal segment is a straight line along the tool axis and
+   cannot curve around a taller neighbor; gain 1.0 guarantees at least a 45°
+   diagonal escape from the descent corridor of the lower cube.
+3. **Clamp at `pre_approach_distance_m`.** Above the standoff the approach
+   segment is free-space and may curve; only the linear descent needs the
+   widened corridor. When `Δz > pre_approach_distance_m` the standoff lies
+   below the neighbor's top face; this is permitted (the base floor holds at
+   every height) but planning retries are expected to rise, and suites should
+   budget `max_planning_failure_per_target` accordingly.
+4. All placement modes enforce the pairwise Z-aware floor: `random` rejects
+   candidates during sampling; `grid` / `layout` validate generated centres
+   and fail closed; `manual` lists fail closed on violation. An explicit
+   `min_center_separation_m` raises the constant part only and must not fall
+   below the constant floor.
+
+### Tasks
+
+1. Make the Z band fraction configurable in `target_placement.py`
+   (`z_band_bounds`) and suite config parsing; keep 0.5 default.
+2. Implement the pairwise Z-aware floor in `validate_centers_separation` and
+   `build_random_centers`; thread `pre_approach_distance_m` and
+   `z_separation_gain` from suite config.
+3. Confirm `plan_grasp` retry attempts use graph-seeded warmup
+   (`enable_graph_warmup`) on the plan path; record planning-duration
+   distributions at `z_band_fraction` 0.5 vs the widened setting (sim
+   timings only; no Orin SLA claim).
+4. Ship an example widened-band config (`config/phase7_4_*.yml`) and update
+   `docs/phase7_2_multi_target_contact.md` / `docs/phase7_3_target_placement.md`
+   supersession pointers.
+5. Unit tests: Z-aware floor positive/negative pairs, clamp behaviour,
+   gain-below-1 fail-closed, band-fraction bounds, seeded determinism and
+   episode diversity at widened bands.
+
+### Acceptance criteria
+
+- `z_band_fraction` default reproduces existing Phase 7.2/7.3 fields exactly
+  (regression-tested against pinned seeds).
+- Generated and manual fields enforce the pairwise Z-aware floor; violations
+  are `ConfigurationError`, never silent repacking.
+- Multi-target integration smoke passes at the widened band with
+  `failed_episodes <= max_failed_episodes`; deferral/reconsider behaviour and
+  the omit-active planning-world invariant are unchanged.
+- No alternate planner, no heuristic lift waypoints, no collision-geometry
+  manipulation to shape trajectories.
 
 ---
 
