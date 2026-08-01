@@ -1,5 +1,22 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — Planning-failure behavior narrative completed (docs only)
+
+1. `docs/phase7_2_multi_target_contact.md` § "Failures — planning, target,
+   episode" verified against the design narrative and extended with the
+   pieces it lacked in place: (a) a lead-in stating that expected
+   infeasibility is a structured result — never an exception, fallback
+   planner, or motion — with every tier failing closed; (b) the rationale
+   for why deferral works (the world shrinks between passes as contacted
+   cubes are removed), citing the unseeded 2×20 batch as the measured
+   example; (c) a note that arming a denser Phase 1.1 cover is expected to
+   raise planning-failure rates and that this is the correction of false
+   negatives (body-clip plans), not a suite regression.
+2. Budgets, tier definitions, and normative spec cross-references were
+   already accurate and are unchanged.
+
+---
+
 ## 2026-08-01 — Planning-time criterion added to the Phase 1.1 re-arming gate
 
 1. `spec.md` §8 Phase 1.1: the Option A acceptance gate now also requires

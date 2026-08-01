@@ -1,3 +1,19 @@
+## BEGIN: 2026-08-01 09:17 -0700
+
+Add the narrative under items 1 through 3 to documentation that describes the project design. It should appear in a section the defines the behavior for a planning failure. If this already exists, then just veriify that it is just as accurate and comprehensive.
+
+Present details on how you will implement Option B, while designing the fixture reconcilation.
+
+## END
+
+## BEGIN: 2026-08-01 09:02 -0700
+
+Of the options we have discussed thus far (e.g. Option A - D), which would you recommend as the most performant? I agree that option B seems like the best approach for planning peformance.
+
+If we implement Option B (instead of Option A), what happens when a planning failure is detected with the dense sphere-set?
+
+## END
+
 ## BEGIN: 2026-08-01 08:52 -0700
 
 Yes, please modify the spec to reflect a timing criterion for Orin deployment.
