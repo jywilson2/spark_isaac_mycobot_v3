@@ -1,6 +1,13 @@
 # Phase 1.1 — Target-scale collision-sphere coverage
 
-**Status:** Option A implemented; overlay disarmed (planning regressions)  
+**Status:** Option A implemented; overlay disarmed (planning regressions).
+An **Option B (dual-role sphere split)** revision is **proposed**
+(2026-08-01, spec §8 Phase 1.1 "Proposed revision: Option B"): scaffolding
+keeps self-collision, the 1012-sphere Option A cover becomes world-only,
+with a diagnosis-first precondition, a shared world-builder invariant
+(fixture reconciliation), a config-time field geometry check, and an
+acceptance gate extending Option A's (timing criterion plus an armed
+unseeded 2×20 batch). Development branch: `wip_phase1_1b`.  
 **Normative text:** [`spec.md`](../spec.md) §8 Phase 1.1.
 
 ## Intent

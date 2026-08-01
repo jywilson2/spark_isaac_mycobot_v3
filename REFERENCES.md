@@ -58,7 +58,9 @@ compute-capability warning is retained in that report and is not suppressed.
   [`docs/phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md)
   — Option A thickness-capped cover implemented; disarmed pending 7.1/7.2
   planning reconciliation (see `spec.md` §8 Phase 1.1). Overlay file:
-  `config/robots/mycobot_280_m5_phase1_1_spheres.yml`.
+  `config/robots/mycobot_280_m5_phase1_1_spheres.yml`. An **Option B
+  dual-role split** revision is proposed (2026-08-01, spec §8 Phase 1.1
+  "Proposed revision: Option B"; branch `wip_phase1_1b`).
 
 - **Elephant Robotics `mycobot_ros2`**  
   <https://github.com/elephantrobotics/mycobot_ros2>  

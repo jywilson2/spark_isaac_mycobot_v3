@@ -512,7 +512,10 @@ Create a validated cuRobo v0.8.0 robot configuration for the exact MyCobot 280 M
 body-clip detectability GPU checks pass under a trial-enabled overlay, but
 arming it in the default robot YAML regresses Phase 7.1 / 7.2 GPU planning
 (cuRobo reports start/end state in collision against target cubes). Keep
-scaffolding until cover/suite fixtures are reconciled. Design notes:
+scaffolding until cover/suite fixtures are reconciled. A revision to
+**Option B (dual-role sphere split)** is **proposed** below (2026-08-01) and
+awaits review; it reuses the Option A cover as the world-only set. Design
+notes:
 [`docs/phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md).
 
 ### Headless verification finding (2026-07-21) — first cover rejected
@@ -537,7 +540,7 @@ or expanding ignore maps silently.
 | Option | Idea | Status |
 |--------|------|--------|
 | **A. Thickness-capped cover** | Mesh-constrained offline cover; each sphere radius capped by **local link thickness / medial radius** and `≤ E`; densify for detectability | **Chosen / implemented** |
-| **B. Dual role split** | Self spheres vs separate world-only overlay | Not selected |
+| **B. Dual role split** | Self spheres vs separate world-only overlay | **Proposed 2026-08-01** (see "Proposed revision: Option B" below) |
 | **C. Distal densify only** | Densify only distal links | Not selected |
 | **D. Scene-side keep-outs** | Inflate world cuboids; leave robot scaffolding | Not selected |
 
@@ -572,6 +575,76 @@ Cost-mitigation alternatives (dense cover only in Phase 4 independent
 validation with scaffolding in the planner loop, or revisiting Option B's
 world-only overlay split) may be proposed at the same review if the measured
 regression is unacceptable for the deployment target.
+
+### Proposed revision (2026-08-01): Option B — dual-role sphere split
+
+**Status: proposed; not yet accepted or implemented.** Supersedes the armed
+form of Option A if accepted; the Option A cover artifact (1012
+thickness-capped spheres) is **reused unchanged** as the world-only set.
+Development happens on `wip_phase1_1b`.
+
+**Motivation.** Option A assigns the dense cover to both collision roles.
+The world-clearance role only grows linearly (≈32× sphere–obstacle checks),
+but the self-collision role grows quadratically in candidate sphere pairs
+and is where the first 128-sphere cover already failed (negative
+self-clearance at every tested posture). Option B keeps each role on the
+sphere set that suits it: the 32-sphere Phase 1 scaffolding remains the
+**only** self-collision participant, and the dense cover participates in
+**world clearance only**. Self-collision semantics and cost are then
+byte-identical to the shipped configuration, and the planning-time question
+reduces to the linear world-checking term.
+
+**Precondition — diagnose the Option A regression first.** Before any
+implementation, reproduce the armed-overlay failures on the Phase 7.1 and
+7.2 GPU suites and record in the Phase 1.1 report exactly which state
+(start or goal), leg, link/sphere, and obstacle cuRobo reports in
+collision. Phase 7.2 already omits the active contact cube from the
+planning world, so the mechanism is **not** established; candidate
+hypotheses (Phase 7.1 single-cube world construction, start states adjacent
+to retained geometry, dense base/pedestal spheres vs low-z cubes, dense
+spheres vs neighbor cubes at pre-approach goals) must be confirmed or
+eliminated by measurement. Fixture reconciliation (below) must address the
+measured mechanism, not an assumed one.
+
+**Normative design (if accepted):**
+
+1. **Combined sphere list, split roles.** The robot config carries the 32
+   scaffolding spheres (self + world) plus the 1012 dense spheres
+   (world-only). The self-collision ignore map is extended so every
+   dense–dense and dense–scaffolding pair is ignored; the count of active
+   self-collision pairs must equal the scaffolding-only count, asserted by
+   a unit test that fails closed if cuRobo's ignore semantics change.
+2. **cuRobo API verification before implementation.** Confirm from cuRobo
+   v0.8.0 source whether self-collision ignores are per-sphere or per-link.
+   If per-link only, dense spheres attach to fixed, identity-jointless
+   virtual child frames of their links so link-level ignores can split the
+   roles. Whichever mechanism is used is documented in the Phase 1.1 report
+   with the inspected source references.
+3. **Shared world-builder invariant (fixture reconciliation).** One shared
+   helper constructs the planning/validation world for every path — the
+   Phase 7.1 pipeline, Phase 7.2 legs, `validate_start_state` fixtures,
+   Phase 4 independent validation, and GPU integration tests — enforcing:
+   the world for a leg excludes that leg's active contact target, and
+   excludes the just-contacted target of the previous leg wherever retained
+   geometry would otherwise collide with the start state. No per-sphere
+   disables, no contact carve-outs: contact legality remains PhysX playback
+   evidence only, and the planner's world simply never contains the cube
+   being touched.
+4. **Config-time field geometry check.** A deterministic per-suite test
+   computes the minimum dense-sphere-to-neighbor-face clearance at the
+   pre-approach pose for each named suite field (2×5, 2×10, 2×20); a suite
+   YAML whose layout cannot satisfy dense-sphere goals fails closed at
+   configuration time rather than surfacing as planning failures.
+
+**Option B acceptance gate (before re-arming default YAML):** everything in
+the Option A gate above (self-clearance at gate postures — the self set is
+unchanged, but the combined list must be verified; edge-`E` body-clip
+detectability with the dense set; Phase 7.1 / 7.2 GPU suites; host headless
+and GUI integration 2×5 smoke) **plus** the planning-time criterion, **plus**
+a rerun of the unseeded 2×20 robustness batch with the split armed. The
+expected planning-failure-rate rise (corrected false negatives; see
+`docs/phase7_2_multi_target_contact.md` § Failures) must stay within the
+named suites' existing budgets — budgets are not relaxed to admit the cover.
 
 ### Objective
 
@@ -707,8 +780,9 @@ set used for that suite must satisfy Phase 1.1 for
   spheres improve body (and tip) detection of those cuboids.
 - **Phase 7.3:** controllable target-block placement (under consideration). It
   does **not** introduce collision spheres; placement keep-outs remain optional
-  and complementary and do not replace Phase 1.1 coverage. Phase 1.1 work may
-  share the `wip_phase7_3` branch without becoming part of Phase 7.3.
+  and complementary and do not replace Phase 1.1 coverage. Phase 1.1 work
+  shared the `wip_phase7_3` branch without becoming part of Phase 7.3; with
+  Phase 7.3 complete, the Option B revision proceeds on `wip_phase1_1b`.
 
 ---
 
