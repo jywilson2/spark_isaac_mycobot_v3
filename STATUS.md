@@ -136,19 +136,25 @@ report ("Standard smoke 2×20") and
    startup, ~1-in-10 headless playback launches on 2026-07-31); if it
    recurs, investigate driver/Kit versions rather than suite code.
 
-**Phase 1.1 — awaiting approval of revised cover approach** (see `spec.md`
-§8 Phase 1.1 “Proposed revision”). Headless findings:
+**Phase 1.1 — Option A chosen and implemented; overlay disarmed** (see
+`spec.md` §8 Phase 1.1 “Chosen revision: Option A”). History and state:
 
 1. **Fixed:** adapter stripped project-only keys so cuRobo can construct a
    planner when an overlay is enabled.
-2. **Blocked:** greedy 128-sphere cover self-collides at every tested posture
-   (including zero); scaffolding (32) is self-clear. Overlay path commented out
-   in `mycobot_280_m5.yml`.
-3. **Proposed options in spec:** A thickness-capped cover (recommended), B dual
-   self/world sets, C distal-only densify, D scene-side keep-outs.
+2. **First cover rejected:** greedy 128-sphere cover self-collides at every
+   tested posture (including zero); scaffolding (32) is self-clear. Overlay
+   path commented out in `mycobot_280_m5.yml`.
+3. **Option A landed (B dual self/world sets, C distal-only densify, D
+   scene-side keep-outs: not selected):** thickness-capped cover regenerated
+   (1012 spheres, radii ≤ `E`); GPU self-clear and body-clip detectability
+   pass under trial enable, but arming the default YAML regresses
+   Phase 7.1 / 7.2 GPU planning (cuRobo reports start/end state in
+   collision against target cubes).
 
-Do **not** re-enable the overlay or iterate cover radii until an option is
-chosen. Phase 7.3 placement APIs are available with scaffolding spheres.
+Do **not** re-arm the overlay until the spec's Option A acceptance gate
+passes (non-negative self-clearance at the gate postures, body-clip
+detectability retained, and Phase 7.1 / 7.2 GPU planning suites green).
+Phase 7.3 placement APIs are available with scaffolding spheres.
 
 **Integration smoke (opt-in final gate):** `smoke_phase7_2_integration_2x5.sh`
 — 2 episodes × 5 targets. Enable with

@@ -1,5 +1,21 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — STATUS Phase 1.1 block aligned with spec (docs only)
+
+1. The lower STATUS Phase 1.1 block still carried pre-decision wording
+   (“awaiting approval of revised cover approach”, “Proposed options”,
+   “until an option is chosen”), lagging the spec’s
+   “Chosen revision: Option A — Chosen / implemented”. Found while
+   verifying that conversation answers matched project documentation.
+2. Rewritten to the current state: Option A chosen and implemented
+   (B/C/D not selected); overlay disarmed because arming regresses
+   Phase 7.1 / 7.2 GPU planning; re-arming is gated by the spec’s
+   Option A acceptance gate, not by an options decision.
+3. No behavior, config, or spec change; STATUS top summary was already
+   correct.
+
+---
+
 ## 2026-08-01 — Unseeded 2×20 robustness evidence recorded (no code change)
 
 1. Ran the densest 2×20 suite 10× headless, unseeded (each episode drew an

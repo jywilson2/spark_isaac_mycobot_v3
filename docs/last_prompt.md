@@ -1,3 +1,23 @@
+## BEGIN: 2026-08-01 08:42 -0700
+
+Yes, please do this. Also rebase with main and push.
+
+## END
+
+## BEGIN: 2026-08-01 08:36 -0700
+
+Can you verify that the details you just provided appear in the project documentation.
+
+## END
+
+## BEGIN: 2026-08-01 08:32 -0700
+
+Remind me what this means:
+
+keeps the Phase 1.1 cover decision as the parallel gate with the residual-retraining caveat
+
+## END
+
 ## BEGIN: 2026-08-01 08:27 -0700
 
 Do the recording of evidence and push, as suggested above. Then I will continue the conversation.
