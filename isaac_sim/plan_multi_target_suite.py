@@ -81,6 +81,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "distinct random seed for each episode (maximizes coverage). "
         "YAML root_seed is not used unless this flag is set to that value.",
     )
+    parser.add_argument(
+        "--app-config",
+        type=Path,
+        default=None,
+        help="Optional app.yml override (e.g. trial-armed Option B robot path). "
+        "Defaults to config/app.yml.",
+    )
     parser.add_argument("--output-bundle", type=Path, required=True)
     return parser.parse_args(argv)
 
@@ -127,10 +134,11 @@ def plan_and_validate(
     flange_diameter_assumption_m: float | None = None,
     require_flange_face_containment: bool = False,
     flange_face_overhang_tolerance_m: float = 0.005,
+    app_config_path: Path | None = None,
 ) -> tuple[tuple[Any, ...], dict[str, Any]]:
     """Run the multi-target runner with optimistic tip contact (planning process)."""
 
-    app = load_app_config()
+    app = load_app_config() if app_config_path is None else load_app_config(app_config_path)
     base_profile = load_planner_profile(episodes[0].planner_profile)
     validation_profile = replace(
         load_validation_profile(validation_profile_name),
@@ -332,6 +340,7 @@ def main(argv: list[str] | None = None) -> int:
         flange_diameter_assumption_m=config.flange_diameter_assumption_m,
         require_flange_face_containment=config.require_flange_face_containment,
         flange_face_overhang_tolerance_m=config.flange_face_overhang_tolerance_m,
+        app_config_path=args.app_config,
     )
     summary_seed = root_seed if root_seed is not None else int(episodes[0].episode_seed)
     summary = aggregate_multi_target_results(results, root_seed=summary_seed)

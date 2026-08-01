@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 from dataclasses import replace
+
 import pytest
 
 from mycobot_curobo.cube_scene import cube_to_curobo_scene_dict

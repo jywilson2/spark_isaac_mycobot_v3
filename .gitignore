@@ -45,6 +45,10 @@ assets/logs/isaac_host/*
 # Generated Isaac-ready URDF + mesh copies (from prepare_robot_assets).
 assets/mycobot_280_m5/prepared/
 
+# Transient Option B / overlay trial YAMLs written by host smoke wrappers.
+config/robots/_tmp_*.yml
+config/_tmp_*.yml
+
 .DS_Store
 *.swp
 .idea/

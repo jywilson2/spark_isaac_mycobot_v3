@@ -38,10 +38,15 @@ self-collision.
 3. **Config-time field check:** unit test
    `tests/unit/test_option_b_field_geometry.py` over named 2×5 / 2×10 / 2×20
    suites.
-4. **Still open before re-arming default YAML:** GPU Option B self-clear +
-   body-clip; Phase 7.1 / 7.2 GPU suites with dual overlay trial-armed;
-   integration 2×5 headless + GUI; planning-time p50/p95; armed unseeded
-   2×20 batch.
+4. **Armed integration 2×5 (2026-08-01):** headless and GUI both exit 0 with
+   dual overlay trial-armed via
+   `scripts/host/smoke_phase7_2_integration_2x5_option_b.sh --root-seed 4242`
+   — 2/2 episodes, 10/10 tip contacts, 0 body contacts, 0 planning failures
+   (plan p50 ≈ 4.9–5.1 s). Reports:
+   `artifacts/reports/phase7_2_multi_target_integration_2x5_option_b.*`.
+5. **Still open before re-arming default YAML:** planning-time p50/p95
+   overlay-vs-scaffolding comparison (same seeds); armed unseeded 2×20
+   batch; review against a declared deployment-time budget.
 
 ## Intent
 

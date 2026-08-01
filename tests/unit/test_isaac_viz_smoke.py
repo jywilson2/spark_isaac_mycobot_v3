@@ -63,6 +63,8 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "--root-seed" in smoke72
     assert 'plan_args+=(--root-seed "${root_seed}")' in smoke72
     assert "--config" in smoke72
+    assert "--app-config" in smoke72
+    assert 'plan_args+=(--app-config "${app_config}")' in smoke72
     assert "plan_status" in smoke72
     assert "--record" in smoke72
     assert "x11grab" in smoke72
@@ -73,6 +75,12 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "--targets 5" in smoke72_int
     assert "--episodes 2" in smoke72_int
     assert "--root-seed" in smoke72_int
+    smoke72_optb = (ROOT / "scripts/host/smoke_phase7_2_integration_2x5_option_b.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "collision_sphere_overlay_role" in smoke72_optb
+    assert "dual" in smoke72_optb
+    assert "--app-config" in smoke72_optb
     assert "phase7_2_multi_target_standard_2x10.yml" in smoke72_std
     assert "--targets 10" in smoke72_std
     assert "--episodes 2" in smoke72_std
@@ -81,6 +89,8 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "--episodes 2" in smoke72_std20
     planner72 = (ROOT / "isaac_sim" / "plan_multi_target_suite.py").read_text(encoding="utf-8")
     assert "--root-seed" in planner72
+    assert "--app-config" in planner72
+    assert "app_config_path" in planner72
     assert "resolve_invocation_root_seed" in planner72
     player72 = (ROOT / "isaac_sim" / "play_multi_target_suite.py").read_text(encoding="utf-8")
     assert "replaying episodes" in player72

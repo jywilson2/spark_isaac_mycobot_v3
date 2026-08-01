@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-  printf 'Usage: %s [--headless|--gui] [--auto-exit|--no-auto-exit] [--manual] [--config PATH] [--targets N] [--episodes N] [--root-seed N] [--record FILE.mp4]\n' "$0"
+  printf 'Usage: %s [--headless|--gui] [--auto-exit|--no-auto-exit] [--manual] [--config PATH] [--app-config PATH] [--targets N] [--episodes N] [--root-seed N] [--record FILE.mp4]\n' "$0"
 }
 
 # Resolve an ffmpeg binary: system ffmpeg, else the static build bundled with
@@ -67,7 +67,7 @@ record_kit_window() {
 main() {
   local root mode auto_exit manual vendor_urdf prepared_usd nested_prepared_usd
   local report bundle suite_status config targets episodes root_seed artifact_tag config_override
-  local record_file record_ffmpeg recorder_pid
+  local app_config record_file record_ffmpeg recorder_pid
   local -a plan_args
 
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -78,6 +78,7 @@ main() {
   episodes=""
   root_seed=""
   config_override=""
+  app_config=""
   record_file=""
   record_ffmpeg=""
   recorder_pid=""
@@ -93,6 +94,14 @@ main() {
           return 2
         fi
         config_override="$2"
+        shift 2
+        ;;
+      --app-config)
+        if [[ $# -lt 2 ]]; then
+          printf 'ERROR: --app-config requires a YAML path\n' >&2
+          return 2
+        fi
+        app_config="$2"
         shift 2
         ;;
       --targets)
@@ -235,7 +244,20 @@ main() {
   fi
   mkdir -p "$(dirname "${report}")"
 
+  if [[ -n "${app_config}" ]]; then
+    if [[ "${app_config}" != /* ]]; then
+      app_config="${root}/${app_config}"
+    fi
+    if [[ ! -f "${app_config}" ]]; then
+      printf 'ERROR: app config not found: %s\n' "${app_config}" >&2
+      return 2
+    fi
+  fi
+
   plan_args=(--config "${config}" --output-bundle "${bundle}")
+  if [[ -n "${app_config}" ]]; then
+    plan_args+=(--app-config "${app_config}")
+  fi
   if [[ -n "${targets}" ]]; then
     plan_args+=(--targets "${targets}")
   fi
