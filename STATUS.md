@@ -91,9 +91,10 @@ planning-success claims, or hardware-readiness claims carry forward.
   Also: GitHub Actions CI bootstrap; viewport ID labels; contact highlights;
   tip collision vs non-contact targets; grid mid-Z variability.
 - Phase 7.2 multi-target tip-contact suite: `TargetField`,
-  `MultiTargetEpisodeRunner`, three-tier failure budgets
-  (`max_planning_failure_per_target` default 3, `max_target_failures` default
-  3, `max_failed_episodes` default 0), tip contact required only for
+  `MultiTargetEpisodeRunner`, failure budgets
+  (`max_planning_failure_per_target` default 3,
+  `max_consecutive_unplanned_targets` default 3 — aborts suite planning,
+  `max_failed_episodes` default 0), tip contact required only for
   successfully planned targets, plan/play split, host smoke with
   `--targets` / `--episodes`, and `--no-auto-exit` continuous episode replay.
 - Python 3.10+ `src/` project layout.

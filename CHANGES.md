@@ -1,5 +1,26 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — Consecutive unplanned-target suite abort
+
+1. Added `max_consecutive_unplanned_targets` (default **3**): after that many
+   consecutive deferred targets (each exhausted
+   `max_planning_failure_per_target`) without an intervening tip success,
+   episode planning fails with
+   `max_consecutive_unplanned_targets_exceeded` and remaining suite episodes
+   are not planned.
+2. Tip contact success resets the consecutive counter.
+
+### Review recommended
+
+- Confirm dense 2×20 smokes abort early rather than burning full reconsider
+  budgets when the first three targets all defer.
+
+### Verification
+
+- Unit: consecutive deferrals abort suite; remaining episode skipped.
+
+---
+
 ## 2026-08-01 — Phase 7.4 dexterous-reach screening implemented + delta_z=0.30 suite
 
 1. **Wrist-sphere dexterous-reach model** in `target_placement.py`
