@@ -1,5 +1,32 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — Phase 7.4 specified: extended Z variability (spec only)
+
+1. **New spec section** `spec.md` §8 Phase 7.4: configurable
+   `z_band_fraction` (default 0.5 preserves existing generated fields) and a
+   pairwise **Z-aware EE-clearance floor**
+   `edge + flange + ee_approach_clearance_m + z_separation_gain *
+   min(Δz_top_faces, pre_approach_distance_m)` (gain default 1.0, 45° escape
+   cone) protecting the `plan_grasp` linear terminal descent beside taller
+   neighbors. Rationale: the free-space approach segment routes over taller
+   cubes via normal collision-aware trajectory optimization, but the linear
+   descent cannot curve, and the Phase 7.2 constant floor is XY-only.
+2. Supersession pointers added to Phase 7.2 EE-clearance rule 2 and
+   Phase 7.3 placement rule 1 (constant floor remains the `Δz = 0` case).
+3. New design notes `docs/phase7_4_z_variability.md`;
+   `docs/implementation_phases.md` phase map gains 7.3 and 7.4 rows, mermaid
+   node, and a Phase 7.4 section; README "Not implemented" lists Phase 7.4.
+4. Branch `wip_phase7_4` created from `main` tip (`4d2643f`) and pushed.
+   **No code changed**; implementation (target_placement, config parsing,
+   tests, widened-band smoke, graph-seeding confirmation) is pending on this
+   branch.
+
+**Review needed:** clamped vs unclamped `z_separation_gain` (spec ships the
+clamp at `pre_approach_distance_m`); confirm `plan_grasp` retries use
+graph-seeded warmup before widening bands in integration suites.
+
+---
+
 ## 2026-08-01 — Phase 1.1 Option B complete; default YAML armed
 
 1. **Re-armed** `config/robots/mycobot_280_m5.yml` with

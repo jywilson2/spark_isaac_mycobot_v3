@@ -27,6 +27,14 @@ YAML field AABB packs `--targets 10` grid fallback. Integration stays on
 EE-clearance separation floor; CI bootstrap; labels / grid Z. See
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 
+**Phase 7.4 — Extended Z variability & Z-aware EE-clearance spacing:
+SPECIFIED (`wip_phase7_4`)**
+Spec landed 2026-08-01: configurable `z_band_fraction` (default 0.5) and
+pairwise Z-aware separation floor (`z_separation_gain` default 1.0, clamped
+at `pre_approach_distance_m`). Implementation pending. See
+[`spec.md`](spec.md) §8 Phase 7.4 and
+[`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
+
 **Phase 1.1 — Target-scale collision-sphere coverage: COMPLETE / OPTION B
 ARMED (`wip_phase1_1b`)**
 Default robot YAML loads dual overlay (32 scaffolding + 1012 world-cover).
@@ -58,6 +66,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 7.1 | Unknown-start cube approach visualization | **Complete** |
 | 7.2 | Multi-target tip-contact clearance suite | **Complete** |
 | 7.3 | Controllable target-block placement (+ CI fixes) | **Complete** |
+| 7.4 | Extended Z variability + Z-aware EE-clearance spacing | Specified |
 | 8 | Bounded residual RL (sim only) | Planned |
 | 9 | Fabricated contact test tool | Requirements finalized |
 | 9.1 | Contact test tool evaluation | Requirements finalized |
