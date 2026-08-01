@@ -29,6 +29,7 @@ from mycobot_curobo.planner import (
     PlanningOutcome,
     PlanningRequest,
 )
+from mycobot_curobo.planning_world import leg_world_geometries
 from mycobot_curobo.robot_model import TCP_LINK
 from mycobot_curobo.target_placement import (
     GRID_Z_VARIABILITY_FRACTION,
@@ -1348,11 +1349,10 @@ class MultiTargetEpisodeRunner:
         from_id = state.from_id
         target = episode.field.target_by_id(to_id)
         geometries = episode.field.active_geometries(removed_ids=state.removed_ids)
-        # Exclude the contact target from cuRobo world geometry so the tip can
-        # reach the face. Other remaining targets stay as cuboid obstacles for
-        # tip and body (disable_collision_links stays empty).
-        planning_geometries = tuple(
-            geometry for geometry in geometries if geometry.name != target.cube_geometry.name
+        # Shared Option B / Phase 7.2 invariant: omit the active contact cube so
+        # the tip can occupy the face; other remaining targets stay as obstacles.
+        planning_geometries = leg_world_geometries(
+            geometries, active_contact_name=target.cube_geometry.name
         )
         scene_model = cubes_to_curobo_scene_dict(planning_geometries)
         scene_revision = (
@@ -1370,13 +1370,8 @@ class MultiTargetEpisodeRunner:
             request_id=request_id,
             disable_collision_links=(),
         )
-        # Independent world clearance excludes the contact target so tip penetration
-        # at the face centre does not fail closed; other obstacles remain checked.
-        # Tip/world collision stays enabled against remaining targets (empty
-        # disable_collision_links) so near blockers force tip detours.
-        clearance_geometries = tuple(
-            geometry for geometry in geometries if geometry.name != target.cube_geometry.name
-        )
+        # Independent world clearance uses the same omit-active invariant.
+        clearance_geometries = planning_geometries
         plan_started = time.perf_counter()
         try:
             planner = self._planner_factory(

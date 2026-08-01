@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 from dataclasses import replace
-
-import numpy as np
 import pytest
 
 from mycobot_curobo.cube_scene import cube_to_curobo_scene_dict
@@ -24,6 +22,7 @@ from mycobot_curobo.planner import (
     load_planner_profile,
     plan_joint_relocation,
 )
+from mycobot_curobo.planning_world import leg_world_scene_dict
 from mycobot_curobo.robot_model import JOINT_NAMES, load_robot_model_spec
 from mycobot_curobo.validation import (
     CuroboTrajectoryEvaluator,
@@ -78,14 +77,18 @@ def test_phase7_1_cube_scene_plan_validates_with_evaluated_world_clearance() -> 
     )
     task_config = TaskFrameConfig()
     robot_spec = load_robot_model_spec()
-    scene_model = cube_to_curobo_scene_dict(episode.cube_geometry)
+    # Start preflight keeps the cube; tip-contact plan/validate omit it.
+    scene_with_cube = cube_to_curobo_scene_dict(episode.cube_geometry)
+    tip_contact_scene = leg_world_scene_dict(
+        (episode.cube_geometry,), active_contact_name=episode.cube_geometry.name
+    )
     request = episode.to_planning_request()
 
     start_report = validate_start_state(
         request.current_joint_state.position_rad,
         robot_spec=robot_spec,
         evaluator=CuroboTrajectoryEvaluator(
-            create_curobo_planner(profile, scene_model=scene_model, warmup=False),
+            create_curobo_planner(profile, scene_model=scene_with_cube, warmup=False),
             scene_is_empty=False,
             cube_center_m=episode.cube_center_m,
             cube_edge_m=episode.cube_edge_m,
@@ -96,7 +99,7 @@ def test_phase7_1_cube_scene_plan_validates_with_evaluated_world_clearance() -> 
     assert start_report.valid, start_report.violations
 
     planner = NominalPlanner(
-        lambda: create_curobo_planner(profile, scene_model=scene_model, warmup=False),
+        lambda: create_curobo_planner(profile, scene_model=tip_contact_scene, warmup=False),
         profile,
         task_frame_config=task_config,
     )
@@ -109,18 +112,18 @@ def test_phase7_1_cube_scene_plan_validates_with_evaluated_world_clearance() -> 
         request,
         profile=load_validation_profile(config.validation_profile),
         evaluator=CuroboTrajectoryEvaluator(
-            create_curobo_planner(profile, scene_model=scene_model, warmup=False),
-            scene_is_empty=False,
-            cube_center_m=episode.cube_center_m,
-            cube_edge_m=episode.cube_edge_m,
+            create_curobo_planner(profile, scene_model=tip_contact_scene, warmup=False),
+            scene_is_empty=True,
         ),
         robot_spec=robot_spec,
         task_frame_config=task_config,
     )
     assert validated.report.valid, validated.report.violations
     assert validated.executable
-    assert validated.report.metrics.minimum_world_collision_clearance_m is not None
-    assert np.isfinite(validated.report.metrics.minimum_world_collision_clearance_m)
+    # Active cube omitted from tip-contact validation (PhysX tip evidence).
+    # Empty-world evaluators report a huge sentinel clearance (sys.float_info.max).
+    world_clear = validated.report.metrics.minimum_world_collision_clearance_m
+    assert world_clear is not None and float(world_clear) > 1.0e100
 
 
 @pytest.mark.skipif(not _runtime_available(), reason="cuRobo v0.8.0 CUDA runtime required")

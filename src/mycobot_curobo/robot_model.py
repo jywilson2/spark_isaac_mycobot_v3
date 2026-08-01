@@ -327,8 +327,135 @@ def _expand_limit(value: object, label: str) -> np.ndarray:
     return np.full(len(JOINT_NAMES), scalar, dtype=float)
 
 
+# Virtual FIXED child of each scaffolding collision link that carries the
+# Phase 1.1 dense cover for world clearance only (Option B dual-role split).
+# cuRobo v0.8.0 ``self_collision_ignore`` is per-link (see
+# ``SelfCollisionKinematicsCfg.compute_sphere_pair_distance_with_link_pair_ignores``),
+# so world-only spheres cannot share scaffolding link names.
+WORLD_COVER_LINK_SUFFIX = "_world_cover"
+OVERLAY_ROLE_DUAL = "dual"
+OVERLAY_ROLE_REPLACE = "replace"
+_OVERLAY_ROLES = frozenset({OVERLAY_ROLE_DUAL, OVERLAY_ROLE_REPLACE})
+
+
+def world_cover_link_name(parent_link: str) -> str:
+    """Return the Option B world-only virtual link name for ``parent_link``."""
+
+    return f"{parent_link}{WORLD_COVER_LINK_SUFFIX}"
+
+
+def count_active_self_collision_link_pairs(
+    collision_link_names: Sequence[str],
+    self_collision_ignore: dict[str, Sequence[str]],
+) -> int:
+    """Count unordered link pairs that participate in self-collision.
+
+    A pair ``(a, b)`` is inactive when either side lists the other in
+    ``self_collision_ignore`` (cuRobo takes ``min(d, d.T)``, so one-sided
+    ignore is enough; this helper treats ignore as deactivating the pair).
+    """
+
+    links = tuple(str(name) for name in collision_link_names)
+    ignore: dict[str, set[str]] = {
+        str(link): {str(other) for other in others}
+        for link, others in self_collision_ignore.items()
+    }
+    active = 0
+    for i, left in enumerate(links):
+        for right in links[i + 1 :]:
+            if right in ignore.get(left, set()) or left in ignore.get(right, set()):
+                continue
+            active += 1
+    return active
+
+
+def _apply_option_b_dual_role_overlay(
+    kinematics: dict[str, Any], overlay_spheres: dict[str, Any]
+) -> None:
+    """Keep scaffolding self spheres; attach dense cover on virtual world links."""
+
+    scaffolding = kinematics.get("collision_spheres")
+    if not isinstance(scaffolding, dict) or not scaffolding:
+        raise ConfigurationError("Option B dual overlay requires existing collision_spheres")
+    collision_links = [str(name) for name in kinematics.get("collision_link_names", [])]
+    if not collision_links:
+        raise ConfigurationError("Option B dual overlay requires collision_link_names")
+    parent_set = set(collision_links)
+    for parent in overlay_spheres:
+        if str(parent) not in parent_set:
+            raise ConfigurationError(
+                f"Option B overlay link {parent!r} is not a scaffolding collision link"
+            )
+
+    extra_links = kinematics.setdefault("extra_links", {})
+    if not isinstance(extra_links, dict):
+        raise ConfigurationError("extra_links must be a mapping")
+    ignore = kinematics.setdefault("self_collision_ignore", {})
+    if not isinstance(ignore, dict):
+        raise ConfigurationError("self_collision_ignore must be a mapping")
+    buffer = kinematics.setdefault("self_collision_buffer", {})
+    if not isinstance(buffer, dict):
+        raise ConfigurationError("self_collision_buffer must be a mapping")
+
+    scaffolding_active = count_active_self_collision_link_pairs(
+        collision_links,
+        {str(k): [str(x) for x in v] for k, v in ignore.items()},
+    )
+
+    world_links: list[str] = []
+    for parent, spheres in overlay_spheres.items():
+        parent_name = str(parent)
+        if not isinstance(spheres, list) or not spheres:
+            raise ConfigurationError(
+                f"Option B overlay spheres for {parent_name!r} must be a non-empty list"
+            )
+        world_link = world_cover_link_name(parent_name)
+        if world_link in scaffolding or world_link in extra_links:
+            raise ConfigurationError(f"Option B world-cover link already present: {world_link}")
+        extra_links[world_link] = {
+            "link_name": world_link,
+            "joint_name": f"{parent_name}_to_world_cover",
+            "parent_link_name": parent_name,
+            "joint_type": "FIXED",
+            "fixed_transform": [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+        }
+        scaffolding[world_link] = spheres
+        buffer[world_link] = 0.0
+        world_links.append(world_link)
+
+    kinematics["collision_link_names"] = [*collision_links, *world_links]
+    # Do not add world-cover links to mesh_link_names (identity virtual frames).
+    all_links = list(kinematics["collision_link_names"])
+    for world_link in world_links:
+        ignore[world_link] = [name for name in all_links if name != world_link]
+    for scaffold_link in collision_links:
+        existing = [str(name) for name in ignore.get(scaffold_link, [])]
+        for world_link in world_links:
+            if world_link not in existing:
+                existing.append(world_link)
+        ignore[scaffold_link] = existing
+
+    # World-cover links ignore every collision link, so active self pairs must
+    # equal the pre-overlay scaffolding count.
+    merged_active = count_active_self_collision_link_pairs(
+        all_links, {str(k): [str(x) for x in v] for k, v in ignore.items()}
+    )
+    if merged_active != scaffolding_active:
+        raise ConfigurationError(
+            "Option B dual overlay failed to preserve scaffolding self-collision "
+            f"pair count (scaffolding={scaffolding_active}, merged={merged_active})"
+        )
+
+
 def apply_collision_sphere_overlay(kinematics: dict[str, Any], config_path: Path) -> float:
-    """Merge Phase 1.1 sphere overlay into kinematics; return detectable edge ``E``."""
+    """Merge Phase 1.1 sphere overlay into kinematics; return detectable edge ``E``.
+
+    Default role is Option B ``dual``: scaffolding spheres stay on real links
+    for self-collision; dense overlay spheres attach to fixed virtual
+    ``*_world_cover`` child links that are fully ignored for self-collision and
+    participate only in world checks. Role ``replace`` keeps the historical
+    Option A full-replace behaviour for diagnosis only.
+    """
 
     edge_raw = kinematics.get("min_detectable_obstacle_edge_m")
     if edge_raw is None:
@@ -354,7 +481,15 @@ def apply_collision_sphere_overlay(kinematics: dict[str, Any], config_path: Path
     spheres = overlay.get("collision_spheres")
     if not isinstance(spheres, dict) or not spheres:
         raise ConfigurationError("collision sphere overlay must define collision_spheres")
-    kinematics["collision_spheres"] = spheres
+    role = str(kinematics.get("collision_sphere_overlay_role", OVERLAY_ROLE_DUAL))
+    if role not in _OVERLAY_ROLES:
+        raise ConfigurationError(
+            f"collision_sphere_overlay_role must be one of {sorted(_OVERLAY_ROLES)}, got {role!r}"
+        )
+    if role == OVERLAY_ROLE_REPLACE:
+        kinematics["collision_spheres"] = spheres
+    else:
+        _apply_option_b_dual_role_overlay(kinematics, spheres)
     kinematics["min_detectable_obstacle_edge_m"] = overlay_edge
     return overlay_edge
 
@@ -442,6 +577,7 @@ def load_robot_model_spec(
 _CUROBO_EXCLUDED_KINEMATICS_KEYS = (
     "min_detectable_obstacle_edge_m",
     "collision_sphere_overlay_path",
+    "collision_sphere_overlay_role",
 )
 
 

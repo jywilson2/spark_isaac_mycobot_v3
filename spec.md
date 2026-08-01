@@ -508,14 +508,12 @@ Create a validated cuRobo v0.8.0 robot configuration for the exact MyCobot 280 M
 
 ## Phase 1.1 — Target-scale collision-sphere coverage
 
-**Status:** **Option A implemented; overlay disarmed.** Self-clear and
-body-clip detectability GPU checks pass under a trial-enabled overlay, but
-arming it in the default robot YAML regresses Phase 7.1 / 7.2 GPU planning
-(cuRobo reports start/end state in collision against target cubes). Keep
-scaffolding until cover/suite fixtures are reconciled. A revision to
-**Option B (dual-role sphere split)** is **proposed** below (2026-08-01) and
-awaits review; it reuses the Option A cover as the world-only set. Design
-notes:
+**Status:** **Option B accepted; implementing on `wip_phase1_1b`.** Option A
+cover (1012 thickness-capped spheres) remains the world-detection artifact
+but is no longer the intended armed form: arming Option A as a full replace
+regresses Phase 7.1 / 7.2 GPU planning (cuRobo reports start/end state in
+collision against target cubes). Default YAML stays on scaffolding (32)
+until the Option B acceptance gate passes. Design notes:
 [`docs/phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md).
 
 ### Headless verification finding (2026-07-21) — first cover rejected
@@ -540,7 +538,7 @@ or expanding ignore maps silently.
 | Option | Idea | Status |
 |--------|------|--------|
 | **A. Thickness-capped cover** | Mesh-constrained offline cover; each sphere radius capped by **local link thickness / medial radius** and `≤ E`; densify for detectability | **Chosen / implemented** |
-| **B. Dual role split** | Self spheres vs separate world-only overlay | **Proposed 2026-08-01** (see "Proposed revision: Option B" below) |
+| **B. Dual role split** | Self spheres vs separate world-only overlay | **Accepted 2026-08-01 / implementing** (see below) |
 | **C. Distal densify only** | Densify only distal links | Not selected |
 | **D. Scene-side keep-outs** | Inflate world cuboids; leave robot scaffolding | Not selected |
 
@@ -576,12 +574,11 @@ validation with scaffolding in the planner loop, or revisiting Option B's
 world-only overlay split) may be proposed at the same review if the measured
 regression is unacceptable for the deployment target.
 
-### Proposed revision (2026-08-01): Option B — dual-role sphere split
+### Accepted revision (2026-08-01): Option B — dual-role sphere split
 
-**Status: proposed; not yet accepted or implemented.** Supersedes the armed
-form of Option A if accepted; the Option A cover artifact (1012
-thickness-capped spheres) is **reused unchanged** as the world-only set.
-Development happens on `wip_phase1_1b`.
+**Status: accepted; implementing on `wip_phase1_1b`.** Supersedes the armed
+form of Option A; the Option A cover artifact (1012 thickness-capped
+spheres) is **reused unchanged** as the world-only set.
 
 **Motivation.** Option A assigns the dense cover to both collision roles.
 The world-clearance role only grows linearly (≈32× sphere–obstacle checks),

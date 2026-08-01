@@ -1,4 +1,4 @@
-"""GPU checks for Phase 1.1 Option A overlay self-clear and detectability."""
+"""GPU checks for Phase 1.1 Option B dual-role overlay self-clear and detectability."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import yaml
 
 from mycobot_curobo.cube_scene import batch_sphere_cube_clearance_m
 from mycobot_curobo.planner import create_curobo_planner, load_planner_profile
-from mycobot_curobo.robot_model import JOINT_NAMES, load_robot_model_spec
+from mycobot_curobo.robot_model import JOINT_NAMES, WORLD_COVER_LINK_SUFFIX, load_robot_model_spec
 from mycobot_curobo.validation import CuroboTrajectoryEvaluator, validate_start_state
 
 pytestmark = pytest.mark.gpu
@@ -32,12 +32,12 @@ def _runtime_available() -> bool:
     return bool(torch.cuda.is_available())
 
 
-def _trial_robot_with_overlay() -> Path:
-    trial = ROOT / "config" / "robots" / "_tmp_overlay_option_a.yml"
+def _trial_robot_with_dual_overlay() -> Path:
+    trial = ROOT / "config" / "robots" / "_tmp_overlay_option_b.yml"
     payload = yaml.safe_load(ROBOT_CONFIG.read_text(encoding="utf-8"))
-    payload["robot_cfg"]["kinematics"]["collision_sphere_overlay_path"] = (
-        "config/robots/mycobot_280_m5_phase1_1_spheres.yml"
-    )
+    kin = payload["robot_cfg"]["kinematics"]
+    kin["collision_sphere_overlay_path"] = "config/robots/mycobot_280_m5_phase1_1_spheres.yml"
+    kin["collision_sphere_overlay_role"] = "dual"
     trial.write_text(yaml.safe_dump(payload), encoding="utf-8")
     return trial
 
@@ -77,18 +77,19 @@ def test_default_scaffolding_planner_loads_and_zero_pose_is_self_clear() -> None
 
 
 @pytest.mark.skipif(not _runtime_available(), reason="cuRobo v0.8.0 CUDA runtime required")
-def test_phase1_1_option_a_overlay_self_clear_zero_and_mid_reach() -> None:
-    """Option A thickness-capped cover must pass the self-collision hard gate."""
+def test_phase1_1_option_b_dual_overlay_self_clear_zero_and_mid_reach() -> None:
+    """Option B dual-role overlay must keep scaffolding self-clearance."""
 
     if not OVERLAY.is_file():
         pytest.skip("Phase 1.1 Option A overlay missing")
 
-    trial = _trial_robot_with_overlay()
+    trial = _trial_robot_with_dual_overlay()
     try:
         profile = load_planner_profile("benchmark_reproducible")
         spec = load_robot_model_spec(trial)
         total = sum(spec.collision_sphere_count_by_link.values())
-        assert 32 < total <= 2048
+        assert total == 32 + 1012
+        assert any(WORLD_COVER_LINK_SUFFIX in link for link in spec.collision_sphere_count_by_link)
         planner = create_curobo_planner(
             profile, robot_config_path=trial, scene_model=None, warmup=False
         )
@@ -107,8 +108,8 @@ def test_phase1_1_option_a_overlay_self_clear_zero_and_mid_reach() -> None:
 
 
 @pytest.mark.skipif(not _runtime_available(), reason="cuRobo v0.8.0 CUDA runtime required")
-def test_phase1_1_option_a_detects_body_clip_cube_of_edge_e() -> None:
-    """Edge-E cube clipped into a link sphere must report non-positive clearance."""
+def test_phase1_1_option_b_detects_body_clip_cube_of_edge_e() -> None:
+    """Edge-E cube clipped into a dense world-cover sphere must report non-positive clearance."""
 
     if not OVERLAY.is_file():
         pytest.skip("Phase 1.1 Option A overlay missing")
@@ -116,7 +117,7 @@ def test_phase1_1_option_a_detects_body_clip_cube_of_edge_e() -> None:
     import torch
     from curobo.types import JointState
 
-    trial = _trial_robot_with_overlay()
+    trial = _trial_robot_with_dual_overlay()
     try:
         profile = load_planner_profile("benchmark_reproducible")
         planner = create_curobo_planner(
@@ -129,8 +130,9 @@ def test_phase1_1_option_a_detects_body_clip_cube_of_edge_e() -> None:
         )
         kin = planner.compute_kinematics(state)
         spheres = kin.robot_spheres.detach().cpu().numpy().reshape(1, -1, 4)
-        assert spheres.shape[1] > 32
-        clip = tuple(float(x) for x in spheres[0, spheres.shape[1] // 2, :3])
+        assert spheres.shape[1] == 32 + 1012
+        # Clip into a world-cover sphere (past the first 32 scaffolding spheres).
+        clip = tuple(float(x) for x in spheres[0, 64, :3])
         clearance = float(batch_sphere_cube_clearance_m(spheres, clip, E)[0])
         assert clearance <= 0.0
     finally:

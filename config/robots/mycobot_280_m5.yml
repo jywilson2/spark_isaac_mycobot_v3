@@ -60,13 +60,14 @@ robot_cfg:
       - joint6
       - joint6_flange
     collision_sphere_buffer: 0.003
-    # Phase 1.1 Option A: thickness-capped cover (~1012 spheres, radii ≤ E).
-    # Self-clear at zero/mid-reach passes, but arming regresses Phase 7.1/7.2
-    # GPU planning (cuRobo "Start or End state in collision" vs target cubes).
-    # Keep disarmed until cover/suite fixtures are reconciled. Regenerate:
+    # Phase 1.1 Option B (accepted): when armed, default overlay role is dual —
+    # scaffolding stays for self-collision; dense cover attaches to *_world_cover
+    # virtual links for world checks only. Keep path commented until the Option B
+    # acceptance gate passes (see spec.md §8 Phase 1.1). Regenerate cover with:
     # scripts/host/regenerate_target_scale_collision_spheres.py
     min_detectable_obstacle_edge_m: 0.014
     # collision_sphere_overlay_path: config/robots/mycobot_280_m5_phase1_1_spheres.yml
+    # collision_sphere_overlay_role: dual
     self_collision_buffer:
       g_base: 0.0
       joint1: 0.0

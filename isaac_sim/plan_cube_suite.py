@@ -40,6 +40,7 @@ from mycobot_curobo.planner import (  # noqa: E402
     load_planner_profile,
     plan_joint_relocation,
 )
+from mycobot_curobo.planning_world import leg_world_scene_dict  # noqa: E402
 from mycobot_curobo.robot_model import JOINT_NAMES, load_robot_model_spec  # noqa: E402
 from mycobot_curobo.trajectory import concatenate_trajectories  # noqa: E402
 from mycobot_curobo.validation import (  # noqa: E402
@@ -135,13 +136,20 @@ def plan_and_validate(
                 break
         profile = replace(base_profile, random_seed=current_episode.planner_seed)
         request = current_episode.to_planning_request()
-        scene_model = cube_to_curobo_scene_dict(current_episode.cube_geometry)
+        # Start / Mode-C relocation keep the cube (body-clip detection). Tip-
+        # contact approach and Phase 4 validation omit it (shared Option B /
+        # Phase 7.2 invariant — tip occupies the face centre).
+        scene_with_cube = cube_to_curobo_scene_dict(current_episode.cube_geometry)
+        tip_contact_scene = leg_world_scene_dict(
+            (current_episode.cube_geometry,),
+            active_contact_name=current_episode.cube_geometry.name,
+        )
         try:
             start_evaluator = CuroboTrajectoryEvaluator(
                 create_curobo_planner(
                     profile,
                     robot_config_path=app.robot_config_path,
-                    scene_model=scene_model,
+                    scene_model=scene_with_cube,
                     warmup=False,
                 ),
                 scene_is_empty=False,
@@ -169,7 +177,7 @@ def plan_and_validate(
             if current_episode.start_mode is StartMode.C:
                 if current_episode.safe_nest is None:
                     raise ConfigurationError("Mode C requires a configured safe nest")
-                scene_for_factory = scene_model
+                scene_for_factory = scene_with_cube
                 profile_for_factory = profile
                 relocation_planner = RelocationPlanner(
                     lambda scene=scene_for_factory, prof=profile_for_factory: (
@@ -204,7 +212,7 @@ def plan_and_validate(
                         JOINT_NAMES, current_episode.safe_nest.position_rad
                     ),
                 )
-            scene_for_factory = scene_model
+            scene_for_factory = tip_contact_scene
             profile_for_factory = profile
 
             def _approach_backend(scene=scene_for_factory, prof=profile_for_factory):
@@ -238,7 +246,9 @@ def plan_and_validate(
                 )
                 continue
             evaluator_backend = create_curobo_planner(
-                profile, robot_config_path=app.robot_config_path, scene_model=scene_model
+                profile,
+                robot_config_path=app.robot_config_path,
+                scene_model=tip_contact_scene,
             )
             validated = validate_nominal_plan(
                 outcome.plan,
@@ -246,9 +256,7 @@ def plan_and_validate(
                 profile=validation_profile,
                 evaluator=CuroboTrajectoryEvaluator(
                     evaluator_backend,
-                    scene_is_empty=False,
-                    cube_center_m=current_episode.cube_center_m,
-                    cube_edge_m=current_episode.cube_edge_m,
+                    scene_is_empty=True,
                 ),
                 robot_spec=robot_spec,
                 task_frame_config=app.task_frame,
