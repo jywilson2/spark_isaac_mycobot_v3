@@ -129,13 +129,11 @@ report ("Standard smoke 2×20") and
    stable, Phase 6 baselines recorded, remote CI green, Isaac Lab 0.54.4
    present on host. First milestone: training-env contract + zero-residual
    pass-through reproducing Phase 6 baseline metrics.
-2. Phase 1.1 Option B implementation continues on `wip_phase1_1b` (parallel
-   to Phase 8). Diagnosis complete (7.1 tip goals collided with the active
-   cube left in-world under Option A replace). Remaining before re-arm:
-   GPU dual self-clear/body-clip, 7.1/7.2 GPU suites with dual trial-armed,
-   integration 2×5, planning-time evidence, armed unseeded 2×20. Note: a
-   residual policy trained under scaffolding may need retraining when the
-   denser set is re-armed.
+2. Phase 1.1 Option B continues on `wip_phase1_1b` (parallel to Phase 8).
+   Armed integration 2×5 is green; remaining before re-arm: planning-time
+   p50/p95 overlay-vs-scaffolding evidence and armed unseeded 2×20 batch.
+   Note: a residual policy trained under scaffolding may need retraining
+   when the denser set is re-armed.
 3. Watch the host NVIDIA driver flake (580.173.02 Vulkan segfault at Kit
    startup, ~1-in-10 headless playback launches on 2026-07-31); if it
    recurs, investigate driver/Kit versions rather than suite code.
@@ -167,12 +165,12 @@ target. Phase 7.3 placement APIs are available with scaffolding spheres.
 **Option B implementing (accepted 2026-08-01)** on `wip_phase1_1b`. Diagnosis:
 Phase 7.1 tip goals collide with the active cube when Option A replace leaves
 it in the planning world; cuRobo ignores are per-link, so dense spheres use
-`*_world_cover` virtual children. Landed so far: dual-role overlay merge
-(default `dual`; `replace` for diagnosis), shared `planning_world` helper
-wired into 7.2 + 7.1 tip-contact paths, config-time named-suite packing
-check, unit/GPU test updates. Still before re-arming default YAML: GPU dual
-self-clear/body-clip + 7.1/7.2 suites trial-armed, integration 2×5, timing
-evidence, armed unseeded 2×20.
+`*_world_cover` virtual children. Landed: dual-role merge, shared
+`planning_world`, named-suite packing check, GPU dual self-clear/body-clip +
+trial-armed 7.1/7.2 planning, and **armed integration 2×5 headless + GUI**
+(seed 4242, exit 0, 10 tip / 0 body / 0 plan fails) via
+`smoke_phase7_2_integration_2x5_option_b.sh`. Still before re-arming default
+YAML: planning-time p50/p95 evidence and armed unseeded 2×20 batch.
 
 **Integration smoke (opt-in final gate):** `smoke_phase7_2_integration_2x5.sh`
 — 2 episodes × 5 targets. Enable with

@@ -1,5 +1,22 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — Option B armed integration 2×5 headless + GUI green
+
+1. Added `--app-config` to `plan_multi_target_suite.py` /
+   `smoke_phase7_2_multi_target.sh` so trial robot YAMLs can be selected
+   without editing the default disarmed `mycobot_280_m5.yml`.
+2. New wrapper `scripts/host/smoke_phase7_2_integration_2x5_option_b.sh`
+   writes a temporary dual-armed robot + app.yml, runs integration 2×5,
+   and cleans up trial files.
+3. Host evidence (`--root-seed 4242`): headless and GUI both exit 0 —
+   2/2 episodes, 10/10 tip contacts, 0 body contacts, 0 planning failures
+   (plan p50 ≈ 4.9–5.1 s). Reports under
+   `artifacts/reports/phase7_2_multi_target_integration_2x5_option_b.*`.
+4. Phase 1.1 report updated; default robot YAML remains disarmed pending
+   timing evidence and armed unseeded 2×20.
+
+---
+
 ## 2026-08-01 — Phase 1.1 Option B implementation started
 
 Accepted the dual-role proposal and began implementation on `wip_phase1_1b`.

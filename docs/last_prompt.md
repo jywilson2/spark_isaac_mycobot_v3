@@ -1,3 +1,13 @@
+## BEGIN: 2026-08-01 10:04 -0700
+
+Elaborate on this:
+
+ With Option A replace, Phase 7.1 starts clear (~0.23 m), but tip-contact plan_grasp fails (Start or End state in collision / unreachable goal) because the active cube stayed in the planning world. cuRobo v0.8.0 ignores are per-link, so dense spheres need virtual child links.
+
+Make the next step the armed integration smokes.
+
+## END
+
 ## BEGIN: 2026-08-01 09:34 -0700
 
 I accept the proposal.
