@@ -508,6 +508,39 @@ tip contacts, 0 body contacts, 3 planning failures (episode 1 `start→1`
 failed validation three times, was deferred, and was replanned successfully
 by the reconsider pass as the final leg `7→1`).
 
+**Unseeded robustness evidence (2026-07-31; 10 sequential headless runs,
+no `--root-seed`, every episode drawing an independent random seed):**
+
+- Suite pass rate **9/10**; in every run that produced a report,
+  `success_rate` was 1.0 with **zero** target failures and **zero** failed
+  episodes (the strict `max_failed_episodes: 0` budget was never
+  approached). Two runs had no planning failures at all.
+- **45 planning-failure retries** and **6 deferrals** total, all absorbed by
+  the per-target retry budget and the reconsider pass — every deferred
+  target was eventually reached later in its episode.
+- Clustering matched design expectation: **39/45 retries and 4/6 deferrals
+  hit inner-ring destinations** (targets 12–20, `r=0.15` m; worst t17 and
+  t20 with 7 retries each). The only outer-ring offender was target 2
+  (6 retries, 2 deferrals), both times approached from inner-ring starts.
+- **Verdict: no ring-radius nudge warranted.** Close-in legs are the hard
+  ones, but "hard" means an occasional retry or reorder, never
+  unplannable; deferral/reconsider performs exactly as designed.
+- The single non-zero exit (run_05) was an **infrastructure flake, not a
+  planning failure**: planning succeeded and the bundle was written, then
+  the headless *playback* process segfaulted in the NVIDIA Vulkan driver
+  (580.173.02, `libnvidia-glcore` via `carb.graphics-vulkan`) ~1 s after
+  Kit startup, before simulation. Unseeded episode seeds are drawn
+  independently (`--root-seed` cannot reproduce them); replay that run from
+  its recorded per-episode seeds (ep0 62056865, ep1 1247517006) or its
+  frozen bundle.
+- Plan-time p50 stayed stable at ~4.2–5.0 s across runs; p95 6.4–11.4 s
+  (retries dominate the tail).
+
+Full per-run tables, seeds, logs, bundles, and the machine-readable
+aggregate live in `artifacts/reports/phase7_2_unseeded_2x20/`
+(`aggregate.md` / `aggregate.json`; local artifact — `artifacts/reports/`
+is gitignored by project convention).
+
 ### Placement / viewport / anti-graze (integration 2×5)
 
 - Multi-quadrant **open arc** (`placement: layout`, `radius_m: 0.20`,

@@ -243,6 +243,9 @@ compute-capability warning is retained in that report and is not suppressed.
 - Phase 7.3 demo video: `docs/videos/mycobot_280_m5_2x20.mp4` (densest 2×20
   suite GUI playback, recorded 2026-07-23 via `--record`; presented in
   `docs/phase7_3_target_placement.md`).
+- Unseeded 2×20 robustness batch (2026-07-31, 10 headless runs): summarized
+  in the phase 7.2 report "Standard smoke (2 episodes × 20 targets)";
+  local artifacts under `artifacts/reports/phase7_2_unseeded_2x20/`.
 - Standard denser suite: `config/phase7_2_multi_target_standard_2x10.yml` via
   `scripts/host/smoke_phase7_2_standard_2x10.sh` (2 episodes × 10 targets).
 - Densest suite: `config/phase7_2_multi_target_standard_2x20.yml` via
