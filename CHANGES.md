@@ -1,5 +1,31 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — Unseeded 2×20 robustness evidence recorded (no code change)
+
+1. Ran the densest 2×20 suite 10× headless, unseeded (each episode drew an
+   independent random seed), sequentially on the DGX Spark host
+   (2026-07-31 20:32–21:22 PDT). Documentation-only change set: the
+   evidence is summarized in the phase 7.2 report ("Standard smoke 2×20"),
+   REFERENCES, and STATUS; run artifacts stay local under
+   `artifacts/reports/phase7_2_unseeded_2x20/` per the `artifacts/reports/`
+   gitignore convention.
+2. Results: 9/10 pass; `success_rate` 1.0 with zero target failures and
+   zero failed episodes in every reported run; 45 planning retries and
+   6 deferrals all absorbed by per-target budgets and reconsider;
+   clustering on inner-ring destinations (39/45, worst t17/t20) with
+   target 2 the only outer-ring offender (approached from inner starts).
+3. Verdict recorded: **no ring-radius nudge warranted** — closes the
+   2×20 "review recommended" follow-up and STATUS next-step 2.
+4. run_05's exit 1 was an NVIDIA Vulkan driver segfault
+   (580.173.02) at headless playback startup after planning succeeded —
+   logged in STATUS as a host infrastructure flake to watch, with
+   per-episode seeds and frozen bundle recorded for reproduction.
+5. STATUS resume section updated: Phase 8 entry criteria verified
+   (Isaac Lab 0.54.4 on host, remote CI green); next step is Phase 8 on
+   `wip_phase8`.
+
+---
+
 ## 2026-07-23 — README streams the demo via a user-attachments inline player
 
 1. The demo video was uploaded through the GitHub web editor, producing the

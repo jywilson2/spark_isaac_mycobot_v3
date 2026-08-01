@@ -1,6 +1,6 @@
 # STATUS — MyCobot 280 M5 Constrained Approach Planner
 
-Last updated: **2026-07-23**
+Last updated: **2026-08-01**
 
 ## Current phase
 
@@ -105,33 +105,36 @@ planning-success claims, or hardware-readiness claims carry forward.
       `--no-auto-exit`.
 - [x] No physical command, alternate planner, or physical-accuracy claim.
 
-## Next step / resume (2026-07-23)
+## Next step / resume (2026-08-01)
 
-**Where we left off:** the named-suite family is complete and documented —
-standard 2×10 (open arc, flange-sized cubes) and densest 2×20 (two-ring
-manual field, 14 mm cubes; GUI evidence seed 4242: exit 0, 2/2 episodes,
-40/40 tip contacts, 0 body contacts, deferral/reconsider exercised live).
-Phase 7.2 report gained decision guidance: dedicated suite vs
-`--targets`/`--episodes`, base-suite selection for reduced counts, the
-wrapper-gate table, and `manual` placement terminology. README carries a
-timestamped project-size + AI-context snapshot. `wip_phase7_3` committed,
-rebased onto `origin/main`, and pushed. Smoke wrappers now accept
-`--record FILE.mp4` (GUI-only ffmpeg x11grab capture of the Kit window for
-demo videos; validated live — 20.6 s mp4 from the default suite, exit 0).
-A recorded 2×20 GUI run is committed as the Phase 7.3 demo video at
-`docs/videos/mycobot_280_m5_2x20.mp4` (presented in
-`docs/phase7_3_target_placement.md`).
+**Where we left off:** Phase 7.3 is complete and landed; `main` is
+fast-forwarded to the `wip_phase7_3` tip. The named-suite family (standard
+2×10, densest 2×20) is documented with a demo video (README inline player
+via `user-attachments`; repo copies under `docs/videos/`), and smoke
+wrappers accept `--record FILE.mp4` for GUI captures.
+**Unseeded 2×20 robustness evidence is recorded (2026-07-31, 10 headless
+runs):** 9/10 pass (the one failure was an NVIDIA Vulkan driver segfault at
+playback startup, not a planning failure); zero target failures / failed
+episodes in all reported runs; 45 planning retries + 6 deferrals all
+absorbed by budgets/reconsider, clustering on inner-ring destinations as
+expected. **Verdict: no ring-radius nudge.** Details in the phase 7.2
+report ("Standard smoke 2×20") and
+`artifacts/reports/phase7_2_unseeded_2x20/` (local).
 
 **Next steps:**
 
-1. Review `wip_phase7_3` and fast-forward `main` to the tested commit per
-   branch policy (no merge commits into phase branches).
-2. Build unseeded 2×20 failure-rate evidence (repeat runs without
-   `--root-seed`); nudge ring radii (inner 0.15 / outer 0.23) only if
-   deferrals accumulate on close-in or far legs.
-3. Phase 1.1 cover-option decision (below) remains the gate for denser
-   collision spheres; integration 2×5 must stay green when re-arming.
-4. Then Phase 8 (bounded residual RL, sim only) per the roadmap.
+1. Phase 8 (bounded residual RL, sim only) on a new `wip_phase8` branch.
+   Entry criteria verified 2026-07-31: Phase 7.2 accepted, Phase 5 seam
+   stable, Phase 6 baselines recorded, remote CI green, Isaac Lab 0.54.4
+   present on host. First milestone: training-env contract + zero-residual
+   pass-through reproducing Phase 6 baseline metrics.
+2. Phase 1.1 cover-option decision (below) remains the parallel gate for
+   denser collision spheres; integration 2×5 must stay green when
+   re-arming. Note: a residual policy trained under scaffolding spheres
+   may need retraining if Phase 1.1 later re-arms a denser set.
+3. Watch the host NVIDIA driver flake (580.173.02 Vulkan segfault at Kit
+   startup, ~1-in-10 headless playback launches on 2026-07-31); if it
+   recurs, investigate driver/Kit versions rather than suite code.
 
 **Phase 1.1 — awaiting approval of revised cover approach** (see `spec.md`
 §8 Phase 1.1 “Proposed revision”). Headless findings:
