@@ -1,10 +1,16 @@
+## BEGIN: 2026-08-01 15:10 -0700
+
+Is there a maximum number of plan failures that will cause an abort?
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-08-01 15:08 -0700
 
 Hasn't the current suite failed often enough to cause an abort of the generated target positions?
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-08-01 15:02 -0700
 
