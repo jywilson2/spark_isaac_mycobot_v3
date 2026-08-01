@@ -78,9 +78,23 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     smoke72_optb = (ROOT / "scripts/host/smoke_phase7_2_integration_2x5_option_b.sh").read_text(
         encoding="utf-8"
     )
-    assert "collision_sphere_overlay_role" in smoke72_optb
-    assert "dual" in smoke72_optb
+    assert "write_option_b_trial_app.py" in smoke72_optb
     assert "--app-config" in smoke72_optb
+    smoke72_2x20_optb = (ROOT / "scripts/host/smoke_phase7_2_standard_2x20_option_b.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "write_option_b_trial_app.py" in smoke72_2x20_optb
+    assert "standard_2x20.sh" in smoke72_2x20_optb
+    timing = (ROOT / "scripts/host/measure_phase1_1_option_b_plan_timing.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "integration_2x5" in timing
+    assert "budget_p50" in timing
+    unseeded = (ROOT / "scripts/host/run_phase1_1_option_b_unseeded_2x20.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "standard_2x20_option_b.sh" in unseeded
+    assert "aggregate.json" in unseeded
     assert "phase7_2_multi_target_standard_2x10.yml" in smoke72_std
     assert "--targets 10" in smoke72_std
     assert "--episodes 2" in smoke72_std

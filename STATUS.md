@@ -27,11 +27,12 @@ YAML field AABB packs `--targets 10` grid fallback. Integration stays on
 EE-clearance separation floor; CI bootstrap; labels / grid Z. See
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 
-**Phase 1.1 — Target-scale collision-sphere coverage: OPTION B IMPLEMENTING
-(`wip_phase1_1b`)**
-Option B accepted 2026-08-01. Dual-role merge + shared omit-active world
-builder + diagnosis landed; default YAML still scaffolding (32) until the
-acceptance gate passes. See [`spec.md`](spec.md) §8 Phase 1.1 and
+**Phase 1.1 — Target-scale collision-sphere coverage: COMPLETE / OPTION B
+ARMED (`wip_phase1_1b`)**
+Default robot YAML loads dual overlay (32 scaffolding + 1012 world-cover).
+Acceptance gate passed 2026-08-01 (GPU self-clear/body-clip, 7.1/7.2,
+integration 2×5 headless+GUI, host plan-time budget, unseeded 2×20 10/10).
+Orin AGX timing not measured. See [`spec.md`](spec.md) §8 Phase 1.1 and
 [`docs/phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md).
 
 Roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md)  
@@ -47,7 +48,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 |-------|-------|--------|
 | 0 | Env / version guard | **Complete** |
 | 1 | Robot model + spheres | **Complete** |
-| 1.1 | Target-scale collision-sphere coverage | **Option B implementing** |
+| 1.1 | Target-scale collision-sphere coverage | **Complete (Option B armed)** |
 | 2 | Task frames / roll goals | **Complete** |
 | 3 | `plan_grasp` nominal planning | **Complete** |
 | 4 | Independent validation | **Complete** |
@@ -65,9 +66,10 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Implemented
 
-- Phase 1.1 (partial): regenerator + overlay candidate (128 / `E=0.014 m`);
-  suite rejects `target_edge_m < E`; adapter strips project-only keys. Overlay
-  **not** loaded by default (self-collision infeasible).
+- Phase 1.1 **complete (Option B):** dual-role overlay armed by default —
+  scaffolding (32) self-collision + Option A cover (1012) on `*_world_cover`
+  for world checks; shared omit-active `planning_world`; suite rejects
+  `target_edge_m < E`; adapter strips project-only keys.
 - Phase 7.3: `placement: random` / `layout` (`rows`, `arc`) with
   `min_center_separation_m`, `keep_outs`, episode-diverse seeds; example
   configs `config/phase7_3_*.yml`; module `mycobot_curobo.target_placement`.
@@ -108,19 +110,11 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Next step / resume (2026-08-01)
 
-**Where we left off:** Phase 7.3 is complete and landed; `main` is
-fast-forwarded to the `wip_phase7_3` tip. The named-suite family (standard
-2×10, densest 2×20) is documented with a demo video (README inline player
-via `user-attachments`; repo copies under `docs/videos/`), and smoke
-wrappers accept `--record FILE.mp4` for GUI captures.
-**Unseeded 2×20 robustness evidence is recorded (2026-07-31, 10 headless
-runs):** 9/10 pass (the one failure was an NVIDIA Vulkan driver segfault at
-playback startup, not a planning failure); zero target failures / failed
-episodes in all reported runs; 45 planning retries + 6 deferrals all
-absorbed by budgets/reconsider, clustering on inner-ring destinations as
-expected. **Verdict: no ring-radius nudge.** Details in the phase 7.2
-report ("Standard smoke 2×20") and
-`artifacts/reports/phase7_2_unseeded_2x20/` (local).
+**Where we left off:** Phase 1.1 Option B is complete and armed on
+`wip_phase1_1b` (default dual overlay). Phase 7.3 remains complete on
+`main`. Scaffolding-era unseeded 2×20 evidence (2026-07-31) and Option B
+armed unseeded 2×20 (2026-08-01, 10/10) are both recorded locally under
+`artifacts/reports/`.
 
 **Next steps:**
 
@@ -128,49 +122,29 @@ report ("Standard smoke 2×20") and
    Entry criteria verified 2026-07-31: Phase 7.2 accepted, Phase 5 seam
    stable, Phase 6 baselines recorded, remote CI green, Isaac Lab 0.54.4
    present on host. First milestone: training-env contract + zero-residual
-   pass-through reproducing Phase 6 baseline metrics.
-2. Phase 1.1 Option B continues on `wip_phase1_1b` (parallel to Phase 8).
-   Armed integration 2×5 is green; remaining before re-arm: planning-time
-   p50/p95 overlay-vs-scaffolding evidence and armed unseeded 2×20 batch.
-   Note: a residual policy trained under scaffolding may need retraining
-   when the denser set is re-armed.
+   pass-through reproducing Phase 6 baseline metrics. **Note:** residual
+   policies trained under scaffolding-only spheres may need retraining
+   under the denser world-cover set now armed by default.
+2. Optional: Orin AGX plan-time calibration if Phase 10+ embedded planning
+   is in scope (spec: device claims need device runs).
 3. Watch the host NVIDIA driver flake (580.173.02 Vulkan segfault at Kit
    startup, ~1-in-10 headless playback launches on 2026-07-31); if it
    recurs, investigate driver/Kit versions rather than suite code.
 
-**Phase 1.1 — Option A chosen and implemented; overlay disarmed** (see
-`spec.md` §8 Phase 1.1 “Chosen revision: Option A”). History and state:
+**Phase 1.1 — Option B complete and armed (2026-08-01)** on `wip_phase1_1b`.
+History:
 
 1. **Fixed:** adapter stripped project-only keys so cuRobo can construct a
    planner when an overlay is enabled.
 2. **First cover rejected:** greedy 128-sphere cover self-collides at every
-   tested posture (including zero); scaffolding (32) is self-clear. Overlay
-   path commented out in `mycobot_280_m5.yml`.
-3. **Option A landed (B dual self/world sets, C distal-only densify, D
-   scene-side keep-outs: not selected):** thickness-capped cover regenerated
-   (1012 spheres, radii ≤ `E`); GPU self-clear and body-clip detectability
-   pass under trial enable, but arming the default YAML regresses
-   Phase 7.1 / 7.2 GPU planning (cuRobo reports start/end state in
-   collision against target cubes).
-
-Do **not** re-arm the overlay until the spec's Option A acceptance gate
-passes (non-negative self-clearance at the gate postures, body-clip
-detectability retained, and Phase 7.1 / 7.2 GPU planning suites green).
-The gate also includes a planning-time criterion (spec §8 Phase 1.1, added
-2026-08-01): measured overlay-vs-scaffolding plan p50/p95 on the host, a
-device calibration run if an embedded planner target (e.g. Jetson Orin AGX)
-is in scope, and review against a budget declared for the deployment
-target. Phase 7.3 placement APIs are available with scaffolding spheres.
-
-**Option B implementing (accepted 2026-08-01)** on `wip_phase1_1b`. Diagnosis:
-Phase 7.1 tip goals collide with the active cube when Option A replace leaves
-it in the planning world; cuRobo ignores are per-link, so dense spheres use
-`*_world_cover` virtual children. Landed: dual-role merge, shared
-`planning_world`, named-suite packing check, GPU dual self-clear/body-clip +
-trial-armed 7.1/7.2 planning, and **armed integration 2×5 headless + GUI**
-(seed 4242, exit 0, 10 tip / 0 body / 0 plan fails) via
-`smoke_phase7_2_integration_2x5_option_b.sh`. Still before re-arming default
-YAML: planning-time p50/p95 evidence and armed unseeded 2×20 batch.
+   tested posture; scaffolding (32) is self-clear.
+3. **Option A cover** (1012 thickness-capped spheres) detects edge-`E` cubes
+   but full `replace` regresses Phase 7.1 tip planning (active cube in world).
+4. **Option B armed:** dual-role merge + shared omit-active `planning_world`;
+   default YAML sets `collision_sphere_overlay_path` + role `dual`.
+   Evidence: GPU self-clear/body-clip; trial-armed 7.1/7.2; integration 2×5
+   headless+GUI (seed 4242); host plan-time p50/p95 ratios 1.168× / 1.120×
+   (budget ≤ 1.50× / 2.00× PASS); unseeded 2×20 10/10.
 
 **Integration smoke (opt-in final gate):** `smoke_phase7_2_integration_2x5.sh`
 — 2 episodes × 5 targets. Enable with

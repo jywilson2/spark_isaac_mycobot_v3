@@ -11,7 +11,6 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-robot_src="${root}/config/robots/mycobot_280_m5.yml"
 trial_robot="${root}/config/robots/_tmp_option_b_integration_trial.yml"
 trial_app="${root}/config/_tmp_app_option_b_integration.yml"
 
@@ -26,25 +25,10 @@ source "${root}/scripts/host/env.isaac_host.sh"
 spark_host_require_native_shell
 spark_host_apply_env
 
-"${ISAACSIM_PYTHON_EXE}" - <<PY
-from pathlib import Path
-import yaml
-
-root = Path(${root@Q})
-src = Path(${robot_src@Q})
-trial_robot = Path(${trial_robot@Q})
-trial_app = Path(${trial_app@Q})
-payload = yaml.safe_load(src.read_text(encoding="utf-8"))
-kin = payload["robot_cfg"]["kinematics"]
-kin["collision_sphere_overlay_path"] = "config/robots/mycobot_280_m5_phase1_1_spheres.yml"
-kin["collision_sphere_overlay_role"] = "dual"
-trial_robot.write_text(yaml.safe_dump(payload), encoding="utf-8")
-app = yaml.safe_load((root / "config" / "app.yml").read_text(encoding="utf-8"))
-app["robot_config_path"] = "config/robots/_tmp_option_b_integration_trial.yml"
-trial_app.write_text(yaml.safe_dump(app), encoding="utf-8")
-print(f"option_b_trial: robot={trial_robot}")
-print(f"option_b_trial: app={trial_app}")
-PY
+"${ISAACSIM_PYTHON_EXE}" "${root}/scripts/host/write_option_b_trial_app.py" \
+  --repo-root "${root}" \
+  --trial-robot "${trial_robot}" \
+  --trial-app "${trial_app}"
 
 export SPARK_PHASE7_2_REPORT="${SPARK_PHASE7_2_REPORT:-${root}/artifacts/reports/phase7_2_multi_target_integration_2x5_option_b.json}"
 export SPARK_PHASE7_2_BUNDLE="${SPARK_PHASE7_2_BUNDLE:-${root}/artifacts/reports/phase7_2_multi_target_integration_2x5_option_b.bundle.json}"

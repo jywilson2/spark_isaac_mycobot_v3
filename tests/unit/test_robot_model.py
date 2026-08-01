@@ -38,9 +38,10 @@ def test_robot_config_has_explicit_frames_order_and_empty_contact_links() -> Non
 
 
 def test_every_collision_link_has_static_spheres() -> None:
-    spec = load_robot_model_spec(ROBOT_CONFIG)
+    from mycobot_curobo.robot_model import WORLD_COVER_LINK_SUFFIX, world_cover_link_name
 
-    assert set(spec.collision_sphere_count_by_link) == {
+    spec = load_robot_model_spec(ROBOT_CONFIG)
+    scaffold = {
         "g_base",
         "joint1",
         "joint2",
@@ -50,9 +51,12 @@ def test_every_collision_link_has_static_spheres() -> None:
         "joint6",
         "joint6_flange",
     }
+    world = {world_cover_link_name(link) for link in scaffold}
+    assert set(spec.collision_sphere_count_by_link) == scaffold | world
     assert all(count >= 1 for count in spec.collision_sphere_count_by_link.values())
-    # Option A overlay remains disarmed (planning regressions vs 7.1/7.2 GPU).
-    assert sum(spec.collision_sphere_count_by_link.values()) == 32
+    # Option B dual overlay armed: scaffolding + dense world-cover spheres.
+    assert sum(spec.collision_sphere_count_by_link.values()) == 32 + 1012
+    assert any(WORLD_COVER_LINK_SUFFIX in link for link in spec.collision_sphere_count_by_link)
     assert spec.min_detectable_obstacle_edge_m == pytest.approx(0.014)
 
 

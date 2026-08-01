@@ -43,13 +43,14 @@ def _trial_robot_with_dual_overlay() -> Path:
 
 
 @pytest.mark.skipif(not _runtime_available(), reason="cuRobo v0.8.0 CUDA runtime required")
-def test_default_scaffolding_planner_loads_and_zero_pose_is_self_clear() -> None:
+def test_default_option_b_armed_planner_loads_and_zero_pose_is_self_clear() -> None:
     import torch
     from curobo.types import JointState
 
     profile = load_planner_profile("benchmark_reproducible")
     spec = load_robot_model_spec(ROBOT_CONFIG)
-    assert sum(spec.collision_sphere_count_by_link.values()) == 32
+    assert sum(spec.collision_sphere_count_by_link.values()) == 32 + 1012
+    assert any(WORLD_COVER_LINK_SUFFIX in link for link in spec.collision_sphere_count_by_link)
 
     planner = create_curobo_planner(
         profile, robot_config_path=ROBOT_CONFIG, scene_model=None, warmup=False
@@ -61,7 +62,7 @@ def test_default_scaffolding_planner_loads_and_zero_pose_is_self_clear() -> None
     )
     kin = planner.compute_kinematics(state)
     spheres = kin.robot_spheres.detach().cpu().numpy().reshape(1, -1, 4)
-    assert spheres.shape[1] == 32
+    assert spheres.shape[1] == 32 + 1012
 
     report = validate_start_state(
         q[0],
@@ -72,7 +73,7 @@ def test_default_scaffolding_planner_loads_and_zero_pose_is_self_clear() -> None
     )
     assert report.valid, report.violations
 
-    clip = tuple(float(x) for x in spheres[0, spheres.shape[1] // 2, :3])
+    clip = tuple(float(x) for x in spheres[0, 64, :3])
     assert float(batch_sphere_cube_clearance_m(spheres, clip, E)[0]) <= 0.0
 
 

@@ -68,11 +68,11 @@ def test_covered_envelope_detects_edge_cube_at_sample() -> None:
     assert clearance <= 0.0
 
 
-def test_robot_declares_detectable_edge_while_option_a_disarmed() -> None:
+def test_robot_declares_detectable_edge_with_option_b_dual_armed() -> None:
     spec = load_robot_model_spec()
     assert spec.min_detectable_obstacle_edge_m == pytest.approx(0.014)
     total = sum(spec.collision_sphere_count_by_link.values())
-    assert total == 32  # scaffolding until Option A is reconcilable with planning
+    assert total == 32 + 1012  # scaffolding + Option B world-cover spheres
 
 
 def test_phase1_1_overlay_file_has_metre_scale_thickness_capped_spheres() -> None:

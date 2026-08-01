@@ -1,10 +1,37 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — Phase 1.1 Option B complete; default YAML armed
+
+1. **Re-armed** `config/robots/mycobot_280_m5.yml` with
+   `collision_sphere_overlay_path` + `collision_sphere_overlay_role: dual`
+   (32 scaffolding + 1012 world-cover spheres).
+2. **Planning-time evidence** (host DGX Spark, integration 2×5 seed 4242):
+   scaffolding p50/p95 = 4.282 / 6.244 s; dual = 5.000 / 6.993 s; ratios
+   **1.168× / 1.120×** vs declared budget ≤ 1.50× / 2.00× → PASS. Script:
+   `scripts/host/measure_phase1_1_option_b_plan_timing.sh`.
+3. **Armed unseeded 2×20:** 10/10 suite passes; 40 tip / 0 body per run;
+   33 planning retries absorbed. Scripts:
+   `smoke_phase7_2_standard_2x20_option_b.sh`,
+   `run_phase1_1_option_b_unseeded_2x20.sh`, `write_option_b_trial_app.py`.
+4. Unit tests updated for armed default (robot_model, inspect, cover,
+   GPU integration defaults). Spec / STATUS / phase report / REFERENCES /
+   implementation_phases mark Option B complete.
+5. Prior gate evidence retained: dual merge, shared `planning_world`,
+   integration 2×5 headless+GUI (seed 4242), GPU self-clear/body-clip.
+6. Post-re-arm confirmation: headless integration 2×5 with default YAML
+   (no trial wrapper, seed 4242) exit 0 — 10 tip / 0 body / 0 plan fails.
+   CI 214 passed + Ruff; host GPU Phase 1.1b suite 8 passed.
+
+**Review needed:** Orin AGX plan-time calibration if embedded planning is
+in scope; residual RL (Phase 8) may need retraining under denser world spheres.
+
+---
+
 ## 2026-08-01 — Option B armed integration 2×5 headless + GUI green
 
 1. Added `--app-config` to `plan_multi_target_suite.py` /
    `smoke_phase7_2_multi_target.sh` so trial robot YAMLs can be selected
-   without editing the default disarmed `mycobot_280_m5.yml`.
+   without editing the default robot YAML.
 2. New wrapper `scripts/host/smoke_phase7_2_integration_2x5_option_b.sh`
    writes a temporary dual-armed robot + app.yml, runs integration 2×5,
    and cleans up trial files.
@@ -12,8 +39,6 @@
    2/2 episodes, 10/10 tip contacts, 0 body contacts, 0 planning failures
    (plan p50 ≈ 4.9–5.1 s). Reports under
    `artifacts/reports/phase7_2_multi_target_integration_2x5_option_b.*`.
-4. Phase 1.1 report updated; default robot YAML remains disarmed pending
-   timing evidence and armed unseeded 2×20.
 
 ---
 
@@ -38,12 +63,6 @@ Accepted the dual-role proposal and began implementation on `wip_phase1_1b`.
 4. Unit tests: Option B dual merge, planning-world invariant, named-suite
    dense-radius packing check. GPU Phase 1.1 tests updated for dual role;
    Phase 7.1 GPU tip path uses omit-active.
-5. Spec/STATUS/phase report: Option B marked accepted/implementing;
-   diagnosis recorded. Overlay remains commented out in default robot YAML.
-
-**Review needed:** host GPU gates with dual overlay trial-armed (self-clear,
-body-clip, 7.1/7.2, integration 2×5) and planning-time evidence before
-re-arming.
 
 ---
 

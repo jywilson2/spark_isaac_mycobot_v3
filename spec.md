@@ -508,12 +508,12 @@ Create a validated cuRobo v0.8.0 robot configuration for the exact MyCobot 280 M
 
 ## Phase 1.1 — Target-scale collision-sphere coverage
 
-**Status:** **Option B accepted; implementing on `wip_phase1_1b`.** Option A
-cover (1012 thickness-capped spheres) remains the world-detection artifact
-but is no longer the intended armed form: arming Option A as a full replace
-regresses Phase 7.1 / 7.2 GPU planning (cuRobo reports start/end state in
-collision against target cubes). Default YAML stays on scaffolding (32)
-until the Option B acceptance gate passes. Design notes:
+**Status:** **Option B complete and armed** (2026-08-01) on `wip_phase1_1b`.
+Default robot YAML loads scaffolding (32) for self-collision plus the Option A
+cover (1012 thickness-capped spheres) on FIXED `*_world_cover` children for
+world checks only (`collision_sphere_overlay_role: dual`). Arming Option A as
+a full `replace` remains diagnosis-only — it regresses Phase 7.1 tip-contact
+planning when the active cube stays in the world. Design notes:
 [`docs/phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md).
 
 ### Headless verification finding (2026-07-21) — first cover rejected
@@ -538,7 +538,7 @@ or expanding ignore maps silently.
 | Option | Idea | Status |
 |--------|------|--------|
 | **A. Thickness-capped cover** | Mesh-constrained offline cover; each sphere radius capped by **local link thickness / medial radius** and `≤ E`; densify for detectability | **Chosen / implemented** |
-| **B. Dual role split** | Self spheres vs separate world-only overlay | **Accepted 2026-08-01 / implementing** (see below) |
+| **B. Dual role split** | Self spheres vs separate world-only overlay | **Accepted / armed 2026-08-01** (see below) |
 | **C. Distal densify only** | Densify only distal links | Not selected |
 | **D. Scene-side keep-outs** | Inflate world cuboids; leave robot scaffolding | Not selected |
 
@@ -548,13 +548,14 @@ seeded posture must report **non-negative** self-collision clearance with the
 cover, **and** a body-clip cube of edge `E` must still fail world clearance
 where scaffolding would falsely clear. Phase 7.1 / 7.2 GPU planning suites and
 host headless + GUI integration 2×5 smoke must also pass with the overlay
-armed (see Acceptance criteria). Default robot YAML keeps
-`collision_sphere_overlay_path` commented out until those gates pass.
+armed (see Acceptance criteria). Under Option B those gates are satisfied
+with the dual overlay; default YAML now sets
+`collision_sphere_overlay_path` and `collision_sphere_overlay_role: dual`.
 
 **Planning-time criterion (added 2026-08-01):** the cover multiplies
 collision-cost evaluation inside the planner (≈32× spheres for world checks;
-quadratic growth in candidate self-collision pairs), so re-arming also
-requires measured timing evidence:
+under Option B, self-collision pair count stays scaffolding-only), so
+re-arming also requires measured timing evidence:
 
 1. Measure per-leg planning time (p50 / p95) with the trial-enabled overlay
    versus scaffolding on the host, same suite, seeds, and planner profile,
@@ -569,16 +570,16 @@ requires measured timing evidence:
    deployment target at review time**. This spec deliberately does not
    invent a numeric budget; adopting one requires the evidence above.
 
-Cost-mitigation alternatives (dense cover only in Phase 4 independent
-validation with scaffolding in the planner loop, or revisiting Option B's
-world-only overlay split) may be proposed at the same review if the measured
-regression is unacceptable for the deployment target.
+**Host evidence (2026-08-01, DGX Spark):** integration 2×5 seed 4242 —
+scaffolding p50/p95 = 4.282 / 6.244 s; Option B dual = 5.000 / 6.993 s;
+ratios **1.168× / 1.120×**. Declared host re-arm budget: p50 ≤ 1.50×,
+p95 ≤ 2.00× → **PASS**. Orin AGX calibration is not claimed.
 
 ### Accepted revision (2026-08-01): Option B — dual-role sphere split
 
-**Status: accepted; implementing on `wip_phase1_1b`.** Supersedes the armed
-form of Option A; the Option A cover artifact (1012 thickness-capped
-spheres) is **reused unchanged** as the world-only set.
+**Status: accepted; armed in default robot YAML (2026-08-01).** Supersedes
+the armed form of Option A; the Option A cover artifact (1012
+thickness-capped spheres) is **reused unchanged** as the world-only set.
 
 **Motivation.** Option A assigns the dense cover to both collision roles.
 The world-clearance role only grows linearly (≈32× sphere–obstacle checks),
@@ -633,15 +634,19 @@ measured mechanism, not an assumed one.
    YAML whose layout cannot satisfy dense-sphere goals fails closed at
    configuration time rather than surfacing as planning failures.
 
-**Option B acceptance gate (before re-arming default YAML):** everything in
-the Option A gate above (self-clearance at gate postures — the self set is
-unchanged, but the combined list must be verified; edge-`E` body-clip
-detectability with the dense set; Phase 7.1 / 7.2 GPU suites; host headless
-and GUI integration 2×5 smoke) **plus** the planning-time criterion, **plus**
-a rerun of the unseeded 2×20 robustness batch with the split armed. The
-expected planning-failure-rate rise (corrected false negatives; see
+**Option B acceptance gate:** everything in the Option A gate above
+(self-clearance at gate postures — the self set is unchanged, but the
+combined list must be verified; edge-`E` body-clip detectability with the
+dense set; Phase 7.1 / 7.2 GPU suites; host headless and GUI integration
+2×5 smoke) **plus** the planning-time criterion, **plus** a rerun of the
+unseeded 2×20 robustness batch with the split armed. The expected
+planning-failure-rate rise (corrected false negatives; see
 `docs/phase7_2_multi_target_contact.md` § Failures) must stay within the
 named suites' existing budgets — budgets are not relaxed to admit the cover.
+**Gate result (2026-08-01):** all bullets passed; default YAML re-armed with
+`dual`. Armed unseeded 2×20: 10/10 suite passes, 40 tip / 0 body per run,
+33 planning retries absorbed by budgets (local
+`artifacts/reports/phase1_1_option_b_unseeded_2x20/`).
 
 ### Objective
 
@@ -779,7 +784,7 @@ set used for that suite must satisfy Phase 1.1 for
   does **not** introduce collision spheres; placement keep-outs remain optional
   and complementary and do not replace Phase 1.1 coverage. Phase 1.1 work
   shared the `wip_phase7_3` branch without becoming part of Phase 7.3; with
-  Phase 7.3 complete, the Option B revision proceeds on `wip_phase1_1b`.
+  Phase 7.3 complete, Option B landed on `wip_phase1_1b` and is armed.
 
 ---
 

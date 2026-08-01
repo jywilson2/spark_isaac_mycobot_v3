@@ -77,11 +77,11 @@ flowchart LR
 
 ## Phase 1.1 — Target-scale collision-sphere coverage
 
-**Branch:** `wip_phase7_3`
+**Branch:** `wip_phase1_1b`
 
-**Status:** Option A thickness-capped cover implemented (1012 spheres /
-`E=0.014 m`); disarmed — planning regressions vs 7.1/7.2 GPU when armed. See
-[`spec.md`](../spec.md) §8 Phase 1.1 and
+**Status:** **Complete / Option B armed** (2026-08-01). Scaffolding (32)
+owns self-collision; Option A cover (1012, `E=0.014 m`) is world-only on
+`*_world_cover` links. See [`spec.md`](../spec.md) §8 Phase 1.1 and
 [`docs/phase1_1_target_scale_collision_spheres.md`](phase1_1_target_scale_collision_spheres.md).
 
 **Objective:** Offline, mesh-constrained, sparse static spheres so cuRobo
