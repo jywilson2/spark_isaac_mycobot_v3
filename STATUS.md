@@ -31,9 +31,12 @@ EE-clearance separation floor; CI bootstrap; labels / grid Z. See
 COMPLETE (`wip_phase7_4`)**
 Default testing Z band ≈ 50% of `arm_z_motion_range_m`
 (`z_band_fraction: 0.5`); optional unclamped `delta_z_m`; Z-aware EE floor
-(`z_separation_gain` default 1.0); out-of-reach centres discarded with ≤3
-substitutes then fail closed. See [`spec.md`](spec.md) §8 Phase 7.4 and
-[`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
+(`z_separation_gain` default 1.0); dexterous-reach wrist-sphere screening
+with suite-wide reject-and-regenerate (`max_reach_rejections`, default
+`target_count × episode_count`); bands may exceed the dexterous space by
+design. PhysX prohibited body–target contact fails the episode/suite
+(Phase 7.2 policy, documented for 7.4). See [`spec.md`](spec.md) §8 Phase
+7.4 and [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
 
 **Phase 1.1 — Target-scale collision-sphere coverage: COMPLETE / OPTION B
 ARMED (`wip_phase1_1b`)**
@@ -122,49 +125,20 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Next step / resume (2026-08-01)
 
-**Where we left off:** Phase 7.4 is complete on `wip_phase7_4` (Z band /
-`delta_z_m`, Z-aware EE floor, arm-reach substitutes). Phase 1.1 Option B
-remains armed; Phase 7.3 complete.
+**Where we left off:** Phase 7.4 dexterous-reach screening is implemented on
+`wip_phase7_4` (wrist-sphere model, suite-wide `max_reach_rejections`,
+placement timing/stream logs). New stress suite
+`config/phase7_4_multi_target_standard_2x20_delta_z_0_30.yml`
+(`delta_z_m: 0.30`).
 
 **Next steps:**
 
-1. Phase 8 (bounded residual RL, sim only) on a new `wip_phase8` branch.
+1. Host GUI loop for the `delta_z_m: 0.30` 2×20 suite after CI gates.
+2. Phase 8 (bounded residual RL, sim only) on a new `wip_phase8` branch.
    Entry criteria verified 2026-07-31. **Note:** residual policies trained
    under scaffolding-only spheres may need retraining under the denser
    world-cover set now armed by default.
-2. Optional: Orin AGX plan-time calibration if Phase 10+ embedded planning
-   is in scope (spec: device claims need device runs).
-3. Watch the host NVIDIA driver flake (580.173.02 Vulkan segfault at Kit
-   startup, ~1-in-10 headless playback launches on 2026-07-31); if it
-   recurs, investigate driver/Kit versions rather than suite code.
 
-**Phase 1.1 — Option B complete and armed (2026-08-01)** on `wip_phase1_1b`.
-History:
-
-1. **Fixed:** adapter stripped project-only keys so cuRobo can construct a
-   planner when an overlay is enabled.
-2. **First cover rejected:** greedy 128-sphere cover self-collides at every
-   tested posture; scaffolding (32) is self-clear.
-3. **Option A cover** (1012 thickness-capped spheres) detects edge-`E` cubes
-   but full `replace` regresses Phase 7.1 tip planning (active cube in world).
-4. **Option B armed:** dual-role merge + shared omit-active `planning_world`;
-   default YAML sets `collision_sphere_overlay_path` + role `dual`.
-   Evidence: GPU self-clear/body-clip; trial-armed 7.1/7.2; integration 2×5
-   headless+GUI (seed 4242); host plan-time p50/p95 ratios 1.168× / 1.120×
-   (budget ≤ 1.50× / 2.00× PASS); unseeded 2×20 10/10.
-
-**Integration smoke (opt-in final gate):** `smoke_phase7_2_integration_2x5.sh`
-— 2 episodes × 5 targets. Enable with
-`./scripts/run_verification.sh spark --with-integration-smoke`.
-Playback tip-face evidence uses terminal joint snap + FK/USD proximity
-(15 mm) so short headless holds do not drop tip contact after PhysX push-out.
-
-**Standard denser suite:** `smoke_phase7_2_standard_2x10.sh` — 2 episodes ×
-10 targets (dedicated open-arc YAML). Not part of the default spark gate.
-
-**Densest suite:** `smoke_phase7_2_standard_2x20.sh` — 2 episodes × 20
-targets (two-ring manual field, 14 mm cubes). Not part of the default spark
-gate.
 
 ## 2026-07-20 compliance note
 

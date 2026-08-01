@@ -1,3 +1,99 @@
+## BEGIN: 2026-08-01 15:08 -0700
+
+Hasn't the current suite failed often enough to cause an abort of the generated target positions?
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-01 15:02 -0700
+
+Can you regenerate the 2x20 suite using a different seed and stream the output to a separate console window?
+
+Rerun the smoke test to verify all tests pass and that there are no PhysX collisions (should cause a failure).
+
+## END
+
+## BEGIN: 2026-08-01 13:50 -0700
+
+Changes were made to the 7.4 specs. Please read them and implement these changes.
+
+Regenerate a new 2x20 test suite with a Z variability of 0.3.
+
+If there is a PhysX-detected collision when testing then fail the test, if not already done. Indicate this in the documentation, if needed.
+
+If all tests pass, run the new 2x20 test suite in the GUI on an endless loop.
+
+Stream the output when generating the target placement to a separate terminal. Add  console output that reports the time spent generating the targets for a complete suite.
+
+## END
+
+## BEGIN: 2026-08-01 13:43 -0700
+
+Make the default number of max_reach_rejections scale, as you suggested.
+
+Then go ahead and finalize these documentation changes.
+
+## END
+
+## BEGIN: 2026-08-01 13:39 -0700
+
+I intended a suite-wide count. Good catch!
+
+What I meant to say is that if a target is deleted because it is outside the dexterous field, that target generation should continue until the desired number of targets has been generated. The number of errors for a particular suite should still apply and should cause a failure if reached.
+
+Please correct and let me read before making changes.
+
+## END
+
+## BEGIN: 2026-08-01 13:28 -0700
+
+Generate the project documentation changes (beyond just spec.md, if necessary):
+
+Remove the section "Via-home relocation retry". I am expecting that upward motion, but not all the way to home, will be an emergent property of the path planning.
+
+Allow large delta Z's even if they exceed the dexterous space of the arm. Instead, determine if the target position is outside the dexterous space of the arm (accurately calculated with the arm's radial motion). If it is, then delete the target and continue without including it in the maximum number required for the suite. If these target placement errors occur more than "n" times (default value of 3) then fail the suite generation.
+
+Let me review before making changes.
+
+## END
+
+## BEGIN: 2026-08-01 13:15 -0700
+
+Produce a change in the specification which desribes these changes for Phase 7.4, then I will decide. Do not change the spec just yet. I want to study the changes first.
+
+## END
+
+## BEGIN: 2026-08-01 13:07 -0700
+
+This doesn't look like suite generation will be successful. Do you have any ideas on how increase the liklihood of success? Is there anyway to bias the path planning to raise the arm upward toward the home position in increase the liklihood of a success, even if it is not the most efficient plan?
+
+## END
+
+## BEGIN: 2026-08-01 12:58 -0700
+
+Can you stream the output from the process generating target positions for the suite?
+
+## END
+
+## BEGIN: 2026-08-01 12:53 -0700
+
+So what do today's robot models do when an attempt to make contact with a target fails?
+
+## END
+
+## BEGIN: 2026-08-01 12:47 -0700
+
+I have a general question regarding AI models for robots. Do they replace forward kinematics? Would they be able to perform the same type of arm control for the 2x20 test suite?
+
+## END
+
+## BEGIN: 2026-08-01 12:40 -0700
+
+Can you run another 2x20 GUI test on a loop, and regenerate the target positions with Z variability of around .40.
+
+## END
+
 ## BEGIN: 2026-08-01 12:08 -0700
 
 Implement the new Phase 7.4. Set the default Z variability (used in testing) to around 50 percent of the maximum addressable range of motion of the arm. If a target's position is outside the arms range of motion, then discard it and generate a substitute.  If a suitable target cannot be generated after 3 retries then fail the generation of targets for the suite.

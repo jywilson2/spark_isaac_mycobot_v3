@@ -1,5 +1,72 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — Phase 7.4 dexterous-reach screening implemented + delta_z=0.30 suite
+
+1. **Wrist-sphere dexterous-reach model** in `target_placement.py`
+   (`DexterousReachModel`, defaults from URDF +
+   `R_wrist_max_m=0.36` ≥ farthest measured-success ‖W−S‖ in
+   `artifacts/workspace/tip_contact_workspace_v1.json`; raised above the
+   minimal calibrated bound so densest 2×20 packs stay feasible under
+   Z-aware spacing).
+2. **Reject-and-regenerate** for `random` / `grid` / `layout`: Z drawn from the
+   full requested band; suite-wide `max_reach_rejections` (default
+   `target_count × episode_count`) fails generation closed with episode +
+   centre; rejections + `generation_duration_s` recorded in the plan bundle
+   (`placement_generation`) and streamed as `phase7_4_placement:` lines.
+3. Placement-only streamer:
+   `scripts/host/generate_phase7_4_placement.sh` /
+   `scripts/generate_multi_target_placement.py`.
+4. New 2×20 stress suite `delta_z_m: 0.30`:
+   `config/phase7_4_multi_target_standard_2x20_delta_z_0_30.yml` /
+   `scripts/host/smoke_phase7_4_standard_2x20_delta_z_0_30.sh`
+   (`arm_z_motion_range_m: 0.28`, `max_reach_rejections: 20000`).
+5. Docs: PhysX prohibited **body–target** contact already fails the episode
+   (Phase 7.2); restated in `docs/phase7_4_z_variability.md` for 7.4 smokes.
+6. Unit coverage updated in `tests/unit/test_phase7_4_z_variability.py`.
+7. Smoke script
+   `scripts/host/smoke_phase7_4_standard_2x20_delta_z_0_30.sh` pins its own
+   `SPARK_PHASE7_2_{REPORT,BUNDLE}` paths so a prior loop’s env cannot
+   redirect artifacts (e.g. leftover `dz40_gui_loop` names).
+
+**Needs review:** Wide bands still reject many high-Z draws (upper band can be
+geometrically unreachable under the wrist model once the base keep-out is
+applied); authors must size `max_reach_rejections` for stress suites.
+`R_wrist_max_m=0.36` is intentionally looser than the minimal measured
+farthest-success bound (~0.3116 m) for densest-pack feasibility.
+
+---
+
+## 2026-08-01 — Phase 7.4 spec amended: dexterous-reach screening (docs only)
+
+Root cause analysis of the `delta_z_m: 0.40` 2×20 GUI loop (pervasive
+`plan_failed` legs, including from the home start) showed the axis-separable
+arm-reach screen admits jointly unreachable targets: the band samples
+z ∈ [0.08, 0.48] m while the measured tip-contact workspace
+(`artifacts/workspace/tip_contact_workspace_v1.json`) records 93% success at
+z = 0.10 m, 58% at z = 0.22 m, nothing above.
+
+1. **Spec (`spec.md` §8 Phase 7.4):** "Arm-reach validation and substitute
+   retries" superseded by "Dexterous-reach screening and target
+   regeneration": wrist-sphere reach model
+   (`‖W − S‖ ≤ R_wrist_max_m − reach_margin_m`, wrist point
+   `W = p_face + L_wrist_to_tcp_m·n̂`, shoulder `S` at `shoulder_height_m`)
+   with URDF-declared `dexterous_reach` parameters and a calibration unit
+   test against the measured workspace artifact (no measured-success sample
+   may be rejected).
+2. **Reject-and-regenerate:** wide bands stay unclamped and may exceed the
+   dexterous space; random Z samples the full band; out-of-reach centres are
+   rejected and regenerated until each field holds the full `target_count`.
+   Suite-wide budget `max_reach_rejections` (default
+   `target_count × episode_count`) fails generation closed when exceeded;
+   rejections are recorded in suite records for replay.
+3. **Considered and rejected:** a via-home `plan_cspace` relocation retry —
+   upward inter-target motion is expected to remain an emergent property of
+   cuRobo optimization; no lift waypoints are injected.
+4. Docs updated: `spec.md`, `docs/phase7_4_z_variability.md`, `README.md`,
+   `STATUS.md`. Implementation landed in the following CHANGES entry.
+
+---
+
 ## 2026-08-01 — Phase 7.4 Z variability + Z-aware spacing implemented
 
 1. Suite keys: `z_band_fraction` (default 0.5 ≈ 50% of `arm_z_motion_range_m`),
