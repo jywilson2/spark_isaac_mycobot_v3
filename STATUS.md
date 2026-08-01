@@ -154,7 +154,11 @@ report ("Standard smoke 2×20") and
 Do **not** re-arm the overlay until the spec's Option A acceptance gate
 passes (non-negative self-clearance at the gate postures, body-clip
 detectability retained, and Phase 7.1 / 7.2 GPU planning suites green).
-Phase 7.3 placement APIs are available with scaffolding spheres.
+The gate also includes a planning-time criterion (spec §8 Phase 1.1, added
+2026-08-01): measured overlay-vs-scaffolding plan p50/p95 on the host, a
+device calibration run if an embedded planner target (e.g. Jetson Orin AGX)
+is in scope, and review against a budget declared for the deployment
+target. Phase 7.3 placement APIs are available with scaffolding spheres.
 
 **Integration smoke (opt-in final gate):** `smoke_phase7_2_integration_2x5.sh`
 — 2 episodes × 5 targets. Enable with

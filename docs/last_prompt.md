@@ -1,3 +1,17 @@
+## BEGIN: 2026-08-01 08:52 -0700
+
+Yes, please modify the spec to reflect a timing criterion for Orin deployment.
+
+Remind me, why was the dense sphere-set required in the first place?
+
+## END
+
+## BEGIN: 2026-08-01 08:45 -0700
+
+Regarding the selection of Option A, will this make a big difference in the time required to execute planning on and Orin AGX board?
+
+## END
+
 ## BEGIN: 2026-08-01 08:42 -0700
 
 Yes, please do this. Also rebase with main and push.

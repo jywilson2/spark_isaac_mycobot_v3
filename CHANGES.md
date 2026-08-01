@@ -1,5 +1,29 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-01 — Planning-time criterion added to the Phase 1.1 re-arming gate
+
+1. `spec.md` §8 Phase 1.1: the Option A acceptance gate now also requires
+   measured planning-time evidence before re-arming — (a) overlay-vs-
+   scaffolding per-leg plan p50/p95 ratio on the host (same suite, seeds,
+   profile), (b) a device calibration run when an embedded planning target
+   (e.g. Jetson Orin AGX) is in scope for Phase 10+ (device claims require
+   device measurements; host extrapolation must be labeled an estimate),
+   and (c) review against a planning-time budget explicitly declared for
+   the intended deployment target. No numeric budget is invented ahead of
+   the measurements, per project rules.
+2. Rationale recorded in the spec: the 1012-sphere cover multiplies
+   collision-cost evaluation inside the planner (≈32× spheres for world
+   checks; quadratic growth in candidate self-collision pairs), which an
+   Orin-class GPU cannot absorb the way the DGX Spark can. The spec also
+   names the cost-mitigation alternatives reviewable with the evidence:
+   dense cover only in Phase 4 independent validation, or Option B's
+   world-only overlay split.
+3. `docs/phase1_1_target_scale_collision_spheres.md` verification-gate list
+   gains the timing item (marked not yet measured); STATUS Phase 1.1 block
+   updated to match.
+
+---
+
 ## 2026-08-01 — STATUS Phase 1.1 block aligned with spec (docs only)
 
 1. The lower STATUS Phase 1.1 block still carried pre-decision wording
