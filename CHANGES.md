@@ -1,5 +1,63 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-02 — Phase 7.5 reopened: `n1-1-1` defect diagnosed, remediation specified (docs only)
+
+Branch `wip_phase7_5`. Documentation-only change set; no code modified.
+Resolves the open "capacity is low" review item from the entry below.
+
+1. **Diagnosis** (from `phase7_5-variable_dz0_30_n1-1-1_seed4242.bundle.json`
+   extras): accepted legs ended at the tip-contact pose while the contacted
+   cube stayed in the world, so every post-acceptance plan started at zero
+   clearance to a retained obstacle — below the 0.006 m world-clearance
+   floor and inside the 0.01 m TrajOpt activation distance. Post-acceptance
+   `plan_grasp` failed 15/15 (11–22.7 s each) vs 3/5 from the home start;
+   every episode stopped at exactly `streak 5/5`.
+2. **`spec.md` §8 Phase 7.5 amendments** — status Reopened; new normative
+   sections: *Post-contact retreat* (pinned `plan_grasp` retract segment,
+   `plan_grasp_to_lift=True`, new `retreat_distance_m` key default 0.02 m,
+   fail-closed FK start-clearance verification), *Retained obstacles and
+   in-order navigability* (targets are **never removed** and never
+   excluded from the planning world; the growing field must remain a
+   navigable maze — the EE must be able to revisit each block in
+   acceptance order, so new cubes must not intersect previously recorded
+   leg corridors; corridor clearance pre-filter, non-counting `corridor`
+   reject counter), and *Candidate failure records*
+   (`incremental_episodes[*].candidate_failures` with category, reason,
+   planner status, timing, streak; specific reasons required on populate
+   FAIL lines). Tasks 6–9 and remediation acceptance criteria added; the
+   "no lift waypoints" criterion reworded to permit only `plan_grasp`'s
+   documented approach/retract segments.
+3. **`docs/phase7_5_variable_target_stress.md`** — status Reopened; new
+   "Defect: only the first target plans" section with the per-episode
+   evidence table, root cause, diagnostic-gap note, and the remediation
+   list; new "maze framing" subsection explaining both directions of the
+   navigability invariant; config table and sampling example updated.
+4. **`STATUS.md`, `README.md`, `docs/implementation_phases.md`** — Phase
+   7.5 status Reopened with the remediation summary; STATUS next steps now
+   lead with spec tasks 6–9 and the remediated smoke rerun before Phase 8.
+5. `docs/last_prompt.md` updated (this prompt and the 10:55 investigation
+   prompt).
+6. **`.cursor/rules/10-curobo-v080.mdc`** — clarifying note under the
+   approach-only bullet: Phase 7.5 incremental legs are approach+retreat
+   and set `plan_grasp_to_lift=True` (the documented retract segment);
+   fixed-mode Phase 7.2–7.4 legs stay approach-only. (File was root-owned
+   from a container-side edit; replaced in place, now owned by the host
+   user like its siblings.)
+
+### Needs review
+
+- `plan_grasp_to_lift=True` for incremental-mode legs intentionally varies
+  the approach-only guidance in `.cursor/rules/10-curobo-v080.mdc`; the
+  rule now documents the exception explicitly (item 6). Phase 7.5 legs are
+  approach+retreat, not approach-only, so this stays cuRobo-owned.
+- `retreat_distance_m` default 0.02 m is a documented estimate (2× the
+  0.01 m pre-approach). Whether it clears the Option B world-cover sphere
+  model by ≥ 0.006 m must be confirmed by the fail-closed FK check on the
+  first remediated GPU run.
+- The corridor pre-filter cost grows with recorded legs × waypoints;
+  acceptable as deterministic CPU FK, but worth timing on the remediated
+  smoke.
+
 ## 2026-08-02 — Phase 7.5 implemented: incremental Z-density stress suite
 
 Branch `wip_phase7_5`. Adds `target_population: incremental` so suites

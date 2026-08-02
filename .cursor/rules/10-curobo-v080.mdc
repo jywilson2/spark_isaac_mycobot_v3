@@ -22,6 +22,12 @@ globs: "src/**/*.py,tests/**/*.py,config/**/*.yml,config/**/*.yaml,pyproject.tom
   runtime condition may generate a replacement path with another planner.
 - Use `MotionPlanner.plan_grasp` as the required high-level primitive for target-goal-set selection, pre-approach planning, and linear terminal approach.
 - For approach-only planning, set `plan_approach_to_grasp=True` and `plan_grasp_to_lift=False`.
+  Phase 7.5 incremental-population legs are approach+retreat, not
+  approach-only: they set `plan_grasp_to_lift=True` so the documented
+  retract segment withdraws the tip by `retreat_distance_m` along the
+  target's outward normal (spec §8 Phase 7.5, post-contact retreat).
+  This is a sanctioned use of the pinned primitive, not a lift-waypoint
+  heuristic; fixed-mode (Phase 7.2–7.4) legs stay approach-only.
 - Pass `disable_collision_links=[]` unless an explicitly specified contact task requires narrowly scoped collision disabling.
 - The approach-axis name and signed offset come from validated configuration. Never copy a sign from another robot example.
 - For the pinned cuRobo v0.8.0 runtime, construct a fresh `MotionPlanner` for

@@ -2083,7 +2083,15 @@ the default upward normal). The minimum approach-plane centre separation is:
 
 ## Phase 7.5 — Variable-target-count Z-density stress suite
 
-**Status:** Complete (2026-08-02).
+**Status:** Reopened (2026-08-02) — the first host smoke (`n1-1-1`) exposed
+a defect in the primary feature: after the first accepted tip contact, every
+subsequent plan attempt started at zero clearance to the just-contacted
+retained cube and failed (0/15 post-acceptance vs 3/5 from the home start).
+The remediation below (post-contact retreat, retained-obstacle and in-order
+navigability invariants, candidate failure records) is specified in this
+revision; implementation is pending on this branch. Evidence and root-cause
+analysis:
+[`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
 **Branch:** `wip_phase7_5`.
 Design notes:
 [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
@@ -2127,21 +2135,27 @@ Per episode, starting from an empty field and the configured
    Z-density.
 2. **Geometric pre-filters** (cheap, non-counting): Z-aware EE-clearance
    separation floor against all accepted targets, keep-outs, radial rim,
-   AABB containment. The dexterous-reach wrist-sphere model **may** be
-   applied as an advisory pre-filter to save plan calls; it is no longer
-   authoritative and its rejections are non-counting. Pre-filter rejections
-   are bounded by `max_placement_attempts`; exhausting it means the field
-   is **geometrically full** and ends the episode as a normal stop (not a
+   AABB containment, and the **corridor clearance check** (mandatory — see
+   the in-order navigability rule below): the candidate cuboid must clear
+   the FK-swept collision-sphere volume of every previously recorded leg by
+   at least `minimum_world_collision_clearance_m`. The dexterous-reach
+   wrist-sphere model **may** be applied as an advisory pre-filter to save
+   plan calls; it is no longer authoritative and its rejections are
+   non-counting. Pre-filter rejections are bounded by
+   `max_placement_attempts`; exhausting it means the field is
+   **geometrically full** and ends the episode as a normal stop (not a
    failure).
 3. **Plan-verify** (the oracle): exactly **one** `plan_grasp` attempt from
    the arm's current joint state to the candidate's flange-normal goal set
    (roll candidates per Phase 2/7.4), with the world containing **all
    previously accepted targets**, followed by Phase 4 independent
    validation. Success → the candidate is **accepted**: it joins the field
-   and the world, the leg trajectory is recorded, and the arm state
-   advances to the leg's terminal configuration. Failure (plan or
-   validation) → the candidate is **discarded** and counts **one target
-   failure**; the arm does not move.
+   and the world, the leg trajectory (approach, contact, and retreat — see
+   the post-contact retreat rule) is recorded, and the arm state advances
+   to the leg's **retreated** terminal configuration. Failure (plan or
+   validation) → the candidate is **discarded**, counts **one target
+   failure**, and its failure record is persisted (see candidate failure
+   records); the arm does not move.
 4. **Stop conditions**, checked in order:
    - consecutive target failures reach `max_consecutive_target_failures`
      (primary stop — the dexterous space at this Z-density is exhausted);
@@ -2151,16 +2165,104 @@ Per episode, starting from an empty field and the configured
    - `max_targets_per_episode` reached (optional cap, disabled by
      default).
 
-Accepted targets are **retained** in the world after contact
-(`retain_targets_after_contact: true` is mandatory in this mode — removing
-contacted cubes would deflate the density stress that the suite exists to
-measure). Allowed tip contact applies only to the active leg's target;
-any contact with a previously contacted retained cube is prohibited and
-fails the episode at playback (existing Phase 7.2 policy).
-
 There is no deferral, no reconsider pass, no per-target retry, no field
 regeneration, and no tip-IK placement screen in this mode: a failed
 candidate is replaced by a fresh draw, not retried.
+
+### Post-contact retreat (normative)
+
+Every accepted leg must terminate at a **retreated** configuration, not at
+the contact pose. After the linear terminal approach reaches the contact
+point, the leg continues with the pinned `plan_grasp` retract segment
+(`plan_grasp_to_lift=True`) so the tip withdraws along the target's outward
+normal by `retreat_distance_m` (default **0.02 m**). The retreat is a
+documented segment of the exclusive cuRobo primitive — it is not a
+hand-inserted lift waypoint, an alternate planner, or collision-geometry
+manipulation. Phase 7.2–7.4 fixed-mode legs keep their approach-only
+setting (`plan_grasp_to_lift=False`) unchanged.
+
+Rationale (root cause of the `n1-1-1` defect): the arm state advances to
+the accepted leg's terminal configuration, and the just-contacted cube is
+retained as a world obstacle for every later leg. Terminating at the
+contact pose therefore left the next plan's start state at zero clearance
+to that cube — below the `minimum_world_collision_clearance_m` (0.006 m)
+validation floor and inside the TrajOpt collision activation distance —
+so every post-acceptance attempt failed (0/15 on the first host smoke,
+vs 3/5 from the home start).
+
+Fail-closed requirements:
+
+- Before each subsequent plan attempt, the runner must FK-verify that the
+  retreated start state clears the **entire** planning world (all retained
+  cubes; the new candidate is not yet part of it) by at least
+  `minimum_world_collision_clearance_m`. A violation is a
+  `ConfigurationError` (raise, do not silently retry or exclude
+  geometry) — it means `retreat_distance_m` is too small for the
+  configured sphere model and clearance floor.
+- The Phase 4 validator keeps its existing contract on the approach
+  segment (lateral line error, approach-axis error, monotonic progress,
+  terminal pose error at the **contact** waypoint). The retreat segment
+  must additionally satisfy joint limits and world-clearance checks with
+  the active cube excluded, exactly as the approach segment does.
+
+### Retained obstacles and in-order navigability (normative)
+
+**Targets are never removed.** `retain_targets_after_contact: true` is
+mandatory in this mode; every accepted cube is a **permanent obstacle** for
+the remainder of the episode — in the planning world of every later
+candidate, in independent validation, and at playback. Removing contacted
+cubes, or excluding a just-contacted cube from the planning world (the
+`leg_world_geometries` `exclude_names` shortcut), is **forbidden**: the
+growing obstacle set is the density stress the suite exists to measure,
+and the post-contact retreat above is the only sanctioned mechanism for
+starting the next leg clear of the previous target. The sole exemption
+remains the active leg's own candidate cube (`active_contact_name`), so
+the tip may occupy its face centre.
+
+**In-order navigability (the maze invariant).** Incremental population
+builds the equivalent of a navigable maze: the end effector must be able
+to visit every accepted block, in acceptance order, in the **final** field
+— past trajectories to old targets must never be blocked by targets added
+later. Playback replays each recorded leg in the world containing **all**
+accepted cubes, while leg `k` was planned against only cubes `1..k−1`; a
+later cube placed inside leg `k`'s swept volume would turn a recorded,
+validated trajectory into a prohibited body contact at playback. Both
+directions of the invariant must hold:
+
+- **Old cubes never block new legs:** guaranteed by construction — every
+  new candidate is planned with all previously accepted cubes in the
+  world, so an unreachable candidate simply fails its plan attempt.
+- **New cubes never block old legs:** enforced by the **corridor clearance
+  check** in pre-filter rule 2 — before a candidate spends its plan
+  attempt, its cuboid is tested against the FK-swept collision-sphere
+  volume of every previously recorded leg (approach and retreat segments,
+  sampled at the validator's interpolation resolution); clearance below
+  `minimum_world_collision_clearance_m` rejects the candidate as a
+  **non-counting geometric reject** (new sampler counter `corridor`).
+  The check is deterministic CPU FK over recorded joint paths. The
+  Phase 7.2 prohibited-contact playback policy remains the enforcement
+  backstop: any contact with a retained non-active cube still fails the
+  episode.
+
+Allowed tip contact applies only to the active leg's target; any contact
+with a previously contacted retained cube is prohibited and fails the
+episode at playback (existing Phase 7.2 policy).
+
+### Candidate failure records (normative)
+
+Every planner-verified candidate failure must be persisted, not just
+counted. For each failed candidate, the per-episode population record
+(bundle key `incremental_episodes[*].candidate_failures`) stores at
+minimum: the candidate serial, its centre (`center_m`), the failure
+category (`plan_failed` / `validation_failed` / `tip_contact_missed` /
+`body_contact`), the failure reason string, the planner status, the plan
+wall time, and the streak value after the failure. The populate console
+FAIL line must render the **specific** category and first reason — a
+generic `plan_failed` placeholder when a more specific category or reason
+is available is non-compliant. Accepted-leg-only filtering of
+`results[*].legs` (the playback contract) is unchanged; the failure
+records live in the population extras so a failed suite is diagnosable
+from its artifacts alone, without the console log.
 
 **Playback order (normative).** Playback replays the frozen bundle's legs
 in **acceptance order** — exactly the accepted targets, in exactly the
@@ -2178,6 +2280,7 @@ kinematic continuity between legs.
 | `max_total_target_failures` | `0` (disabled) | Non-negative int. Optional absolute failure cap per episode. |
 | `max_targets_per_episode` | `0` (disabled) | Non-negative int. Optional acceptance cap per episode. |
 | `min_targets_per_episode` | `1` | Episode acceptance floor: an episode that stops with fewer accepted targets **fails** (`insufficient_targets`). Suite acceptance then follows `max_failed_episodes` (default 0). |
+| `retreat_distance_m` | `0.02` | Positive float. Post-contact retreat offset along the target's outward normal, realized by the `plan_grasp` retract segment; must yield a start state clearing the world by ≥ `minimum_world_collision_clearance_m` (fail closed otherwise). |
 
 Default rationale for `max_consecutive_target_failures = 5`: a failing
 high-effort plan attempt costs ~22 s, so the stop tail is ≤ ~2 minutes; and
@@ -2197,7 +2300,11 @@ Fail-closed constraints in `incremental` mode (each violation is a
   `require_tip_ik`, `max_ik_rejections`, and `max_reach_rejections` must
   be absent — their machinery does not run in this mode;
 - `order` must be absent (contact order **is** acceptance order by
-  construction).
+  construction);
+- `retreat_distance_m` must be positive, and the FK-verified retreated
+  start clearance must meet `minimum_world_collision_clearance_m` before
+  every post-acceptance plan attempt (violation is a
+  `ConfigurationError`, per the post-contact retreat rule).
 
 Existing keys `delta_z_m` / `z_band_fraction`, `field_aabb`, `keep_outs`,
 `max_target_radial_m`, `z_separation_gain`, `pre_approach_distance_m`,
@@ -2250,13 +2357,17 @@ phase7_5_populate: ep 2/3 | accepted 12 | cand 18 z=0.331 r=0.204 | plan FAIL 22
 ```
 
    When the streak is non-zero the line must state, in words, how many
-   failures remain before the episode stops.
+   failures remain before the episode stops. On FAIL, the parenthesized
+   annotation must carry the candidate's specific failure category and,
+   when present, its first reason string (candidate failure records rule);
+   a generic placeholder is non-compliant.
 4. **Aggregated sampler statistics** (geometric rejections are never
    per-line at default verbosity), emitted at least every 25 draws and at
-   episode end:
+   episode end. Corridor rejections appear as their own counter whenever
+   non-zero:
 
 ```text
-phase7_5_sampling: ep 2/3 | draws 240 | geometric rejects 198 (separation 120, keep_out 40, rim 38) | planned 42
+phase7_5_sampling: ep 2/3 | draws 240 | geometric rejects 198 (separation 118, keep_out 40, rim 36, corridor 4) | planned 42
 ```
 
 5. **Episode summary** with achieved count (total targets), stop reason,
@@ -2326,6 +2437,21 @@ phase7_5_replay: ep 2/3 DONE | targets 14 contacted 14 | plan µ=7.1s σ=2.3s (r
    counts, retained-cube world growth across acceptances, and
    deterministic candidate streams for a fixed seed with a fake planner
    oracle.
+6. **(Remediation, 2026-08-02)** Post-contact retreat: `retreat_distance_m`
+   config key, `plan_grasp` retract segment on accepted legs, arm state
+   advancing to the retreated terminal configuration, and the fail-closed
+   FK start-clearance verification before each post-acceptance plan
+   attempt.
+7. **(Remediation, 2026-08-02)** Corridor clearance pre-filter over the
+   FK-swept collision-sphere volume of recorded legs, with the `corridor`
+   sampler counter and non-counting reject semantics.
+8. **(Remediation, 2026-08-02)** Candidate failure records persisted in
+   `incremental_episodes[*].candidate_failures` and specific
+   category/reason rendering in populate FAIL lines.
+9. **(Remediation, 2026-08-02)** Unit tests: corridor rejects are
+   non-counting (streak unaffected); failure records round-trip through
+   the bundle; retreat start-clearance verification fails closed;
+   retreated terminal state is the next leg's start state.
 
 ### Acceptance criteria
 
@@ -2336,10 +2462,22 @@ phase7_5_replay: ep 2/3 DONE | targets 14 contacted 14 | plan µ=7.1s σ=2.3s (r
   `min_targets_per_episode` and produces the required console lines
   (spot-checked in the smoke log); GUI smoke replays the frozen bundle
   with tip contacts on accepted targets and zero prohibited contacts.
+- **(Remediation, 2026-08-02)** The remediated headless smoke demonstrates
+  at least one accepted leg planned from a retreated post-contact start
+  state (an episode with ≥ 2 accepted targets), proving the `n1-1-1`
+  defect is closed. Achieved capacity beyond that remains a measurement,
+  not a gate.
+- **(Remediation, 2026-08-02)** The frozen bundle of the remediated smoke
+  contains `candidate_failures` records for every counted failure, and no
+  recorded leg intersects any accepted cube other than its own target
+  (in-order navigability holds at playback).
 - Population wall time scales linearly with accepted targets (no field
   regeneration, no reconsider passes in the log).
-- No alternate planner, no lift waypoints, no collision-geometry
-  manipulation; the plan attempt is the only feasibility authority.
+- No alternate planner, no heuristic free-space waypoints outside
+  `plan_grasp`'s documented approach/retract segments, no
+  collision-geometry manipulation; the plan attempt is the only
+  feasibility authority. The post-contact retreat is the pinned
+  `plan_grasp` retract segment, not a hand-inserted lift waypoint.
 
 ---
 

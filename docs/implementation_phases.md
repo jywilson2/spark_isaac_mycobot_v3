@@ -23,7 +23,7 @@ fallback, learned policy, simulator feature, or integration.
 | **7.2** | Multi-target tip-contact clearance suite | Clear/contact all targets per episode; tip OK; body fails |
 | **7.3** | Controllable target-block placement | Random/layout policies, fail-closed separation and keep-outs |
 | **7.4** | Extended Z variability & Z-aware EE-clearance spacing | **Partially functional (closed 2026-08-02)** — wide-band stress moves to 7.5 |
-| **7.5** | Variable-target-count Z-density stress suite | **Complete** |
+| **7.5** | Variable-target-count Z-density stress suite | **Reopened 2026-08-02 — remediation specified (retreat, maze navigability, failure records)** |
 | **8** | Bounded residual RL (Isaac Lab / Isaac Sim only) | Residual improves sim metrics; never replaces planner |
 | **9** | Fabricated contact test tool | OpenSCAD/STL, fit, optional TCP/collision profile |
 | **9.1** | Contact test tool evaluation | Calibration and remounting repeatability characterized |
@@ -323,8 +323,13 @@ work landed.
 
 **Branch:** `wip_phase7_5`
 
-**Status:** Complete (2026-08-02). See
-[`spec.md`](../spec.md) §8 Phase 7.5 and
+**Status:** Reopened (2026-08-02). The first host smoke (`n1-1-1`) exposed
+a defect: legs ended at the contact pose, so every post-acceptance plan
+started at zero clearance to the just-contacted retained cube and failed.
+Remediation is specified (post-contact retreat via the `plan_grasp`
+retract segment, retained-obstacle and in-order navigability "maze"
+invariants, persisted candidate failure records); implementation pending
+on `wip_phase7_5`. See [`spec.md`](../spec.md) §8 Phase 7.5 and
 [`docs/phase7_5_variable_target_stress.md`](phase7_5_variable_target_stress.md).
 
 **Objective:** Measure how many targets can be placed and tip-contacted
@@ -332,15 +337,21 @@ within a given Z-density. Targets are created, verified, and planned
 one-by-one (`target_population: incremental`), each candidate getting
 exactly one `plan_grasp` attempt against all previously accepted (retained)
 cubes; population stops after `max_consecutive_target_failures` (default
-**5**) planner-verified failures. The achieved count per episode is the
-metric and is embedded in generated artifact names
-(`…_dz0_30_n14-11-16_seed4242…`). Human-readable console output must show
-progress ("accepted N") and proximity to stop ("streak k/K") on every
-planner-verified candidate line.
+**5**) planner-verified failures. Accepted legs end at a retreated
+configuration (`retreat_distance_m`) so the next plan starts clear of the
+previous target. The achieved count per episode is the metric and is
+embedded in generated artifact names (`…_dz0_30_n14-11-16_seed4242…`).
+Human-readable console output must show progress ("accepted N") and
+proximity to stop ("streak k/K") on every planner-verified candidate line.
+The growing field must stay a **navigable maze**: new cubes must never
+intersect previously recorded leg corridors (corridor clearance
+pre-filter), so playback can revisit every block in acceptance order.
 
 **Must not:** Replace cuRobo or add a second feasibility authority beyond
-the plan attempt + Phase 4 validation; remove contacted cubes
-(`retain_targets_after_contact` must stay `true`); reuse fixed-count keys
+the plan attempt + Phase 4 validation; remove contacted cubes at any point
+(`retain_targets_after_contact` must stay `true` — retained cubes are
+permanent planning obstacles as the field grows) or exclude a
+just-contacted cube from the planning world; reuse fixed-count keys
 (`target_count`, deferral/reconsider/regen/tip-IK budgets) in incremental
 mode; claim the greedy achieved count validates adversarial fixed fields.
 

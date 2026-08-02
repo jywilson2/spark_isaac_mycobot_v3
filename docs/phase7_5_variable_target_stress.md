@@ -1,6 +1,10 @@
 # Phase 7.5 — Variable-target-count Z-density stress suite
 
-**Status:** Complete (2026-08-02).
+**Status:** Reopened (2026-08-02) — first-smoke defect diagnosed;
+remediation specified (post-contact retreat, retained-obstacle and
+in-order navigability invariants, candidate failure records);
+implementation pending on this branch. See
+[Defect: only the first target plans](#defect-only-the-first-target-plans-2026-08-02).
 **Branch:** `wip_phase7_5`.
 Normative rules: [`spec.md`](../spec.md) §8 Phase 7.5.
 
@@ -49,6 +53,7 @@ is demoted to cheap advisory pre-filtering.
 | `max_total_target_failures` | `0` (off) | Optional absolute per-episode failure cap. |
 | `max_targets_per_episode` | `0` (off) | Optional acceptance cap. |
 | `min_targets_per_episode` | `1` | Acceptance floor; fewer accepted targets ⇒ `insufficient_targets` episode failure. |
+| `retreat_distance_m` | `0.02` | Post-contact retreat along the outward normal (`plan_grasp` retract segment); next leg starts from the retreated state. |
 
 Default threshold rationale: a failing high-effort attempt costs ~22 s, so
 the stop tail is ≤ ~2 min; if marginal feasibility were still ≥ 50%, five
@@ -56,15 +61,39 @@ consecutive failures occur with probability ≤ 3%.
 
 Loop per episode: sample candidate (XY in field, Z from the designated
 Z-density) → geometric pre-filters (non-counting, bounded by
-`max_placement_attempts`; exhaustion = geometrically full, a normal stop) →
-**one** plan attempt from the arm's current pose against all previously
-accepted cubes → accept (arm advances, cube retained as an obstacle) or
-count one failure (arm stays). `retain_targets_after_contact: true` is
-mandatory: retained cubes are what make later candidates harder, which is
-the density stress being measured. No deferral, reconsider, per-target
-retries, tip-IK screen, or field regeneration in this mode; the incremental
-oracle makes them redundant. Forbidden keys fail closed — see the spec
-table.
+`max_placement_attempts`; exhaustion = geometrically full, a normal stop),
+including the corridor clearance check against all recorded leg corridors →
+**one** plan attempt from the arm's current (retreated) pose against all
+previously accepted cubes → accept (arm advances to the retreated terminal
+state, cube retained as a permanent obstacle) or count one failure with a
+persisted failure record (arm stays). `retain_targets_after_contact: true`
+is mandatory and targets are **never removed**: retained cubes are
+obstacles in every later plan, which is the density stress being measured.
+No deferral, reconsider, per-target retries, tip-IK screen, or field
+regeneration in this mode; the incremental oracle makes them redundant.
+Forbidden keys fail closed — see the spec table.
+
+### The maze framing
+
+Incremental population is essentially the construction of a **navigable
+maze**: each accepted cube is a wall segment added to the field, and the
+suite is only meaningful if the end effector can still visit every block,
+in acceptance order, once the maze is finished. Two hazards follow, one in
+each temporal direction:
+
+- **Old blocks must not strand the arm** — every new candidate is planned
+  with all previously accepted cubes in the world, so this direction holds
+  by construction (an unreachable candidate just fails its plan attempt).
+- **New blocks must not cut off old corridors** — playback replays leg `k`
+  in the *final* field, but leg `k` was planned against only cubes
+  `1..k−1`. A later cube dropped into leg `k`'s swept corridor would turn
+  a recorded, validated trajectory into a prohibited body contact at
+  playback. The corridor clearance pre-filter (spec: in-order navigability)
+  rejects such candidates before they spend a plan attempt, by FK-sweeping
+  every recorded leg's collision spheres against the candidate cuboid at
+  the `minimum_world_collision_clearance_m` floor. Corridor rejections are
+  geometric (non-counting) and appear as the `corridor` counter in
+  `phase7_5_sampling:` lines.
 
 Playback contacts exactly the accepted targets in acceptance order, from
 the recorded trajectories in the frozen bundle; legs are chained (each
@@ -107,7 +136,7 @@ answers "how far along, and how close to stopping":
 phase7_5_populate: ep 2/3 BEGIN | z-dist uniform dz=0.30 band 0.08–0.38 m | threshold 5
 phase7_5_populate: ep 2/3 | accepted 12 | cand 15 z=0.264 r=0.151 | plan OK 6.4s | streak 0/5
 phase7_5_populate: ep 2/3 | accepted 12 | cand 18 z=0.331 r=0.204 | plan FAIL 22.1s (plan_failed) | streak 3/5 — 2 more failures end episode
-phase7_5_sampling: ep 2/3 | draws 240 | geometric rejects 198 (separation 120, keep_out 40, rim 38) | planned 42
+phase7_5_sampling: ep 2/3 | draws 240 | geometric rejects 198 (separation 118, keep_out 40, rim 36, corridor 4) | planned 42
 phase7_5_episode: ep 2/3 DONE | accepted 14 | stop consecutive_failures 5/5 | fails 9 total | z 0.084–0.331 | plan µ=7.1s σ=2.3s | wall 411s | min 1: PASS
 ```
 
@@ -134,6 +163,73 @@ episode summary reports mean seconds per accepted target; suite summary is
 an aligned table with a totals row plus the artifact base name, with the
 machine JSON line last — no raw dict dumps as the primary human output.
 
+## Defect: only the first target plans (2026-08-02)
+
+The first host smoke passed its configured gate (`3/3` episodes ≥
+`min_targets_per_episode: 1`) but achieved only **one target per episode**
+(`n1-1-1`), far below the motivational example (`n14-11-16`). The frozen
+bundle's `incremental_episodes` extras
+(`phase7_5-variable_dz0_30_n1-1-1_seed4242.bundle.json`) localize the
+failure precisely:
+
+| Episode | Home-start attempts | Post-acceptance attempts | Accepted plan | Failed plans |
+|---------|--------------------|--------------------------|---------------|--------------|
+| 1 | 1 (OK) | 5 (all FAIL) | 8.4 s | 13–22 s |
+| 2 | 3 (FAIL, FAIL, OK) | 5 (all FAIL) | 6.5 s | 11–22.7 s |
+| 3 | 1 (OK) | 5 (all FAIL) | 4.8 s | 13–22.4 s |
+
+From the home start, `plan_grasp` succeeded on 3 of 5 candidates. After
+the first acceptance it failed on **15 of 15**, each attempt burning
+11–22.7 s of the `planning_high_effort` budget across the 8-roll goal set.
+At the home-start failure rate (~40%), fifteen consecutive failures have
+probability ≈ 4 × 10⁻⁷ — systematic, not hard geometry.
+
+**Root cause.** An accepted leg ended at the tip-contact pose, and the
+runner advanced the arm state to that terminal configuration while the
+just-contacted cube stayed in the world (retention is mandatory). Every
+subsequent plan therefore started with the flange at **zero clearance** to
+a retained obstacle — below the `minimum_world_collision_clearance_m`
+(0.006 m) validation floor and inside the TrajOpt collision activation
+distance (0.01 m) — so the planner could not produce an acceptable
+trajectory from that start state. The episode then always ended at exactly
+`streak 5/5`. (`leg_world_geometries` has an `exclude_names` escape hatch
+for exactly this start-pose collision, but excluding the cube would let
+the planner sweep through it and merely move the failure to the PhysX
+prohibited-contact gate at playback — it is now explicitly forbidden in
+incremental mode.)
+
+**Diagnostic gap.** Failed legs are filtered out of `results[*].legs` and
+the extras stored only durations, so no failure category or reason
+survived into the artifacts; the diagnosis required correlating timings.
+The console log (`/tmp/phase7_5_headless_smoke.log`) had the per-candidate
+lines but was transient.
+
+### Remediation (specified 2026-08-02, implementation pending)
+
+1. **Post-contact retreat** — accepted legs continue through the pinned
+   `plan_grasp` retract segment (`plan_grasp_to_lift=True`), withdrawing
+   `retreat_distance_m` (default 0.02 m) along the target's outward
+   normal; the arm state advances to the retreated terminal
+   configuration. The runner FK-verifies before each post-acceptance plan
+   attempt that the start state clears the whole world by ≥
+   `minimum_world_collision_clearance_m`, failing closed otherwise.
+   Targets remain retained forever; excluding the previous cube from the
+   planning world is forbidden. Fixed-mode (7.2–7.4) legs keep
+   `plan_grasp_to_lift=False`.
+2. **Candidate failure records** — every counted failure persists
+   candidate serial, centre, failure category, reason, planner status,
+   plan wall time, and post-failure streak in
+   `incremental_episodes[*].candidate_failures`; populate FAIL lines must
+   show the specific category/reason.
+3. **In-order navigability (maze invariant)** — corridor clearance
+   pre-filter so new cubes never intersect previously recorded leg
+   corridors (see "The maze framing" above).
+
+Normative statements live in `spec.md` §8 Phase 7.5 (post-contact retreat,
+retained obstacles and in-order navigability, candidate failure records,
+`retreat_distance_m` config row, amended tasks 6–9 and acceptance
+criteria).
+
 ## Evidence / gates
 
 - Unit: fail-closed config matrix, streak/stop semantics, naming from
@@ -145,8 +241,15 @@ machine JSON line last — no raw dict dumps as the primary human output.
   4242`): suite accepted `3/3`, achieved counts `n1-1-1`, tip=3, body=0,
   artifact `phase7_5-variable_dz0_30_n1-1-1_seed4242`, required
   `phase7_5_*` console lines present; wall ≈ 339 s population.
+  **Superseded as phase evidence:** the `n1-1-1` capacity result is the
+  defect signature described above, not a valid Z-density measurement.
 - Host GUI replay of the frozen bundle (`--gui --auto-exit`):
   `lighting_ready`, `joint_playback_completed`, tip=3, body=0, exit 0.
+- **Pending (remediation gates):** remediated headless smoke with at least
+  one episode of ≥ 2 accepted targets (a leg planned from a retreated
+  start state), `candidate_failures` present in the bundle, corridor
+  counter in sampling lines, and GUI replay of the new frozen bundle
+  exiting 0 with zero prohibited contacts.
 
 ## Relation to Phase 7.4
 

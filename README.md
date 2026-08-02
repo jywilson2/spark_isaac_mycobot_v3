@@ -63,8 +63,13 @@ A demo video of the densest 2×20 suite (GUI playback) is at
 Full roadmap (Phases 0–11, including decimal Phases 7.1–7.5 and 9.1):
 [`docs/implementation_phases.md`](docs/implementation_phases.md).
 Phase 7.5 (variable-target-count Z-density stress suite,
-`target_population: incremental`) is complete on `wip_phase7_5`
-(2026-08-02) — see
+`target_population: incremental`) is reopened on `wip_phase7_5`
+(2026-08-02): the first smoke's `n1-1-1` defect (post-acceptance plans
+starting at zero clearance to the just-contacted retained cube) is
+diagnosed, and the remediation — post-contact retreat, never-removed
+retained obstacles, in-order navigability ("maze") corridor pre-filter,
+and persisted candidate failure records — is specified with
+implementation pending. See
 [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md)
 and `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`.
 
