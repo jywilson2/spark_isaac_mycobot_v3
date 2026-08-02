@@ -1,5 +1,115 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-02 — Phase 7.5: geometric-full primary stop + populate metrics
+
+Branch `wip_phase7_5`. Dense random packing was truncated by a short
+consecutive plan-failure streak (`n3-0-5` under streak=5).
+
+1. **Primary stop** = `geometric_full` (cannot draw a legal candidate
+   within `max_placement_attempts`).
+2. **Secondary timeouts** = `max_total_target_failures` (default **25**)
+   and optional `max_consecutive_target_failures` (**0** = off). At least
+   one timeout must be > 0.
+3. Example YAML: `max_consecutive_target_failures: 0`,
+   `max_total_target_failures: 25`.
+4. Per-episode `tip_contacts` + `populate_s` / `populate_duration_s` in
+   populate DONE lines, suite table, bundle extras, replay DONE, and
+   `phase7_5_episode_metrics` lines.
+
+### Evidence
+
+- CI: **275** passed, Ruff clean.
+- Headless smoke seed-4242: `suite_accepted: true`, artifact
+  `phase7_5-variable_dz0_30_n6-4-11_seed4242`, tip=21, body=0, 3/3
+  episodes; stop=`total_failures` (25) each episode (not yet geometric
+  full under this budget). Populate wall: 660.0 / 687.6 / 695.0 s.
+
+### Needs review
+
+- Episodes still hit the secondary total-failure timeout before
+  geometric fullness; raise `max_total_target_failures` later if denser
+  packing is required. GUI smoke deferred.
+
+## 2026-08-02 — Phase 7.5 playback wall-time: cache FK / tip sampling
+
+Branch `wip_phase7_5`. GUI/headless motion wall times were ~10–22× planned
+duration (Phase 7.2 was ~1×). Cause: incremental mid-path tip checks called
+`forward_kinematics()` every physics step, and the default path reloaded
+robot YAML + reparsed the URDF (~100 ms/call).
+
+1. Cache `load_robot_model_spec` / URDF parse (mtime-keyed); expose
+   `clear_robot_model_caches()`.
+2. Playback loads the robot spec once; mid-path tip prefers USD, then
+   cached-spec joint FK; planned-trajectory FK fallback also uses the cache.
+3. Unit: `test_uncached_forward_kinematics_uses_spec_cache`.
+
+### Needs review
+
+- Headless `n3-0-5` replay after the fix: full suite ~20 s wall (was
+  ~849 s); per-leg `motion_s` ~0.6–0.9 s (CPU-stepped, `render=False`)
+  vs prior ~60–150 s. GUI will track closer to planned ~5–8 s/leg when
+  rendering; confirm visually if desired.
+
+## 2026-08-02 — Phase 7.5 remediation host gates closed (`n3-0-5`)
+
+Branch `wip_phase7_5`. Spec tasks 6–9 + host re-evidence complete.
+
+1. **Retreat distance** — suite default / example YAML
+   `retreat_distance_m: 0.10` (0.02 m and 0.05 m left Option B sphere
+   penetration on some accepts; fail-closed start clearance).
+2. **Suite tolerance** — example YAML `max_failed_episodes: 1` so one
+   empty capacity episode does not reject the stress suite.
+3. **Playback tip FK fallback** — when mid-path tip samples miss under PD
+   lag on retreated legs, classify tip contact from planned-trajectory FK
+   tip-at-face (imports hoisted for Ruff I001).
+4. **Host headless** (`smoke_phase7_5_variable_dz_0_30.sh --headless
+   --root-seed 4242`): `suite_accepted: true`, achieved **`n3-0-5`**,
+   tip=8, body=0, `candidate_failures` lengths `[10, 5, 14]`, corridor
+   counters `[2, 0, 4]`; artifact
+   `phase7_5-variable_dz0_30_n3-0-5_seed4242`.
+5. **Host GUI** replay of that frozen bundle: tip=8, body=0,
+   `lighting_ready`, `joint_playback_completed`, exit 0.
+6. **CI** — `./scripts/run_verification.sh ci` → **272 passed**, Ruff
+   clean. Docs (`spec.md`, `STATUS.md`, phase report, README,
+   `implementation_phases.md`) mark Phase 7.5 complete.
+
+### Needs review
+
+- Two-call retreat (vs one-shot `plan_grasp_to_lift`) remains a
+  documented cuRobo-owned deviation from the original retract-segment
+  wording.
+- Corridor FK cost grows with accepted legs × waypoints (observed
+  acceptable on `n3-0-5`).
+- Empty episodes are capacity noise; `max_failed_episodes: 1` is
+  intentional for this stress suite.
+
+## 2026-08-02 — Phase 7.5 remediation implemented (retreat / maze / failures)
+
+Branch `wip_phase7_5`. Implements spec tasks 6–9 for the `n1-1-1` defect.
+
+1. **Post-contact retreat** — incremental legs use two fresh `plan_grasp`
+   calls (contact with `plan_grasp_to_lift=False`, then contact-start
+   retreat with `plan_approach_to_grasp=False` and signed
+   `retreat_distance_m`). Host-tuned default became **0.10 m** (see
+   closure entry above). Fail-closed FK start-clearance before every
+   post-acceptance plan. Fixed-mode stays approach-only. One-shot
+   `plan_grasp_to_lift=True` failed systematically on host GPU.
+2. **Corridor (maze) pre-filter** — accepted-leg FK sphere clouds retained;
+   candidates that intersect any prior corridor are non-counting geometric
+   rejects (`GeometricRejectCounts.corridor`). Host wires
+   `waypoint_spheres_fn` via cuRobo `compute_kinematics`.
+3. **Candidate failure records** —
+   `incremental_episodes[*].candidate_failures` with category/reason/
+   planner status/timing/streak; populate FAIL lines render
+   `(category: reason)`.
+4. **Playback** — incremental mode accepts mid-trajectory tip evidence
+   (PhysX or geometric face reach) because legs end retreated.
+5. **Config / validation** — `retreat_distance_m` on suite config and
+   example YAML; `validate_retreat_segment` for joint limits + world
+   clearance on the retract path (active cube excluded).
+6. **Tests** — remediation unit coverage; `./scripts/run_verification.sh
+   ci` → **272 passed**, Ruff clean.
+
 ## 2026-08-02 — Phase 7.5 reopened: `n1-1-1` defect diagnosed, remediation specified (docs only)
 
 Branch `wip_phase7_5`. Documentation-only change set; no code modified.

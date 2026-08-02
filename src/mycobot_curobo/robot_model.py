@@ -13,6 +13,7 @@ the pinned source revision and assumptions.
 from __future__ import annotations
 
 import copy
+import functools
 import math
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -247,14 +248,19 @@ def _resolve_overlay_path(config_path: Path, relative_path: str) -> Path:
     return primary
 
 
-def _parse_urdf(
-    urdf_path: Path, base_link: str, flange_link: str
+@functools.lru_cache(maxsize=8)
+def _parse_urdf_cached(
+    urdf_path: str, base_link: str, flange_link: str, mtime_ns: int
 ) -> tuple[tuple[_UrdfJoint, ...], JointLimits]:
-    if not urdf_path.is_file():
+    """Parse and cache the serial chain; ``mtime_ns`` invalidates on file change."""
+
+    del mtime_ns  # cache key only
+    path = Path(urdf_path)
+    if not path.is_file():
         raise ConfigurationError(
-            f"vendor URDF not found: {urdf_path}; run scripts/download_mycobot_ros2.sh"
+            f"vendor URDF not found: {path}; run scripts/download_mycobot_ros2.sh"
         )
-    root = ET.parse(urdf_path).getroot()
+    root = ET.parse(path).getroot()
     joints_by_parent: dict[str, list[ET.Element]] = {}
     for element in root.findall("joint"):
         parent = element.find("parent")
@@ -318,6 +324,17 @@ def _parse_urdf(
         acceleration_rad_s2=np.empty(0),
         jerk_rad_s3=np.empty(0),
     )
+
+
+def _parse_urdf(
+    urdf_path: Path, base_link: str, flange_link: str
+) -> tuple[tuple[_UrdfJoint, ...], JointLimits]:
+    path = Path(urdf_path)
+    if not path.is_file():
+        raise ConfigurationError(
+            f"vendor URDF not found: {path}; run scripts/download_mycobot_ros2.sh"
+        )
+    return _parse_urdf_cached(str(path.resolve()), base_link, flange_link, path.stat().st_mtime_ns)
 
 
 def _expand_limit(value: object, label: str) -> np.ndarray:
@@ -494,12 +511,19 @@ def apply_collision_sphere_overlay(kinematics: dict[str, Any], config_path: Path
     return overlay_edge
 
 
-def load_robot_model_spec(
-    config_path: Path | str = Path("config/robots/mycobot_280_m5.yml"),
-) -> RobotModelSpec:
-    """Load and independently validate the Phase 1 robot configuration."""
+def clear_robot_model_caches() -> None:
+    """Drop cached robot specs / URDF parses (tests that rewrite files on disk)."""
 
-    path = Path(config_path).resolve()
+    _parse_urdf_cached.cache_clear()
+    _load_robot_model_spec_cached.cache_clear()
+
+
+@functools.lru_cache(maxsize=8)
+def _load_robot_model_spec_cached(config_path: str, mtime_ns: int) -> RobotModelSpec:
+    """Cached loader; ``mtime_ns`` invalidates when the YAML changes on disk."""
+
+    del mtime_ns  # cache key only
+    path = Path(config_path)
     payload = _load_yaml_mapping(path)
     try:
         kinematics = payload["robot_cfg"]["kinematics"]
@@ -573,6 +597,17 @@ def load_robot_model_spec(
         limits=limits,
         min_detectable_obstacle_edge_m=detectable_edge_m,
     )
+
+
+def load_robot_model_spec(
+    config_path: Path | str = Path("config/robots/mycobot_280_m5.yml"),
+) -> RobotModelSpec:
+    """Load and independently validate the Phase 1 robot configuration."""
+
+    path = Path(config_path).resolve()
+    if not path.is_file():
+        raise ConfigurationError(f"robot config not found: {path}")
+    return _load_robot_model_spec_cached(str(path), path.stat().st_mtime_ns)
 
 
 # Project-owned kinematics keys that must not be forwarded to cuRobo

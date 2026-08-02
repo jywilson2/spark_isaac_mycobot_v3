@@ -12,6 +12,8 @@ import numpy as np
 
 from mycobot_curobo.cube_scene import (
     CubeGeometry,
+    batch_sphere_cube_clearance_m,
+    candidate_clears_recorded_corridors,
     cubes_to_curobo_scene_dict,
     multi_cube_scene_revision,
 )
@@ -49,12 +51,28 @@ from mycobot_curobo.target_placement import (
 )
 from mycobot_curobo.validation import ValidatedPlan
 
+# Optional FK sphere callback: joint positions [N,6] -> spheres [N,S,4].
+WaypointSpheresFn = Callable[[np.ndarray], np.ndarray]
+
 
 class PopulationStopReason(str, Enum):
     CONSECUTIVE_FAILURES = "consecutive_failures"
     TOTAL_FAILURES = "total_failures"
     GEOMETRIC_FULL = "geometric_full"
     MAX_TARGETS = "max_targets"
+
+
+@dataclass(frozen=True)
+class CandidateFailureRecord:
+    """One planner-verified candidate failure persisted in suite extras."""
+
+    candidate_serial: int
+    center_m: tuple[float, float, float]
+    failure_category: str
+    failure_reason: str
+    planner_status: str
+    plan_duration_s: float
+    streak_after: int
 
 
 @dataclass
@@ -73,6 +91,7 @@ class IncrementalEpisodeExtras:
     z_band_hi_m: float
     delta_z_m: float
     wall_duration_s: float
+    candidate_failures: tuple[CandidateFailureRecord, ...] = ()
 
 
 @dataclass
@@ -165,10 +184,31 @@ def format_populate_begin(
     config: MultiTargetSuiteConfig,
 ) -> str:
     fragment, _, _, _ = format_z_dist_header(config)
+    consecutive = config.max_consecutive_target_failures
+    consecutive_text = "off" if consecutive <= 0 else str(consecutive)
+    total = config.max_total_target_failures
+    total_text = "off" if total <= 0 else str(total)
     return (
         f"phase7_5_populate: ep {episode_index + 1}/{episode_count} BEGIN | "
-        f"{fragment} | threshold {config.max_consecutive_target_failures}"
+        f"{fragment} | primary_stop geometric_full | "
+        f"secondary consecutive={consecutive_text} total_fails={total_text}"
     )
+
+
+def format_failure_annotation(
+    *,
+    failure_category: str | None,
+    failure_reason: str | None,
+) -> str:
+    """Render ``(category)`` or ``(category: first_reason)`` for populate FAIL lines."""
+
+    category = (failure_category or "plan_failed").strip() or "plan_failed"
+    reason = (failure_reason or "").strip()
+    if reason and reason != category:
+        # Prefer the first semicolon-delimited reason fragment when present.
+        first_reason = reason.split(";", 1)[0].strip()
+        return f"{category}: {first_reason}" if first_reason else category
+    return category
 
 
 def format_populate_candidate(
@@ -183,17 +223,24 @@ def format_populate_candidate(
     failure_reason: str | None,
     streak: int,
     threshold: int,
+    failure_category: str | None = None,
 ) -> str:
     radial = math.hypot(float(center_m[0]), float(center_m[1]))
-    status = (
-        f"plan OK {plan_duration_s:.1f}s"
-        if plan_ok
-        else f"plan FAIL {plan_duration_s:.1f}s ({failure_reason or 'plan_failed'})"
-    )
-    streak_text = f"streak {streak}/{threshold}"
-    if streak > 0:
-        remaining = max(0, threshold - streak)
-        streak_text += f" — {remaining} more failures end episode"
+    if plan_ok:
+        status = f"plan OK {plan_duration_s:.1f}s"
+    else:
+        annotation = format_failure_annotation(
+            failure_category=failure_category,
+            failure_reason=failure_reason,
+        )
+        status = f"plan FAIL {plan_duration_s:.1f}s ({annotation})"
+    if threshold <= 0:
+        streak_text = f"streak {streak} (consecutive stop off)"
+    else:
+        streak_text = f"streak {streak}/{threshold}"
+        if streak > 0:
+            remaining = max(0, threshold - streak)
+            streak_text += f" — {remaining} more consecutive failures end episode"
     return (
         f"phase7_5_populate: ep {episode_index + 1}/{episode_count} | "
         f"accepted {accepted} | cand {candidate_index} "
@@ -216,6 +263,7 @@ def format_sampling_line(
         f"rim {rejects.rim}"
         + (f", reach {rejects.reach}" if rejects.reach else "")
         + (f", aabb {rejects.aabb}" if rejects.aabb else "")
+        + (f", corridor {rejects.corridor}" if rejects.corridor else "")
         + f") | planned {planned}"
     )
 
@@ -228,29 +276,24 @@ def format_episode_done(
     extras: IncrementalEpisodeExtras,
     min_targets: int,
     succeeded: bool,
+    consecutive_threshold: int = 0,
 ) -> str:
     mean, std = sample_mean_std(extras.accepted_plan_durations_s)
     stop = extras.stop_reason.value
     if extras.stop_reason is PopulationStopReason.CONSECUTIVE_FAILURES:
-        stop = (
-            f"consecutive_failures "
-            f"{extras.consecutive_failures_at_stop}/"
-            f"{extras.consecutive_failures_at_stop}"
-        )
-        # Render k/K using threshold from consecutive_failures_at_stop when equal.
+        threshold = max(int(consecutive_threshold), int(extras.consecutive_failures_at_stop))
+        stop = f"consecutive_failures {extras.consecutive_failures_at_stop}/{threshold}"
+    elif extras.stop_reason is PopulationStopReason.TOTAL_FAILURES:
+        stop = f"total_failures {extras.total_target_failures}"
     z_lo = extras.z_band_lo_m
     z_hi = extras.z_band_hi_m
-    if extras.accepted_plan_durations_s:
-        # Prefer accepted target Z range when available via durations length alone;
-        # caller may overwrite via extras z bounds of the band. Spec wants accepted Z.
-        pass
     verdict = "PASS" if succeeded else "FAIL"
     return (
         f"phase7_5_episode: ep {episode_index + 1}/{episode_count} DONE | "
-        f"accepted {accepted} | stop {stop} | "
-        f"fails {extras.total_target_failures} total | "
+        f"tip_contacts {accepted} | populate_s {extras.wall_duration_s:.1f} | "
+        f"stop {stop} | fails {extras.total_target_failures} total | "
         f"z {z_lo:.3f}–{z_hi:.3f} | {_format_mu_sigma(mean, std)} | "
-        f"wall {extras.wall_duration_s:.0f}s | min {min_targets}: {verdict}"
+        f"min {min_targets}: {verdict}"
     )
 
 
@@ -261,7 +304,15 @@ def format_suite_table(
     artifact_base_name: str,
 ) -> str:
     rows: list[tuple[str, ...]] = [
-        ("ep", "accepted", "stop", "fails", "plan_mu", "plan_sigma", "wall_s")
+        (
+            "ep",
+            "tip_contacts",
+            "populate_s",
+            "stop",
+            "fails",
+            "plan_mu",
+            "plan_sigma",
+        )
     ]
     all_plan: list[float] = []
     total_accepted = 0
@@ -273,11 +324,11 @@ def format_suite_table(
             (
                 str(result.episode.episode_index + 1),
                 str(len(result.contacted_ids)),
+                f"{extra.wall_duration_s:.1f}",
                 extra.stop_reason.value,
                 str(extra.total_target_failures),
                 "n/a" if mean is None else f"{mean:.1f}",
                 "n/a" if std is None else f"{std:.1f}",
-                f"{extra.wall_duration_s:.0f}",
             )
         )
     suite_mean, suite_std = sample_mean_std(all_plan)
@@ -285,11 +336,11 @@ def format_suite_table(
         (
             "total",
             str(total_accepted),
+            f"{sum(extra.wall_duration_s for extra in extras):.1f}",
             "",
             str(sum(extra.total_target_failures for extra in extras)),
             "n/a" if suite_mean is None else f"{suite_mean:.1f}",
             "n/a" if suite_std is None else f"{suite_std:.1f}",
-            f"{sum(extra.wall_duration_s for extra in extras):.0f}",
         )
     )
     widths = [max(len(row[col]) for row in rows) for col in range(len(rows[0]))]
@@ -342,12 +393,14 @@ def format_replay_done(
     target_count: int,
     contacted: int,
     plan_durations_s: Sequence[float],
+    populate_duration_s: float | None = None,
 ) -> str:
     mean, std = sample_mean_std(plan_durations_s)
+    populate_text = "n/a" if populate_duration_s is None else f"{float(populate_duration_s):.1f}"
     return (
         f"phase7_5_replay: ep {episode_index + 1}/{episode_count} DONE | "
-        f"targets {target_count} contacted {contacted} | "
-        f"{_format_mu_sigma(mean, std)} (recorded)"
+        f"tip_contacts {contacted} | populate_s {populate_text} | "
+        f"targets {target_count} | {_format_mu_sigma(mean, std)} (recorded)"
     )
 
 
@@ -367,6 +420,8 @@ class _PopulationState:
     current_joints: tuple[float, ...] = ()
     from_id: str = "start"
     candidate_serial: int = 0
+    corridor_spheres: list[np.ndarray] = field(default_factory=list)
+    candidate_failures: list[CandidateFailureRecord] = field(default_factory=list)
 
 
 class IncrementalPopulationRunner:
@@ -385,6 +440,7 @@ class IncrementalPopulationRunner:
         warn_planning_duration_s: float | None = None,
         console_log: Callable[[str], None] | None = None,
         apply_reach_prefilter: bool = True,
+        waypoint_spheres_fn: WaypointSpheresFn | None = None,
     ) -> None:
         self._planner_factory = planner_factory
         self._validator = validator
@@ -393,6 +449,7 @@ class IncrementalPopulationRunner:
         self._warn_planning_duration_s = warn_planning_duration_s
         self._console_log = print if console_log is None else console_log
         self._apply_reach_prefilter = apply_reach_prefilter
+        self._waypoint_spheres_fn = waypoint_spheres_fn
 
     def run_suite(
         self,
@@ -494,7 +551,12 @@ class IncrementalPopulationRunner:
             ):
                 stop_reason = PopulationStopReason.MAX_TARGETS
                 break
-            if state.consecutive_failures >= config.max_consecutive_target_failures:
+            # Secondary timeouts only (0 = disabled). Primary stop is geometric
+            # fullness when a legal candidate cannot be drawn.
+            if (
+                config.max_consecutive_target_failures > 0
+                and state.consecutive_failures >= config.max_consecutive_target_failures
+            ):
                 stop_reason = PopulationStopReason.CONSECUTIVE_FAILURES
                 break
             if (
@@ -530,6 +592,15 @@ class IncrementalPopulationRunner:
                     apply_reach_prefilter=self._apply_reach_prefilter,
                     reject_counts=state.geometric_rejects,
                 )
+                if center is not None and state.corridor_spheres:
+                    if not candidate_clears_recorded_corridors(
+                        center,
+                        config.target_edge_m,
+                        state.corridor_spheres,
+                        minimum_clearance_m=config.minimum_world_collision_clearance_m,
+                    ):
+                        state.geometric_rejects.corridor += 1
+                        center = None
                 if state.draws - last_sampling_emit_draws >= 25:
                     self._console_log(
                         format_sampling_line(
@@ -557,6 +628,8 @@ class IncrementalPopulationRunner:
                 pre_approach_distance_m=config.pre_approach_distance_m,
             )
             accepted_before = len(state.accepted)
+            if state.accepted:
+                self._verify_retreated_start_clearance(config=config, state=state)
             leg, plan = self._plan_candidate(
                 config=config,
                 episode_index=episode_index,
@@ -573,6 +646,7 @@ class IncrementalPopulationRunner:
                 and leg.contact_kind is ContactKind.ALLOWED_TIP_CONTACT
             )
             plan_s = 0.0 if leg.planning_duration_s is None else float(leg.planning_duration_s)
+            failure_category_text: str | None = None
             if plan_ok:
                 if plan is not None and self._plan_sink is not None:
                     self._plan_sink(plan)
@@ -586,26 +660,52 @@ class IncrementalPopulationRunner:
                 if leg.final_joint_position_rad is not None:
                     state.current_joints = leg.final_joint_position_rad
                 state.from_id = candidate_id
+                if plan is not None and self._waypoint_spheres_fn is not None:
+                    state.corridor_spheres.append(
+                        np.asarray(
+                            self._waypoint_spheres_fn(plan.combined_trajectory.position_rad),
+                            dtype=float,
+                        )
+                    )
                 failure_reason = None
             else:
                 state.consecutive_failures += 1
                 state.total_target_failures += 1
                 state.failed_plan_durations_s.append(plan_s)
+                failure_category_text = (
+                    leg.failure_category.value
+                    if leg.failure_category is not None
+                    else "plan_failed"
+                )
                 failure_reason = leg.failure_reason
-                if not failure_reason and leg.failure_category is not None:
-                    failure_reason = leg.failure_category.value
                 if not failure_reason:
-                    failure_reason = "plan_failed"
+                    failure_reason = failure_category_text
+                state.candidate_failures.append(
+                    CandidateFailureRecord(
+                        candidate_serial=state.candidate_serial,
+                        center_m=(
+                            float(center[0]),
+                            float(center[1]),
+                            float(center[2]),
+                        ),
+                        failure_category=failure_category_text,
+                        failure_reason=str(failure_reason),
+                        planner_status=str(leg.planner_status or ""),
+                        plan_duration_s=plan_s,
+                        streak_after=state.consecutive_failures,
+                    )
+                )
             self._console_log(
                 format_populate_candidate(
                     episode_index=episode_index,
                     episode_count=episode_count,
-                    accepted=accepted_before if not plan_ok else accepted_before,
+                    accepted=accepted_before,
                     candidate_index=state.candidate_serial,
                     center_m=center,
                     plan_ok=plan_ok,
                     plan_duration_s=plan_s,
                     failure_reason=failure_reason,
+                    failure_category=failure_category_text,
                     streak=state.consecutive_failures,
                     threshold=config.max_consecutive_target_failures,
                 )
@@ -618,9 +718,12 @@ class IncrementalPopulationRunner:
             # so accepted is pre-decision count. Good as written.
             if leg.failure_category is MultiTargetFailureCategory.BODY_CONTACT:
                 # Body contact during optimistic planning is unexpected; fail episode.
-                stop_reason = PopulationStopReason.CONSECUTIVE_FAILURES
+                stop_reason = PopulationStopReason.TOTAL_FAILURES
                 break
-            if state.consecutive_failures >= config.max_consecutive_target_failures:
+            if (
+                config.max_consecutive_target_failures > 0
+                and state.consecutive_failures >= config.max_consecutive_target_failures
+            ):
                 stop_reason = PopulationStopReason.CONSECUTIVE_FAILURES
                 break
             if (
@@ -637,7 +740,8 @@ class IncrementalPopulationRunner:
                 break
 
         if stop_reason is None:
-            stop_reason = PopulationStopReason.CONSECUTIVE_FAILURES
+            # Prefer geometric_full when the draw loop exhausted placement attempts.
+            stop_reason = PopulationStopReason.GEOMETRIC_FULL
 
         self._console_log(
             format_sampling_line(
@@ -666,6 +770,7 @@ class IncrementalPopulationRunner:
             z_band_hi_m=z_hi,
             delta_z_m=width,
             wall_duration_s=wall,
+            candidate_failures=tuple(state.candidate_failures),
         )
         field = TargetField(
             targets=tuple(state.accepted),
@@ -708,23 +813,20 @@ class IncrementalPopulationRunner:
                 f"accepted {len(state.accepted)} < min_targets_per_episode="
                 f"{config.min_targets_per_episode}"
             )
-        # Fix consecutive_failures display in DONE line to use threshold.
-        if stop_reason is PopulationStopReason.CONSECUTIVE_FAILURES:
-            stop_display = (
-                f"consecutive_failures "
-                f"{min(state.consecutive_failures, config.max_consecutive_target_failures)}/"
-                f"{config.max_consecutive_target_failures}"
-            )
-        else:
-            stop_display = stop_reason.value
-        mean, std = sample_mean_std(extras.accepted_plan_durations_s)
         self._console_log(
-            f"phase7_5_episode: ep {episode_index + 1}/{episode_count} DONE | "
-            f"accepted {len(state.accepted)} | stop {stop_display} | "
-            f"fails {extras.total_target_failures} total | "
-            f"z {z_lo:.3f}–{z_hi:.3f} | {_format_mu_sigma(mean, std)} | "
-            f"wall {wall:.0f}s | min {config.min_targets_per_episode}: "
-            f"{'PASS' if succeeded else 'FAIL'}"
+            format_episode_done(
+                episode_index=episode_index,
+                episode_count=episode_count,
+                accepted=len(state.accepted),
+                extras=extras,
+                min_targets=config.min_targets_per_episode,
+                succeeded=succeeded,
+                consecutive_threshold=config.max_consecutive_target_failures,
+            )
+        )
+        self._console_log(
+            f"phase7_5_episode_metrics: ep {episode_index + 1}/{episode_count} | "
+            f"tip_contacts {len(state.accepted)} | populate_s {wall:.1f}"
         )
         result = MultiTargetEpisodeResult(
             episode=episode,
@@ -748,6 +850,39 @@ class IncrementalPopulationRunner:
             planned_target_ids=tuple(state.planned_target_ids),
         )
         return result, extras
+
+    def _verify_retreated_start_clearance(
+        self,
+        *,
+        config: MultiTargetSuiteConfig,
+        state: _PopulationState,
+    ) -> None:
+        """Fail closed when the retreated start pose intersects retained cubes."""
+
+        if self._waypoint_spheres_fn is None:
+            return
+        spheres = np.asarray(
+            self._waypoint_spheres_fn(
+                np.asarray(state.current_joints, dtype=float).reshape(1, -1)
+            ),
+            dtype=float,
+        )
+        if spheres.ndim != 3 or spheres.shape[0] != 1:
+            raise ConfigurationError(
+                "waypoint_spheres_fn must return shape [1, sphere, 4] for start clearance"
+            )
+        for target in state.accepted:
+            clearance = float(
+                batch_sphere_cube_clearance_m(spheres, target.center_m, target.edge_m)[0]
+            )
+            if clearance < config.minimum_world_collision_clearance_m:
+                raise ConfigurationError(
+                    "retreated start state clears retained cube "
+                    f"{target.target_id!r} by {clearance:.4f} m < "
+                    f"minimum_world_collision_clearance_m="
+                    f"{config.minimum_world_collision_clearance_m}; "
+                    "increase retreat_distance_m"
+                )
 
     def _plan_candidate(
         self,
@@ -788,6 +923,7 @@ class IncrementalPopulationRunner:
         from_id = state.from_id
         to_id = candidate.target_id
         geometries = field.active_geometries()
+        # Incremental mode forbids exclude_names: retained cubes stay in-world.
         planning_geometries = leg_world_geometries(
             geometries, active_contact_name=candidate.cube_geometry.name
         )
@@ -805,6 +941,8 @@ class IncrementalPopulationRunner:
             random_seed=episode_seed + state.planned_candidates,
             request_id=request_id,
             disable_collision_links=(),
+            plan_grasp_to_lift=True,
+            retreat_distance_m=float(config.retreat_distance_m),
         )
         plan_started = time.perf_counter()
         try:

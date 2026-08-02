@@ -20,6 +20,7 @@ from mycobot_curobo.errors import ConfigurationError
 from mycobot_curobo.frames import TaskFrameConfig, build_task_frame_candidates
 from mycobot_curobo.planner import NominalPlan, PlanningRequest
 from mycobot_curobo.robot_model import JOINT_NAMES, RobotModelSpec
+from mycobot_curobo.trajectory import JointTrajectory
 
 _AXIS_INDEX = {"x": 0, "y": 1, "z": 2}
 
@@ -673,3 +674,129 @@ def validate_nominal_plan(
         validation_status="valid" if report.valid else "invalid",
         executable=report.valid,
     )
+
+
+def validate_retreat_segment(
+    retreat: JointTrajectory,
+    *,
+    request_id: str,
+    profile: ValidationProfile,
+    evaluator: TrajectoryEvaluator,
+    robot_spec: RobotModelSpec,
+    contact_terminal: JointTrajectory,
+) -> tuple[ValidationViolation, ...]:
+    """Validate the post-contact retreat for joint limits and world clearance.
+
+    Phase 4 approach-corridor contracts apply only to the contact terminal
+    segment. The retreat must stay continuous with that contact waypoint and
+    satisfy joint-limit / self / world clearance (active cube already excluded
+    from the evaluator's world).
+    """
+
+    violations: list[ValidationViolation] = []
+    if retreat.joint_names != JOINT_NAMES:
+        raise ConfigurationError("retreat trajectory joint order is invalid")
+    if retreat.sample_count < 2:
+        violations.append(
+            ValidationViolation(
+                "sample_count",
+                0,
+                float(retreat.sample_count),
+                2.0,
+                "retreat needs at least two samples",
+            )
+        )
+        return tuple(violations)
+    boundary_error = float(
+        np.max(np.abs(contact_terminal.position_rad[-1] - retreat.position_rad[0]))
+    )
+    if boundary_error > profile.boundary_position_tolerance_rad:
+        violations.append(
+            ValidationViolation(
+                "boundary_position",
+                0,
+                boundary_error,
+                profile.boundary_position_tolerance_rad,
+                "contact and retreat segments are discontinuous",
+            )
+        )
+    lower_margin = retreat.position_rad - robot_spec.limits.lower_rad
+    upper_margin = robot_spec.limits.upper_rad - retreat.position_rad
+    joint_margin = np.minimum(lower_margin, upper_margin)
+    margin_indices = np.argwhere(joint_margin < profile.minimum_joint_limit_margin_rad)
+    if margin_indices.size:
+        waypoint, joint = (int(value) for value in margin_indices[0])
+        violations.append(
+            ValidationViolation(
+                "joint_position_margin",
+                waypoint,
+                float(joint_margin[waypoint, joint]),
+                profile.minimum_joint_limit_margin_rad,
+                "retreat violates joint limit margin",
+            )
+        )
+    try:
+        geometry = evaluator.evaluate(retreat.position_rad)
+    except (RuntimeError, ValueError, ConfigurationError) as exc:
+        violations.append(
+            ValidationViolation(
+                "kinematics_collision",
+                0,
+                None,
+                None,
+                f"retreat evaluation failed: {exc}",
+            )
+        )
+        return tuple(violations)
+    if geometry.self_collision_clearance_m.shape != (retreat.sample_count,):
+        violations.append(
+            ValidationViolation(
+                "kinematics_shape",
+                0,
+                None,
+                None,
+                "retreat evaluator returned invalid self-clearance shape",
+            )
+        )
+        return tuple(violations)
+    self_indices = np.flatnonzero(
+        geometry.self_collision_clearance_m < profile.minimum_self_collision_clearance_m
+    )
+    if self_indices.size:
+        index = int(self_indices[0])
+        violations.append(
+            ValidationViolation(
+                "self_collision_clearance",
+                index,
+                float(geometry.self_collision_clearance_m[index]),
+                profile.minimum_self_collision_clearance_m,
+                "retreat self-collision clearance is insufficient",
+            )
+        )
+    if not geometry.world_collision_evaluated or geometry.world_collision_clearance_m is None:
+        violations.append(
+            ValidationViolation(
+                "world_collision_clearance",
+                0,
+                None,
+                profile.minimum_world_collision_clearance_m,
+                "retreat world collision metric is unevaluated",
+            )
+        )
+    else:
+        world_indices = np.flatnonzero(
+            geometry.world_collision_clearance_m < profile.minimum_world_collision_clearance_m
+        )
+        if world_indices.size:
+            index = int(world_indices[0])
+            violations.append(
+                ValidationViolation(
+                    "world_collision_clearance",
+                    index,
+                    float(geometry.world_collision_clearance_m[index]),
+                    profile.minimum_world_collision_clearance_m,
+                    "retreat world-collision clearance is insufficient",
+                )
+            )
+    del request_id
+    return tuple(violations)

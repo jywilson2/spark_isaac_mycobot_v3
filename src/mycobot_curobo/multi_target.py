@@ -314,10 +314,16 @@ class MultiTargetSuiteConfig:
     max_field_regenerations: int = 3
     # Phase 7.5: fixed (default) vs incremental population.
     target_population: TargetPopulation = TargetPopulation.FIXED
-    max_consecutive_target_failures: int = 5
-    max_total_target_failures: int = 0
+    # Incremental stop budgets: 0 disables that stopper. Defaults favour packing
+    # until geometric fullness, with total plan-failures as the secondary timeout.
+    max_consecutive_target_failures: int = 0
+    max_total_target_failures: int = 25
     max_targets_per_episode: int = 0
     min_targets_per_episode: int = 1
+    # Post-contact retreat along the outward normal (incremental mode).
+    # Host GPU: 0.02 m / 0.05 m still left Option B sphere penetration on some
+    # accepts; 0.10 m is the current fail-closed-safe default.
+    retreat_distance_m: float = 0.10
 
 
 def _tuple3(value: Any, label: str) -> tuple[float, float, float]:
@@ -416,13 +422,22 @@ def load_multi_target_suite_config(
         require_tip_ik = False
         max_reach_rejections = None
         max_ik_rejections = None
-        max_consecutive_target_failures = _positive_int(
-            payload.get("max_consecutive_target_failures", 5),
+        # 0 disables consecutive-plan stop (primary stop is geometric fullness).
+        max_consecutive_target_failures = _non_negative_int(
+            payload.get("max_consecutive_target_failures", 0),
             "max_consecutive_target_failures",
         )
+        # Secondary timeout when packing cannot reach geometric fullness.
         max_total_target_failures = _non_negative_int(
-            payload.get("max_total_target_failures", 0), "max_total_target_failures"
+            payload.get("max_total_target_failures", 25), "max_total_target_failures"
         )
+        if max_consecutive_target_failures == 0 and max_total_target_failures == 0:
+            raise ConfigurationError(
+                "incremental mode requires at least one plan-failure timeout: "
+                "set max_total_target_failures > 0 and/or "
+                "max_consecutive_target_failures > 0 "
+                "(primary stop remains geometric fullness)"
+            )
         max_targets_per_episode = _non_negative_int(
             payload.get("max_targets_per_episode", 0), "max_targets_per_episode"
         )
@@ -433,6 +448,10 @@ def load_multi_target_suite_config(
             raise ConfigurationError(
                 "max_targets_per_episode must be 0 (disabled) or >= min_targets_per_episode"
             )
+        retreat_raw = payload.get("retreat_distance_m", 0.10)
+        retreat_distance_m = float(retreat_raw)
+        if not math.isfinite(retreat_distance_m) or retreat_distance_m <= 0.0:
+            raise ConfigurationError("retreat_distance_m must be positive and finite")
     else:
         placement = PlacementPolicy(str(payload["placement"]))
         order = OrderPolicy(str(payload["order"]))
@@ -466,6 +485,7 @@ def load_multi_target_suite_config(
         max_total_target_failures = 0
         max_targets_per_episode = 0
         min_targets_per_episode = 1
+        retreat_distance_m = 0.10
     episode_count = _positive_int(payload["episode_count"], "episode_count")
     max_failed_episodes = _non_negative_int(
         payload.get("max_failed_episodes", 0), "max_failed_episodes"
@@ -697,6 +717,7 @@ def load_multi_target_suite_config(
         max_total_target_failures=max_total_target_failures,
         max_targets_per_episode=max_targets_per_episode,
         min_targets_per_episode=min_targets_per_episode,
+        retreat_distance_m=retreat_distance_m,
     )
 
 

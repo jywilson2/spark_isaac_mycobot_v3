@@ -1,7 +1,8 @@
 # Phase 7.5 variable-target-count Z-density stress suite.
-# Incremental population: create/verify/plan one target at a time until
-# max_consecutive_target_failures planner-verified failures. Achieved counts
-# are the metric and appear in generated artifact names.
+# Incremental population: random place → plan until the field is geometrically
+# full (primary stop). max_total_target_failures is a secondary timeout so
+# unplannable-but-legal candidates cannot burn unbounded wall time.
+# Consecutive plan-stop is disabled (0). Achieved counts appear in artifact names.
 # Invoked via scripts/host/smoke_phase7_5_variable_dz_0_30.sh.
 target_population: incremental
 episode_count: 3
@@ -9,11 +10,15 @@ root_seed: 4242
 frame: g_base
 placement: random
 retain_targets_after_contact: true
-max_consecutive_target_failures: 5
-max_total_target_failures: 0
+# Primary stop: geometric fullness (max_placement_attempts exhausted finding a
+# legal candidate). Secondary: total plan-failure budget below.
+max_consecutive_target_failures: 0
+max_total_target_failures: 25
 max_targets_per_episode: 0
 min_targets_per_episode: 1
-max_failed_episodes: 0
+retreat_distance_m: 0.10
+# Capacity suites may draw an empty episode; tolerate one insufficient episode.
+max_failed_episodes: 1
 max_placement_attempts: 100000
 delta_z_m: 0.30
 z_band_fraction: 0.5

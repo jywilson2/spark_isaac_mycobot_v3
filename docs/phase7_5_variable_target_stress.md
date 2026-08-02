@@ -1,10 +1,8 @@
 # Phase 7.5 — Variable-target-count Z-density stress suite
 
-**Status:** Reopened (2026-08-02) — first-smoke defect diagnosed;
-remediation specified (post-contact retreat, retained-obstacle and
-in-order navigability invariants, candidate failure records);
-implementation pending on this branch. See
-[Defect: only the first target plans](#defect-only-the-first-target-plans-2026-08-02).
+**Status:** **COMPLETE** (2026-08-02) — remediation + geometric-full
+primary stop host-re-evidenced (`n6-4-11`, tip=21, body=0; GUI deferred).
+See [Defect: only the first target plans](#defect-only-the-first-target-plans-2026-08-02).
 **Branch:** `wip_phase7_5`.
 Normative rules: [`spec.md`](../spec.md) §8 Phase 7.5.
 
@@ -49,29 +47,33 @@ is demoted to cheap advisory pre-filtering.
 | Key | Default | Meaning |
 |-----|---------|---------|
 | `target_population: incremental` | `fixed` | Selects this suite type; `fixed` keeps Phase 7.2–7.4 behaviour. |
-| `max_consecutive_target_failures` | `5` | Consecutive planner-verified failures that stop population. |
-| `max_total_target_failures` | `0` (off) | Optional absolute per-episode failure cap. |
+| `max_consecutive_target_failures` | `0` (off) | Optional consecutive plan-failure streak; secondary timeout only. |
+| `max_total_target_failures` | `25` | Secondary absolute plan-failure budget (timeout). |
 | `max_targets_per_episode` | `0` (off) | Optional acceptance cap. |
 | `min_targets_per_episode` | `1` | Acceptance floor; fewer accepted targets ⇒ `insufficient_targets` episode failure. |
-| `retreat_distance_m` | `0.02` | Post-contact retreat along the outward normal (`plan_grasp` retract segment); next leg starts from the retreated state. |
+| `max_failed_episodes` | `1` (example YAML) | Suite budget; capacity suites may draw one empty episode. Core default remains `0`. |
+| `retreat_distance_m` | `0.10` | Post-contact retreat along the outward normal (second `plan_grasp` from contact); next leg starts from the retreated state. |
 
-Default threshold rationale: a failing high-effort attempt costs ~22 s, so
-the stop tail is ≤ ~2 min; if marginal feasibility were still ≥ 50%, five
-consecutive failures occur with probability ≤ 3%.
+**Stop policy:** primary stop is **geometric fullness** (random placement
+keeps packing until separation/keep-out/corridor/reach cannot yield a
+legal candidate). Plan-failure budgets are secondary timeouts so
+unplannable-but-legal draws cannot run forever. Per-episode logs/reports
+emit `tip_contacts` and `populate_s`.
 
 Loop per episode: sample candidate (XY in field, Z from the designated
 Z-density) → geometric pre-filters (non-counting, bounded by
-`max_placement_attempts`; exhaustion = geometrically full, a normal stop),
-including the corridor clearance check against all recorded leg corridors →
-**one** plan attempt from the arm's current (retreated) pose against all
-previously accepted cubes → accept (arm advances to the retreated terminal
-state, cube retained as a permanent obstacle) or count one failure with a
-persisted failure record (arm stays). `retain_targets_after_contact: true`
-is mandatory and targets are **never removed**: retained cubes are
-obstacles in every later plan, which is the density stress being measured.
-No deferral, reconsider, per-target retries, tip-IK screen, or field
-regeneration in this mode; the incremental oracle makes them redundant.
-Forbidden keys fail closed — see the spec table.
+`max_placement_attempts`; exhaustion = geometrically full, the primary
+stop), including the corridor clearance check against all recorded leg
+corridors → **one** plan attempt from the arm's current (retreated) pose
+against all previously accepted cubes → accept (arm advances to the
+retreated terminal state, cube retained as a permanent obstacle) or count
+one failure with a persisted failure record (arm stays).
+`retain_targets_after_contact: true` is mandatory and targets are **never
+removed**: retained cubes are obstacles in every later plan, which is the
+density stress being measured. No deferral, reconsider, per-target
+retries, tip-IK screen, or field regeneration in this mode; the
+incremental oracle makes them redundant. Forbidden keys fail closed —
+see the spec table.
 
 ### The maze framing
 
@@ -204,18 +206,21 @@ survived into the artifacts; the diagnosis required correlating timings.
 The console log (`/tmp/phase7_5_headless_smoke.log`) had the per-candidate
 lines but was transient.
 
-### Remediation (specified 2026-08-02, implementation pending)
+### Remediation (implemented 2026-08-02)
 
-1. **Post-contact retreat** — accepted legs continue through the pinned
-   `plan_grasp` retract segment (`plan_grasp_to_lift=True`), withdrawing
-   `retreat_distance_m` (default 0.02 m) along the target's outward
-   normal; the arm state advances to the retreated terminal
-   configuration. The runner FK-verifies before each post-acceptance plan
-   attempt that the start state clears the whole world by ≥
-   `minimum_world_collision_clearance_m`, failing closed otherwise.
-   Targets remain retained forever; excluding the previous cube from the
-   planning world is forbidden. Fixed-mode (7.2–7.4) legs keep
-   `plan_grasp_to_lift=False`.
+1. **Post-contact retreat** — accepted legs are planned in two fresh
+   `plan_grasp` calls: (a) approach+linear contact with
+   `plan_grasp_to_lift=False`, then (b) from the contact joint state, a
+   second `plan_grasp` with `plan_approach_to_grasp=False` and
+   `grasp_approach_offset` = signed `retreat_distance_m` (default **0.10 m**)
+   so the tip withdraws to the offset pose along the tool approach axis /
+   outward normal. Host smoke showed one-shot `plan_grasp_to_lift=True`
+   reaching grasp then failing the linear lift segment systematically;
+   0.02 m / 0.05 m retreat left Option B sphere penetration on some
+   accepts. The arm advances to the retreated terminal configuration;
+   start clearance is FK-verified before each post-acceptance plan.
+   Targets remain retained forever. Fixed-mode (7.2–7.4) legs stay
+   approach-only.
 2. **Candidate failure records** — every counted failure persists
    candidate serial, centre, failure category, reason, planner status,
    plan wall time, and post-failure streak in
@@ -224,6 +229,15 @@ lines but was transient.
 3. **In-order navigability (maze invariant)** — corridor clearance
    pre-filter so new cubes never intersect previously recorded leg
    corridors (see "The maze framing" above).
+4. **Playback tip evidence** — incremental legs end retreated, so tip-face
+   geometry at the terminal waypoint is expected to miss. Playback accepts
+   tip contact observed mid-trajectory (PhysX or geometric face reach),
+   and falls back to planned-trajectory FK tip-at-face when live samples
+   miss under PD lag, when no prohibited body contact occurred. Mid-path
+   geometric checks must use a **cached** robot spec / USD tip — calling
+   default `forward_kinematics()` every physics step reloads YAML+URDF
+   (~100 ms/call) and made 7.5 motion wall time ~10–22× planned duration
+   vs ~1× on Phase 7.2.
 
 Normative statements live in `spec.md` §8 Phase 7.5 (post-contact retreat,
 retained obstacles and in-order navigability, candidate failure records,
@@ -232,24 +246,32 @@ criteria).
 
 ## Evidence / gates
 
-- Unit: fail-closed config matrix, streak/stop semantics, naming from
-  achieved counts, world growth across acceptances, deterministic candidate
-  stream under a fake oracle (`tests/unit/test_phase7_5_variable_targets.py`)
-  — **22 passed**; full `pytest tests/unit` **265 passed** with Ruff clean
+- Unit remediation coverage (corridor non-counting, failure-record
+  round-trip, retreated next-start, fail-closed start clearance, retreat
+  segment in `NominalPlanner`) plus prior incremental tests: full
+  `pytest tests/unit` **272 passed**, Ruff clean
   (`./scripts/run_verification.sh ci`, 2026-08-02).
-- Host headless (`smoke_phase7_5_variable_dz_0_30.sh --headless --root-seed
-  4242`): suite accepted `3/3`, achieved counts `n1-1-1`, tip=3, body=0,
-  artifact `phase7_5-variable_dz0_30_n1-1-1_seed4242`, required
-  `phase7_5_*` console lines present; wall ≈ 339 s population.
-  **Superseded as phase evidence:** the `n1-1-1` capacity result is the
-  defect signature described above, not a valid Z-density measurement.
-- Host GUI replay of the frozen bundle (`--gui --auto-exit`):
-  `lighting_ready`, `joint_playback_completed`, tip=3, body=0, exit 0.
-- **Pending (remediation gates):** remediated headless smoke with at least
-  one episode of ≥ 2 accepted targets (a leg planned from a retreated
-  start state), `candidate_failures` present in the bundle, corridor
-  counter in sampling lines, and GUI replay of the new frozen bundle
-  exiting 0 with zero prohibited contacts.
+- **Superseded defect smoke** (`n1-1-1`, pre-remediation): suite accepted
+  `3/3` under the old home-start-only behaviour; tip=3, body=0. Kept only
+  as the defect signature, not as a Z-density measurement.
+- **Remediated headless** (`smoke_phase7_5_variable_dz_0_30.sh --headless
+  --root-seed 4242`, 2026-08-02): `suite_accepted: true` with
+  `max_failed_episodes: 1` (2/3 episodes; ep2 `insufficient_targets` with
+  0 accepts), achieved counts **`n3-0-5`**, tip=8, body=0, artifact
+  `phase7_5-variable_dz0_30_n3-0-5_seed4242`. Episodes 1 and 3 each accepted
+  ≥ 2 targets (retreated post-contact starts exercised). Bundle
+  `incremental_episodes[*].candidate_failures` lengths `[10, 5, 14]`;
+  corridor counters `[2, 0, 4]` in sampling lines; populate FAIL lines
+  include `(category: reason)`.
+- **Remediated GUI replay** of that frozen bundle (`--gui --auto-exit`):
+  `lighting_ready`, `joint_playback_completed`, tip=8, body=0, exit 0
+  (`artifacts/reports/phase7_5_variable_targets_dz_0_30.gui.json`).
+- **Geometric-full primary stop headless** (same smoke script, later
+  2026-08-02): `max_consecutive_target_failures: 0`,
+  `max_total_target_failures: 25`; artifact
+  `phase7_5-variable_dz0_30_n6-4-11_seed4242`; suite accepted 3/3; tip=21,
+  body=0. Per-episode `tip_contacts` / `populate_s`: 6 / 660.0 s, 4 /
+  687.6 s, 11 / 695.0 s (each stopped on `total_failures`). GUI deferred.
 
 ## Relation to Phase 7.4
 

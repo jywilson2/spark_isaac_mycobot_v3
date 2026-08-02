@@ -23,7 +23,7 @@ fallback, learned policy, simulator feature, or integration.
 | **7.2** | Multi-target tip-contact clearance suite | Clear/contact all targets per episode; tip OK; body fails |
 | **7.3** | Controllable target-block placement | Random/layout policies, fail-closed separation and keep-outs |
 | **7.4** | Extended Z variability & Z-aware EE-clearance spacing | **Partially functional (closed 2026-08-02)** — wide-band stress moves to 7.5 |
-| **7.5** | Variable-target-count Z-density stress suite | **Reopened 2026-08-02 — remediation specified (retreat, maze navigability, failure records)** |
+| **7.5** | Variable-target-count Z-density stress suite | **Complete (2026-08-02)** |
 | **8** | Bounded residual RL (Isaac Lab / Isaac Sim only) | Residual improves sim metrics; never replaces planner |
 | **9** | Fabricated contact test tool | OpenSCAD/STL, fit, optional TCP/collision profile |
 | **9.1** | Contact test tool evaluation | Calibration and remounting repeatability characterized |
@@ -323,13 +323,16 @@ work landed.
 
 **Branch:** `wip_phase7_5`
 
-**Status:** Reopened (2026-08-02). The first host smoke (`n1-1-1`) exposed
-a defect: legs ended at the contact pose, so every post-acceptance plan
-started at zero clearance to the just-contacted retained cube and failed.
-Remediation is specified (post-contact retreat via the `plan_grasp`
-retract segment, retained-obstacle and in-order navigability "maze"
-invariants, persisted candidate failure records); implementation pending
-on `wip_phase7_5`. See [`spec.md`](../spec.md) §8 Phase 7.5 and
+**Status:** **Complete** (2026-08-02) on `wip_phase7_5`. The first host
+smoke (`n1-1-1`) exposed a defect: legs ended at the contact pose, so
+every post-acceptance plan started at zero clearance to the
+just-contacted retained cube and failed. Remediation (two-call
+post-contact retreat at `retreat_distance_m: 0.10`, never-removed
+retained obstacles, corridor "maze" pre-filter, `candidate_failures`,
+mid-path + planned-FK tip playback) is host-re-evidenced: headless
+seed-4242 `n3-0-5` suite accepted under `max_failed_episodes: 1`
+(tip=8, body=0); GUI replay of the frozen bundle exit 0. See
+[`spec.md`](../spec.md) §8 Phase 7.5 and
 [`docs/phase7_5_variable_target_stress.md`](phase7_5_variable_target_stress.md).
 
 **Objective:** Measure how many targets can be placed and tip-contacted

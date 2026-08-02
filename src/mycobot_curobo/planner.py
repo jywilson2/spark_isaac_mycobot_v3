@@ -66,6 +66,9 @@ class PlanningRequest:
     random_seed: int
     request_id: str
     disable_collision_links: tuple[str, ...] = ()
+    # Phase 7.5 incremental legs: enable the pinned plan_grasp retract segment.
+    plan_grasp_to_lift: bool = False
+    retreat_distance_m: float | None = None
 
 
 @dataclass(frozen=True)
@@ -107,6 +110,8 @@ class NominalPlan:
     random_seed: int
     validation_status: str = "not_evaluated"
     executable: bool = False
+    # Post-contact retract segment (Phase 7.5); None for approach-only plans.
+    retreat_trajectory: JointTrajectory | None = None
 
 
 @dataclass(frozen=True)
@@ -188,6 +193,34 @@ def signed_pre_approach_offset_m(distance_m: float, tool_approach_sign: int) -> 
     if tool_approach_sign not in (-1, 1):
         raise ConfigurationError("tool approach sign must be -1 or +1")
     return -float(tool_approach_sign) * distance
+
+
+def world_frame_retreat_lift_args(
+    surface_normal_base: Any,
+    retreat_distance_m: float,
+) -> tuple[str, float, bool]:
+    """Return ``(grasp_lift_axis, grasp_lift_offset, grasp_lift_in_tool_frame)``.
+
+    Retreat is expressed as a world-frame translation along the dominant axis of
+    the target's outward normal so the tip withdraws off the contact face. Tool-
+    frame lift offsets proved brittle on host GPU (grasp succeeded, lift failed).
+    """
+
+    distance = float(retreat_distance_m)
+    if not math.isfinite(distance) or distance <= 0.0:
+        raise ConfigurationError("retreat_distance_m must be positive and finite")
+    normal = np.asarray(surface_normal_base, dtype=float).reshape(3)
+    if normal.shape != (3,) or not np.all(np.isfinite(normal)):
+        raise ConfigurationError("surface_normal_base must contain three finite values")
+    norm = float(np.linalg.norm(normal))
+    if norm <= 1.0e-12:
+        raise ConfigurationError("surface_normal_base must be non-zero")
+    unit = normal / norm
+    axis_index = int(np.argmax(np.abs(unit)))
+    axis = ("x", "y", "z")[axis_index]
+    # cuRobo world-frame offset is axis * offset; match the outward normal sign.
+    offset = distance if unit[axis_index] >= 0.0 else -distance
+    return axis, float(offset), False
 
 
 def load_planner_profile(
@@ -344,8 +377,22 @@ class NominalPlanner:
             request.surface_target.pre_approach_distance_m,
             self.task_frame_config.tool_approach_sign,
         )
+        plan_to_lift = bool(request.plan_grasp_to_lift)
+        retreat_offset = 0.0
+        if plan_to_lift:
+            if request.retreat_distance_m is None:
+                raise ConfigurationError(
+                    "plan_grasp_to_lift=True requires retreat_distance_m on PlanningRequest"
+                )
+            # Same tool-axis signing as pre-approach: offset pose lies along the
+            # outward normal away from the contact face.
+            retreat_offset = signed_pre_approach_offset_m(
+                float(request.retreat_distance_m),
+                self.task_frame_config.tool_approach_sign,
+            )
         started = time.perf_counter()
         raw: Any = None
+        retreat_raw: Any = None
         attempt_count = 0
         try:
             for attempt_count in range(1, self.profile.max_plan_grasp_attempts + 1):
@@ -362,6 +409,9 @@ class NominalPlanner:
                     num_warmup_iterations=self.profile.warmup_iterations,
                 )
                 backend.reset_seed()
+                # Contact oracle: approach + linear grasp only. Host smoke showed
+                # one-shot plan_grasp_to_lift=True reaches grasp then fails the
+                # linear lift segment systematically; retreat is a second call.
                 raw = backend.plan_grasp(
                     grasp_poses=backend_goal,
                     current_state=backend_state,
@@ -372,8 +422,49 @@ class NominalPlanner:
                     plan_grasp_to_lift=False,
                     disable_collision_links=list(request.disable_collision_links),
                 )
-                if raw is not None and _bool_tensor(getattr(raw, "success", None)):
+                if raw is None or not _bool_tensor(getattr(raw, "success", None)):
+                    continue
+                if not plan_to_lift:
                     break
+                try:
+                    contact_terminal = extract_curobo_trajectory(
+                        getattr(raw, "grasp_interpolated_trajectory", None),
+                        getattr(raw, "grasp_interpolated_last_tstep", None),
+                        expected_joint_names=JOINT_NAMES,
+                        label="terminal",
+                    )
+                    contact_state = self._types.joint_state(
+                        NamedJointState.create(JOINT_NAMES, contact_terminal.position_rad[-1])
+                    )
+                except (ConfigurationError, RuntimeError, ValueError):
+                    raw.status = "contact terminal state missing for retreat"
+                    continue
+                # Fresh backend for retreat (v0.8.0 must not reuse MotionPlanner).
+                retreat_backend = self._backend_factory()
+                retreat_backend.reset_seed()
+                retreat_backend.warmup(
+                    enable_graph=self.profile.enable_graph_warmup,
+                    num_warmup_iterations=self.profile.warmup_iterations,
+                )
+                retreat_backend.reset_seed()
+                # From contact, plan_grasp with plan_approach_to_grasp=False moves
+                # to the approach-offset pose (retreat_distance along tool axis)
+                # and returns — that approach trajectory is the retreat segment.
+                retreat_raw = retreat_backend.plan_grasp(
+                    grasp_poses=backend_goal,
+                    current_state=contact_state,
+                    grasp_approach_axis=self.task_frame_config.tool_approach_axis,
+                    grasp_approach_offset=retreat_offset,
+                    grasp_approach_in_tool_frame=True,
+                    plan_approach_to_grasp=False,
+                    plan_grasp_to_lift=False,
+                    disable_collision_links=list(request.disable_collision_links),
+                )
+                if retreat_raw is not None and _bool_tensor(getattr(retreat_raw, "success", None)):
+                    break
+                raw.status = str(
+                    getattr(retreat_raw, "status", "") or "Planning to retreat pose failed."
+                )
         except (RuntimeError, ValueError) as exc:
             return PlanningOutcome(
                 plan=None,
@@ -388,7 +479,17 @@ class NominalPlanner:
             return self._failure("planner_returned_none", "plan_grasp returned None", "")
         status = str(getattr(raw, "status", "") or "")
         if not _bool_tensor(getattr(raw, "success", None)):
-            return self._failure("planning_infeasible", "cuRobo reported no success", status)
+            reason = status if status else "cuRobo reported no success"
+            return self._failure("planning_infeasible", reason, status)
+        if plan_to_lift and (
+            retreat_raw is None or not _bool_tensor(getattr(retreat_raw, "success", None))
+        ):
+            retreat_status = str(getattr(retreat_raw, "status", "") or "")
+            return self._failure(
+                "planning_infeasible",
+                retreat_status or "Planning to retreat pose failed.",
+                retreat_status,
+            )
         try:
             selected_index = _integer_scalar(
                 getattr(raw, "goalset_index", None),
@@ -407,10 +508,27 @@ class NominalPlanner:
                 expected_joint_names=JOINT_NAMES,
                 label="terminal",
             )
-            combined = concatenate_trajectories(approach, terminal)
+            retreat: JointTrajectory | None = None
+            if plan_to_lift:
+                # Retreat path is the approach segment of the contact-start call.
+                retreat = extract_curobo_trajectory(
+                    getattr(retreat_raw, "approach_interpolated_trajectory", None),
+                    getattr(retreat_raw, "approach_interpolated_last_tstep", None),
+                    expected_joint_names=JOINT_NAMES,
+                    label="retreat",
+                )
+                combined = concatenate_trajectories(
+                    concatenate_trajectories(approach, terminal),
+                    retreat,
+                )
+                status = str(getattr(retreat_raw, "status", "") or status)
+            else:
+                combined = concatenate_trajectories(approach, terminal)
         except ConfigurationError as exc:
             return self._failure("invalid_planner_result", str(exc), status)
         backend_time = float(getattr(raw, "planning_time", 0.0) or 0.0)
+        if plan_to_lift and retreat_raw is not None:
+            backend_time += float(getattr(retreat_raw, "planning_time", 0.0) or 0.0)
         return PlanningOutcome(
             plan=NominalPlan(
                 request_id=request.request_id,
@@ -429,6 +547,7 @@ class NominalPlanner:
                 scene_revision=request.scene_revision,
                 planner_profile=self.profile.name,
                 random_seed=request.random_seed,
+                retreat_trajectory=retreat if plan_to_lift else None,
             ),
             failure=None,
         )

@@ -51,13 +51,14 @@ class FakeTypes:
         return goal_set
 
     def joint_state(self, state):
-        return state
+        return state.position_rad
 
 
 class FakeBackend:
-    def __init__(self, result) -> None:
-        self.result = result
+    def __init__(self, results) -> None:
+        self._results = list(results) if isinstance(results, list) else [results]
         self.kwargs = None
+        self.kwargs_list: list[dict] = []
         self.reset_count = 0
         self.warmup_count = 0
 
@@ -72,11 +73,14 @@ class FakeBackend:
 
     def plan_grasp(self, **kwargs):
         self.kwargs = kwargs
-        return self.result
+        self.kwargs_list.append(kwargs)
+        if not self._results:
+            raise AssertionError("unexpected plan_grasp call")
+        return self._results.pop(0)
 
 
 class FakeResult:
-    def __init__(self, *, success=True, goalset_index=1) -> None:
+    def __init__(self, *, success=True, goalset_index=1, approach_only: bool = False) -> None:
         approach_positions = np.array(
             [
                 np.zeros(6),
@@ -100,6 +104,21 @@ class FakeResult:
         self.grasp_interpolated_trajectory = FakeState(terminal_positions)
         self.grasp_interpolated_last_tstep = np.asarray([2])
         self.planning_time = 0.25
+        self.lift_interpolated_trajectory = None
+        self.lift_interpolated_last_tstep = None
+        if approach_only:
+            # Contact-start retreat call: only the approach segment is used.
+            retreat_positions = np.array(
+                [
+                    np.full(6, 0.3),
+                    np.full(6, 0.35),
+                    np.full(6, np.nan),
+                ]
+            )
+            self.approach_interpolated_trajectory = FakeState(retreat_positions)
+            self.approach_interpolated_last_tstep = np.asarray([2])
+            self.grasp_interpolated_trajectory = FakeState(retreat_positions)
+            self.grasp_interpolated_last_tstep = np.asarray([2])
 
 
 def _request(*, profile: str = "development_fast") -> PlanningRequest:
@@ -123,9 +142,19 @@ def _request(*, profile: str = "development_fast") -> PlanningRequest:
 
 def _planner(result) -> tuple[NominalPlanner, list[FakeBackend]]:
     backends: list[FakeBackend] = []
+    # Each factory call gets a copy/queue of results for that backend instance.
+    if isinstance(result, list):
+        result_queue = list(result)
+    else:
+        result_queue = None
 
     def backend_factory() -> FakeBackend:
-        backend = FakeBackend(result)
+        if result_queue is not None:
+            if not result_queue:
+                raise AssertionError("unexpected backend factory call")
+            backend = FakeBackend(result_queue.pop(0))
+        else:
+            backend = FakeBackend(result)
         backends.append(backend)
         return backend
 
@@ -184,6 +213,7 @@ def test_success_maps_segments_roll_and_exact_plan_grasp_options() -> None:
     assert outcome.plan.approach_trajectory.sample_count == 3
     assert outcome.plan.terminal_trajectory.sample_count == 2
     assert outcome.plan.combined_trajectory.sample_count == 4
+    assert outcome.plan.retreat_trajectory is None
     assert outcome.plan.validation_status == "not_evaluated"
     assert outcome.plan.executable is False
     assert backend.kwargs["grasp_approach_axis"] == "z"
@@ -194,6 +224,26 @@ def test_success_maps_segments_roll_and_exact_plan_grasp_options() -> None:
     assert backend.kwargs["disable_collision_links"] == []
     assert backend.reset_count == 2
     assert backend.warmup_count == 1
+
+
+def test_plan_grasp_to_lift_appends_retreat_segment() -> None:
+    # Contact call then contact-start retreat call (two fresh backends).
+    planner, backends = _planner([FakeResult(), FakeResult(approach_only=True)])
+    request = _request()
+    from dataclasses import replace
+
+    request = replace(request, plan_grasp_to_lift=True, retreat_distance_m=0.05)
+    outcome = planner.plan(request)
+    assert outcome.succeeded
+    assert outcome.plan is not None
+    assert outcome.plan.retreat_trajectory is not None
+    assert outcome.plan.retreat_trajectory.sample_count == 2
+    assert outcome.plan.combined_trajectory.sample_count == 5  # 3+2+2-2 boundaries
+    assert len(backends) == 2
+    assert backends[0].kwargs["plan_grasp_to_lift"] is False
+    assert backends[0].kwargs["plan_approach_to_grasp"] is True
+    assert backends[1].kwargs["plan_approach_to_grasp"] is False
+    assert backends[1].kwargs["grasp_approach_offset"] == pytest.approx(-0.05)
 
 
 def test_each_plan_uses_a_fresh_backend() -> None:

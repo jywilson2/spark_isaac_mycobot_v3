@@ -15,6 +15,7 @@ from mycobot_curobo.robot_model import (
     FLANGE_LINK,
     JOINT_NAMES,
     TCP_LINK,
+    clear_robot_model_caches,
     forward_kinematics,
     load_curobo_robot_config,
     load_robot_model_spec,
@@ -181,3 +182,19 @@ def test_fk_rejects_nonfinite_and_out_of_limit_joint_states() -> None:
         forward_kinematics(nonfinite, spec=spec)
     with pytest.raises(ConfigurationError, match="limits"):
         forward_kinematics(outside, spec=spec)
+
+
+def test_uncached_forward_kinematics_uses_spec_cache() -> None:
+    """Repeated default FK must not re-parse YAML/URDF every call (~100 ms)."""
+
+    import time
+
+    clear_robot_model_caches()
+    q = np.zeros(6, dtype=float)
+    forward_kinematics(q)  # warm caches
+    started = time.perf_counter()
+    for _ in range(200):
+        forward_kinematics(q)
+    elapsed_s = time.perf_counter() - started
+    # Cached path is ~0.1 ms/call; uncached reload was ~100 ms/call.
+    assert elapsed_s < 0.5, f"FK cache ineffective: {elapsed_s:.3f}s for 200 calls"

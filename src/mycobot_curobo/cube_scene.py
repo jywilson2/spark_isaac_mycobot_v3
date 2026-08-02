@@ -177,6 +177,31 @@ def batch_sphere_cube_clearance_m(
     )
 
 
+def candidate_clears_recorded_corridors(
+    candidate_center_m: Sequence[float],
+    candidate_edge_m: float,
+    recorded_corridor_spheres: Sequence[np.ndarray],
+    *,
+    minimum_clearance_m: float,
+) -> bool:
+    """Return True when the candidate cuboid clears every recorded FK sphere cloud.
+
+    Each entry of ``recorded_corridor_spheres`` is ``[waypoint, sphere, 4]``
+    (xyz + radius) for one previously accepted leg (approach + contact + retreat).
+    """
+
+    if not math.isfinite(float(minimum_clearance_m)):
+        raise ConfigurationError("minimum_clearance_m must be finite")
+    for spheres in recorded_corridor_spheres:
+        cloud = np.asarray(spheres, dtype=float)
+        if cloud.size == 0:
+            continue
+        clearances = batch_sphere_cube_clearance_m(cloud, candidate_center_m, candidate_edge_m)
+        if float(np.min(clearances)) < float(minimum_clearance_m):
+            return False
+    return True
+
+
 def flange_disk_face_overhang_m(
     tcp_position_m: Sequence[float],
     face_outward_normal_base: Sequence[float],

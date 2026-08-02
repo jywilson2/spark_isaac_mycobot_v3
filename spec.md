@@ -2083,14 +2083,16 @@ the default upward normal). The minimum approach-plane centre separation is:
 
 ## Phase 7.5 — Variable-target-count Z-density stress suite
 
-**Status:** Reopened (2026-08-02) — the first host smoke (`n1-1-1`) exposed
-a defect in the primary feature: after the first accepted tip contact, every
-subsequent plan attempt started at zero clearance to the just-contacted
-retained cube and failed (0/15 post-acceptance vs 3/5 from the home start).
-The remediation below (post-contact retreat, retained-obstacle and in-order
-navigability invariants, candidate failure records) is specified in this
-revision; implementation is pending on this branch. Evidence and root-cause
-analysis:
+**Status:** **COMPLETE** (2026-08-02) on `wip_phase7_5`. The first host
+smoke (`n1-1-1`) exposed a defect in the primary feature: after the first
+accepted tip contact, every subsequent plan attempt started at zero
+clearance to the just-contacted retained cube and failed (0/15
+post-acceptance vs 3/5 from the home start). Remediation (post-contact
+retreat, retained-obstacle and in-order navigability invariants,
+candidate failure records, retreated-leg tip playback) is implemented
+and re-evidenced: headless seed-4242 suite accepted `2/3`
+(`max_failed_episodes: 1`), achieved counts `n3-0-5`, tip=8, body=0;
+GUI replay of the frozen bundle exit 0. Evidence and root-cause analysis:
 [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
 **Branch:** `wip_phase7_5`.
 Design notes:
@@ -2157,13 +2159,17 @@ Per episode, starting from an empty field and the configured
    failure**, and its failure record is persisted (see candidate failure
    records); the arm does not move.
 4. **Stop conditions**, checked in order:
+   - `max_targets_per_episode` reached (optional cap, disabled by default);
+   - geometric fullness per rule 2 (**primary packing stop**);
+   - total target failures reach `max_total_target_failures` (secondary
+     timeout; default **25**);
    - consecutive target failures reach `max_consecutive_target_failures`
-     (primary stop — the dexterous space at this Z-density is exhausted);
-   - total target failures reach `max_total_target_failures` (optional
-     runtime guard, disabled by default);
-   - geometric fullness per rule 2;
-   - `max_targets_per_episode` reached (optional cap, disabled by
-     default).
+     when that key is > 0 (secondary streak timeout; default **0** = off).
+
+Console / bundle reporting must include per-episode `tip_contacts`
+(accepted count at plan time; playback tip contacts after replay) and
+`populate_duration_s` / `populate_s` (wall time to generate the episode
+field).
 
 There is no deferral, no reconsider pass, no per-target retry, no field
 regeneration, and no tip-IK placement screen in this mode: a failed
@@ -2173,13 +2179,17 @@ candidate is replaced by a fresh draw, not retried.
 
 Every accepted leg must terminate at a **retreated** configuration, not at
 the contact pose. After the linear terminal approach reaches the contact
-point, the leg continues with the pinned `plan_grasp` retract segment
-(`plan_grasp_to_lift=True`) so the tip withdraws along the target's outward
-normal by `retreat_distance_m` (default **0.02 m**). The retreat is a
-documented segment of the exclusive cuRobo primitive — it is not a
-hand-inserted lift waypoint, an alternate planner, or collision-geometry
-manipulation. Phase 7.2–7.4 fixed-mode legs keep their approach-only
-setting (`plan_grasp_to_lift=False`) unchanged.
+point, the leg continues with a second fresh `plan_grasp` call from the
+contact joint state (`plan_approach_to_grasp=False`,
+`grasp_approach_offset` = signed `retreat_distance_m`, default **0.10 m**)
+so the tip withdraws to the offset pose along the tool approach axis /
+target outward normal. Host evidence (2026-08-02) showed one-shot
+`plan_grasp_to_lift=True` reaching grasp then failing the linear lift
+segment systematically; the two-call form remains entirely within the
+pinned `plan_grasp` primitive — not a hand-inserted lift waypoint, an
+alternate planner, or collision-geometry manipulation. Phase 7.2–7.4
+fixed-mode legs keep their approach-only setting
+(`plan_grasp_to_lift=False`) unchanged.
 
 Rationale (root cause of the `n1-1-1` defect): the arm state advances to
 the accepted leg's terminal configuration, and the just-contacted cube is
@@ -2269,23 +2279,32 @@ in **acceptance order** — exactly the accepted targets, in exactly the
 order they were accepted, using the recorded trajectories. This is
 structurally required, not merely policy: each accepted leg starts at the
 previous leg's terminal joint state, so any reordering would break
-kinematic continuity between legs.
+kinematic continuity between legs. Because accepted legs terminate at the
+**retreated** pose, tip-face geometry at the final waypoint is expected to
+miss; playback must accept tip contact observed **mid-trajectory** (PhysX
+or geometric face reach) when no prohibited body contact occurred.
 
 ### Configuration (normative)
 
 | Key | Default | Meaning |
 |-----|---------|---------|
 | `target_population` | `fixed` | `incremental` selects this suite type. `fixed` preserves Phase 7.2–7.4 behaviour unchanged. |
-| `max_consecutive_target_failures` | **`5`** | Positive int. Consecutive planner-verified candidate failures that end episode population. Resets on each acceptance. |
-| `max_total_target_failures` | `0` (disabled) | Non-negative int. Optional absolute failure cap per episode. |
+| `max_consecutive_target_failures` | **`0`** (disabled) | Non-negative int. Optional consecutive planner-verified failure streak that ends population (`0` = off). Resets on each acceptance. Secondary timeout only. |
+| `max_total_target_failures` | **`25`** | Non-negative int. Secondary absolute plan-failure budget per episode (`0` = off). At least one of consecutive/total must be > 0. |
 | `max_targets_per_episode` | `0` (disabled) | Non-negative int. Optional acceptance cap per episode. |
 | `min_targets_per_episode` | `1` | Episode acceptance floor: an episode that stops with fewer accepted targets **fails** (`insufficient_targets`). Suite acceptance then follows `max_failed_episodes` (default 0). |
-| `retreat_distance_m` | `0.02` | Positive float. Post-contact retreat offset along the target's outward normal, realized by the `plan_grasp` retract segment; must yield a start state clearing the world by ≥ `minimum_world_collision_clearance_m` (fail closed otherwise). |
+| `retreat_distance_m` | `0.10` | Positive float. Post-contact retreat offset along the target's outward normal, realized by a second `plan_grasp` from the contact state; must yield a start state clearing the world by ≥ `minimum_world_collision_clearance_m` (fail closed otherwise). Host evidence: 0.02 / 0.05 m left Option B sphere penetration on some accepts. |
 
-Default rationale for `max_consecutive_target_failures = 5`: a failing
-high-effort plan attempt costs ~22 s, so the stop tail is ≤ ~2 minutes; and
-if the true marginal feasibility were still ≥ 50%, five consecutive
-failures occur with probability ≤ 3%, so premature stops are rare.
+**Stop priority (normative):** population continues while geometrically
+legal candidates can be drawn. The **primary** stop is
+`geometric_full` (exhausting `max_placement_attempts` consecutive
+geometric draws without a legal candidate — the field is packed under
+separation / keep-out / corridor / reach filters). Plan-failure budgets
+(`max_total_target_failures`, optional `max_consecutive_target_failures`)
+are **secondary** timeouts so unplannable-but-legal candidates cannot
+burn unbounded wall time. A short consecutive streak alone must not be
+the primary packing stop — that truncated dense random fields early
+(`n3-0-5` under the old default of 5).
 
 Fail-closed constraints in `incremental` mode (each violation is a
 `ConfigurationError`):

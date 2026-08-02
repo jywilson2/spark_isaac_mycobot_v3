@@ -63,6 +63,7 @@ from mycobot_curobo.validation import (  # noqa: E402
     ValidationViolation,
     load_validation_profile,
     validate_nominal_plan,
+    validate_retreat_segment,
 )
 
 
@@ -208,14 +209,52 @@ def _build_planner_and_validator(
             robot_spec=robot_spec,
             task_frame_config=app.task_frame,
         )
+        violations: list[ValidationViolation] = []
+        if (
+            validated.report.valid
+            and plan.retreat_trajectory is not None
+            and request.plan_grasp_to_lift
+        ):
+            violations.extend(
+                validate_retreat_segment(
+                    plan.retreat_trajectory,
+                    request_id=request.request_id,
+                    profile=validation_profile,
+                    evaluator=evaluator,
+                    robot_spec=robot_spec,
+                    contact_terminal=plan.terminal_trajectory,
+                )
+            )
+            if violations:
+                report = ValidationReport(
+                    request_id=request.request_id,
+                    profile_name=validated.report.profile_name,
+                    valid=False,
+                    violations=validated.report.violations + tuple(violations),
+                    metrics=validated.report.metrics,
+                )
+                return ValidatedPlan(
+                    nominal_plan=plan,
+                    report=report,
+                    validation_status="invalid",
+                    executable=False,
+                )
         if not validated.report.valid or flange_diameter is None:
             return validated
 
-        violations: list[ValidationViolation] = []
         # Transit anti-graze: flange-radius sphere at every TCP vs neighbor cubes.
+        # Score approach+contact only; retreat is validated separately for world
+        # clearance and must not dilute the contact-path flange check.
         if clearance_geometries:
-            combined = plan.combined_trajectory
-            geom_all = evaluator.evaluate(combined.position_rad)
+            if plan.retreat_trajectory is not None:
+                from mycobot_curobo.trajectory import concatenate_trajectories
+
+                transit_positions = concatenate_trajectories(
+                    plan.approach_trajectory, plan.terminal_trajectory
+                ).position_rad
+            else:
+                transit_positions = plan.combined_trajectory.position_rad
+            geom_all = evaluator.evaluate(transit_positions)
             min_clear = float("inf")
             min_wp = 0
             min_name = clearance_geometries[0].name
@@ -344,7 +383,12 @@ def plan_incremental(
 ) -> Any:
     """Run Phase 7.5 incremental population with optimistic tip contact."""
 
-    _app, planner_factory, validator = _build_planner_and_validator(
+    import torch
+    from curobo.types import JointState
+
+    from mycobot_curobo.robot_model import JOINT_NAMES
+
+    app, planner_factory, validator = _build_planner_and_validator(
         planner_profile_name=config.planner_profile,
         validation_profile_name=config.validation_profile,
         minimum_self_collision_clearance_m=config.minimum_self_collision_clearance_m,
@@ -355,9 +399,26 @@ def plan_incremental(
         app_config_path=app_config_path,
     )
     trajectories: dict[str, Any] = {}
+    base_profile = load_planner_profile(config.planner_profile)
+    sphere_backend = create_curobo_planner(
+        replace(base_profile, random_seed=int(config.root_seed)),
+        robot_config_path=app.robot_config_path,
+        scene_config_path=REPO_ROOT / "config/scenes/empty.yml",
+    )
 
     def plan_sink(plan: NominalPlan) -> None:
         trajectories[plan.request_id] = plan.combined_trajectory
+
+    def waypoint_spheres_fn(positions: np.ndarray) -> np.ndarray:
+        positions_arr = np.asarray(positions, dtype=float)
+        if positions_arr.ndim != 2 or positions_arr.shape[1] != len(JOINT_NAMES):
+            raise ConfigurationError("waypoint positions must have shape [N, 6]")
+        state = JointState.from_position(
+            torch.as_tensor(positions_arr, device="cuda:0", dtype=torch.float32),
+            joint_names=list(JOINT_NAMES),
+        )
+        result = sphere_backend.compute_kinematics(state)
+        return result.robot_spheres.detach().cpu().numpy().reshape(positions_arr.shape[0], -1, 4)
 
     runner = IncrementalPopulationRunner(
         planner_factory=planner_factory,
@@ -366,6 +427,7 @@ def plan_incremental(
         plan_sink=plan_sink,
         warn_planning_duration_s=config.warn_planning_duration_s,
         console_log=lambda message: print(message, flush=True),
+        waypoint_spheres_fn=waypoint_spheres_fn,
     )
     suite = runner.run_suite(
         config,
@@ -457,8 +519,12 @@ def main(argv: list[str] | None = None) -> int:
                     "z_band_lo_m": extra.z_band_lo_m,
                     "z_band_hi_m": extra.z_band_hi_m,
                     "wall_duration_s": extra.wall_duration_s,
+                    "populate_duration_s": extra.wall_duration_s,
+                    "tip_contacts": len(result.contacted_ids),
+                    "candidate_failures": [asdict(record) for record in extra.candidate_failures],
+                    "retreat_distance_m": float(config.retreat_distance_m),
                 }
-                for extra in suite.extras
+                for extra, result in zip(suite.extras, suite.results)
             ],
             "placement_generation": None,
             "summary": asdict(suite.summary),

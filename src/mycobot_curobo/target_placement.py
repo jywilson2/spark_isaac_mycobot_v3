@@ -711,10 +711,11 @@ class GeometricRejectCounts:
     rim: int = 0
     reach: int = 0
     aabb: int = 0
+    corridor: int = 0
 
     @property
     def total(self) -> int:
-        return self.separation + self.keep_out + self.rim + self.reach + self.aabb
+        return self.separation + self.keep_out + self.rim + self.reach + self.aabb + self.corridor
 
 
 def draw_incremental_candidate(

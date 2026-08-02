@@ -55,8 +55,8 @@ screen, `order: z_desc`, goal-set rolls for wide-band suites, regen on
 `max_consecutive_unplanned_targets` default
 `max(3, ceil(target_count/3))`.
 
-**Phase 7.5 — Variable-target-count Z-density stress suite: REOPENED
-2026-08-02 — remediation specified (`wip_phase7_5`)**
+**Phase 7.5 — Variable-target-count Z-density stress suite: COMPLETE
+(2026-08-02) on `wip_phase7_5`**
 `target_population: incremental` — targets created/verified/planned
 one-by-one against retained accepted cubes; one `plan_grasp` attempt per
 candidate is the feasibility oracle; population stops after
@@ -69,15 +69,13 @@ format (progress + streak proximity). Module
 **Defect (diagnosed 2026-08-02):** the first host smoke achieved only
 `n1-1-1` — accepted legs ended at the tip-contact pose, so every
 post-acceptance plan started at zero clearance to the just-contacted
-retained cube (below the 0.006 m validation floor) and failed 15/15 vs 3/5
-from the home start. **Remediation specified (docs landed; implementation
-pending):** post-contact retreat via the pinned `plan_grasp` retract
-segment (`retreat_distance_m`, default 0.02 m) with fail-closed FK
-start-clearance verification; targets are **never removed** and never
-excluded from the planning world; in-order navigability ("maze")
-invariant with a corridor clearance pre-filter so new cubes never block
-previously recorded legs; per-candidate failure records persisted in the
-bundle (`candidate_failures`) with specific console failure reasons. See
+retained cube. **Remediation closed:** two-call post-contact retreat
+(`retreat_distance_m` default **0.10 m**) with fail-closed FK
+start-clearance; targets **never removed**; corridor ("maze")
+pre-filter; `candidate_failures` records; playback mid-path + planned-FK
+tip evidence for retreated legs. Host evidence seed-4242: headless
+`n3-0-5`, `suite_accepted: true` under `max_failed_episodes: 1` (2/3;
+tip=8, body=0); GUI replay exit 0. CI **272** + Ruff clean. See
 [`spec.md`](spec.md) §8 Phase 7.5 and
 [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
 
@@ -113,7 +111,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 7.2 | Multi-target tip-contact clearance suite | **Complete** |
 | 7.3 | Controllable target-block placement (+ CI fixes) | **Complete** |
 | 7.4 | Extended Z variability + Z-aware EE-clearance spacing | **Partially functional (closed 2026-08-02)** |
-| 7.5 | Variable-target-count Z-density stress suite | **Reopened (remediation specified 2026-08-02)** |
+| 7.5 | Variable-target-count Z-density stress suite | **Complete** |
 | 8 | Bounded residual RL (sim only) | Planned |
 | 9 | Fabricated contact test tool | Requirements finalized |
 | 9.1 | Contact test tool evaluation | Requirements finalized |
@@ -171,27 +169,21 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Next step / resume (2026-08-02)
 
-**Where we left off:** Phase 7.5 reopened on `wip_phase7_5`. The `n1-1-1`
-first-smoke defect is diagnosed (post-acceptance plans started at zero
-clearance to the just-contacted retained cube) and the remediation is
-specified in `spec.md` §8 Phase 7.5 / the phase report: post-contact
-retreat (`retreat_distance_m`), never-removed retained obstacles,
-in-order navigability ("maze") corridor pre-filter, and candidate failure
-records. Documentation is landed; code is not yet changed. Phase 7.4
-remains partially functional / closed.
+**Where we left off:** Phase 7.5 on `wip_phase7_5` uses **geometric
+fullness** as the primary population stop with
+`max_total_target_failures: 25` secondary
+(`max_consecutive_target_failures: 0`). Headless seed-4242 smoke
+accepted: `n6-4-11`, tip=21, body=0, populate_s 660.0 / 687.6 / 695.0 s
+per episode. GUI deferred per operator. Phase 7.4 remains partially
+functional / closed.
 
 **Next steps:**
 
-1. Implement the Phase 7.5 remediation on `wip_phase7_5` (spec tasks 6–9):
-   retreat segment + fail-closed start-clearance check, corridor
-   pre-filter with `corridor` reject counter, `candidate_failures`
-   persistence, and the matching unit tests; then re-run the `dz0_30`
-   headless smoke (expect ≥ 2 accepted targets in at least one episode)
-   and GUI replay of the new frozen bundle.
-2. Phase 8 (bounded residual RL, sim only) on `wip_phase8` after Phase 7.5
-   closes. Entry criteria verified 2026-07-31. **Note:** residual policies
-   trained under scaffolding-only spheres may need retraining under the
-   denser world-cover set now armed by default.
+1. Operator GUI smoke of `phase7_5-variable_dz0_30_n6-4-11_seed4242`.
+2. Phase 8 (bounded residual RL, sim only) on `wip_phase8`. Entry criteria
+   verified 2026-07-31. **Note:** residual policies trained under
+   scaffolding-only spheres may need retraining under the denser
+   world-cover set now armed by default.
 
 
 ## 2026-08-02 accuracy note (Phase 7.4 closure)

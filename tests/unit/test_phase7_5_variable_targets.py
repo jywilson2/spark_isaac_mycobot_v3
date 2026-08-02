@@ -55,10 +55,15 @@ def _trajectory(positions: list[list[float]]) -> JointTrajectory:
     )
 
 
-def _plan(request_id: str, seed: int) -> NominalPlan:
+def _plan(request_id: str, seed: int, *, contact_joints: float = 0.2) -> NominalPlan:
+    """Fake approach+contact+retreat plan; terminal ends at contact, combined at retreat."""
+
+    contact = float(contact_joints)
+    retreat_end = contact + 0.05
     approach = _trajectory([[0.0] * 6, [0.1] * 6])
-    terminal = _trajectory([[0.1] * 6, [0.2] * 6])
-    combined = _trajectory([[0.0] * 6, [0.1] * 6, [0.2] * 6])
+    terminal = _trajectory([[0.1] * 6, [contact] * 6])
+    retreat = _trajectory([[contact] * 6, [retreat_end] * 6])
+    combined = _trajectory([[0.0] * 6, [0.1] * 6, [contact] * 6, [retreat_end] * 6])
     return NominalPlan(
         request_id=request_id,
         selected_goal_index=0,
@@ -72,6 +77,7 @@ def _plan(request_id: str, seed: int) -> NominalPlan:
         scene_revision="test",
         planner_profile="benchmark_reproducible",
         random_seed=seed,
+        retreat_trajectory=retreat,
     )
 
 
@@ -182,11 +188,19 @@ def test_example_config_loads_incremental() -> None:
     assert config.target_count == 0
     assert config.retain_targets_after_contact is True
     assert config.placement.value == "random"
-    assert config.max_consecutive_target_failures == 5
+    assert config.max_consecutive_target_failures == 0
+    assert config.max_total_target_failures == 25
     assert config.min_targets_per_episode == 1
+    assert config.retreat_distance_m == pytest.approx(0.10)
     assert config.delta_z_m == pytest.approx(0.30)
     assert config.require_tip_ik is False
     assert config.max_field_regenerations == 0
+
+
+def test_incremental_rejects_non_positive_retreat_distance(tmp_path: Path) -> None:
+    path = _write_config(tmp_path, _base_incremental_yaml(retreat_distance_m=0.0))
+    with pytest.raises(ConfigurationError, match="retreat_distance_m"):
+        load_multi_target_suite_config(path)
 
 
 @pytest.mark.parametrize("forbidden_key", sorted(INCREMENTAL_FORBIDDEN_KEYS))
@@ -284,7 +298,8 @@ def test_streak_reset_and_stop_at_consecutive_failures(tmp_path: Path) -> None:
     assert scene_counts[0] == 0
     assert scene_counts[2] == 1  # third plan after two accepts
     assert any("streak 0/3" in line for line in lines)
-    assert any("streak 3/3" in line and "0 more failures" in line for line in lines)
+    assert any("streak 3/3" in line and "0 more consecutive failures" in line for line in lines)
+    assert any("tip_contacts 2" in line and "populate_s" in line for line in lines)
     assert suite.artifact_base_name.endswith("_n2_seed7")
 
 
@@ -456,7 +471,59 @@ def test_populate_candidate_line_mentions_remaining_failures() -> None:
     )
     assert line.startswith("phase7_5_populate: ep 2/3 |")
     assert "accepted 12" in line
-    assert "streak 3/5 — 2 more failures end episode" in line
+    assert "streak 3/5 — 2 more consecutive failures end episode" in line
+    off = format_populate_candidate(
+        episode_index=0,
+        episode_count=1,
+        accepted=0,
+        candidate_index=1,
+        center_m=(0.1, 0.0, 0.2),
+        plan_ok=False,
+        plan_duration_s=1.0,
+        failure_reason="plan_failed",
+        streak=4,
+        threshold=0,
+    )
+    assert "consecutive stop off" in off
+
+
+def test_incremental_requires_a_plan_failure_timeout(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        _base_incremental_yaml(
+            max_consecutive_target_failures=0,
+            max_total_target_failures=0,
+        ),
+    )
+    with pytest.raises(ConfigurationError, match="plan-failure timeout"):
+        load_multi_target_suite_config(path)
+
+
+def test_total_failures_secondary_stop_when_consecutive_disabled(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        _base_incremental_yaml(
+            max_consecutive_target_failures=0,
+            max_total_target_failures=3,
+            min_targets_per_episode=1,
+        ),
+    )
+    config = load_multi_target_suite_config(path)
+    planner = _FakePlanner([_ok(), _fail(), _fail(), _fail(), _ok()])
+    lines: list[str] = []
+    runner = IncrementalPopulationRunner(
+        planner_factory=lambda *_a: planner,
+        validator=lambda plan, *_a: _validated(plan),
+        contact_detector_factory=lambda _ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lines.append,
+        apply_reach_prefilter=False,
+    )
+    suite = runner.run_suite(config, root_seed=13, episode_count=1)
+    assert suite.extras[0].stop_reason is PopulationStopReason.TOTAL_FAILURES
+    assert suite.extras[0].total_target_failures == 3
+    assert len(suite.results[0].contacted_ids) == 1
+    assert any("primary_stop geometric_full" in line for line in lines)
+    assert any("tip_contacts 1" in line and "populate_s" in line for line in lines)
 
 
 def test_suite_table_includes_artifact_name() -> None:
@@ -474,7 +541,12 @@ def test_suite_table_includes_artifact_name() -> None:
     # One episode only for speed.
     from dataclasses import replace
 
-    config = replace(config, episode_count=1, max_consecutive_target_failures=5)
+    config = replace(
+        config,
+        episode_count=1,
+        max_consecutive_target_failures=5,
+        max_total_target_failures=0,
+    )
     suite = runner.run_suite(config, root_seed=4242, episode_count=1)
     table = format_suite_table(
         results=suite.results,
@@ -483,4 +555,163 @@ def test_suite_table_includes_artifact_name() -> None:
     )
     assert "phase7_5_suite:" in table
     assert suite.artifact_base_name in table
+    assert "tip_contacts" in table
+    assert "populate_s" in table
     assert "total" in table
+
+
+def test_candidate_failures_round_trip_in_extras(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        _base_incremental_yaml(max_consecutive_target_failures=2, min_targets_per_episode=1),
+    )
+    config = load_multi_target_suite_config(path)
+    planner = _FakePlanner([_ok(), _fail(), _fail()])
+    lines: list[str] = []
+    runner = IncrementalPopulationRunner(
+        planner_factory=lambda *_a: planner,
+        validator=lambda plan, *_a: _validated(plan),
+        contact_detector_factory=lambda _ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lines.append,
+        apply_reach_prefilter=False,
+    )
+    suite = runner.run_suite(config, root_seed=21, episode_count=1)
+    failures = suite.extras[0].candidate_failures
+    assert len(failures) == 2
+    assert failures[0].failure_category == "plan_failed"
+    assert failures[0].streak_after == 1
+    assert failures[1].streak_after == 2
+    assert any("plan FAIL" in line and "plan_failed" in line for line in lines)
+    from dataclasses import asdict
+
+    payload = [asdict(record) for record in failures]
+    assert payload[0]["candidate_serial"] == failures[0].candidate_serial
+    assert tuple(payload[0]["center_m"]) == failures[0].center_m
+    assert payload[0]["streak_after"] == 1
+
+
+def test_retreated_terminal_is_next_leg_start(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        _base_incremental_yaml(
+            max_consecutive_target_failures=5,
+            max_targets_per_episode=2,
+        ),
+    )
+    config = load_multi_target_suite_config(path)
+    start_joints: list[tuple[float, ...]] = []
+
+    class _CapturePlanner(_FakePlanner):
+        def plan(self, request: Any) -> PlanningOutcome:
+            start_joints.append(tuple(float(x) for x in request.current_joint_state.position_rad))
+            assert request.plan_grasp_to_lift is True
+            assert request.retreat_distance_m == pytest.approx(config.retreat_distance_m)
+            return super().plan(request)
+
+    planner = _CapturePlanner([_ok(), _ok()])
+    runner = IncrementalPopulationRunner(
+        planner_factory=lambda *_a: planner,
+        validator=lambda plan, *_a: _validated(plan),
+        contact_detector_factory=lambda _ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lambda _m: None,
+        apply_reach_prefilter=False,
+    )
+    suite = runner.run_suite(config, root_seed=33, episode_count=1)
+    assert len(suite.results[0].contacted_ids) == 2
+    assert start_joints[0] == pytest.approx((0.0,) * 6)
+    # First accepted plan retreats to contact+0.05 on each joint.
+    assert start_joints[1] == pytest.approx((0.25,) * 6)
+
+
+def test_retreat_start_clearance_fails_closed(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        _base_incremental_yaml(
+            max_consecutive_target_failures=5,
+            max_targets_per_episode=2,
+        ),
+    )
+    config = load_multi_target_suite_config(path)
+    planner = _FakePlanner([_ok(), _ok()])
+
+    def colliding_spheres(positions: np.ndarray) -> np.ndarray:
+        arr = np.asarray(positions, dtype=float)
+        if arr.shape[0] == 1:
+            # Start-clearance path: collide with any retained field cube.
+            return np.asarray([[[0.0, 0.0, 0.2, 0.5]]], dtype=float)
+        # Corridor-record path: stay out of the field so candidates remain drawable.
+        return np.tile(
+            np.asarray([[[10.0, 10.0, 10.0, 0.001]]], dtype=float),
+            (arr.shape[0], 1, 1),
+        )
+
+    runner = IncrementalPopulationRunner(
+        planner_factory=lambda *_a: planner,
+        validator=lambda plan, *_a: _validated(plan),
+        contact_detector_factory=lambda _ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lambda _m: None,
+        apply_reach_prefilter=False,
+        waypoint_spheres_fn=colliding_spheres,
+    )
+    with pytest.raises(ConfigurationError, match="retreated start state"):
+        runner.run_suite(config, root_seed=44, episode_count=1)
+
+
+def test_corridor_reject_is_non_counting(tmp_path: Path) -> None:
+    path = _write_config(
+        tmp_path,
+        _base_incremental_yaml(
+            max_consecutive_target_failures=3,
+            max_targets_per_episode=2,
+            max_placement_attempts=50,
+        ),
+    )
+    config = load_multi_target_suite_config(path)
+    # Accept first target, then force every subsequent candidate into a corridor reject
+    # until geometric fullness — streak must remain 0.
+    planner = _FakePlanner([_ok()])
+
+    def corridor_spheres(positions: np.ndarray) -> np.ndarray:
+        # Dense sphere cloud covering the whole field AABB so every later candidate
+        # fails corridor clearance; start-clearance uses the same fn, so return a
+        # tiny far-away sphere when called with a single waypoint (start check).
+        arr = np.asarray(positions, dtype=float)
+        if arr.shape[0] == 1:
+            return np.asarray([[[10.0, 10.0, 10.0, 0.001]]], dtype=float)
+        # Multi-waypoint accept path: flood the field with large spheres.
+        n = arr.shape[0]
+        return np.tile(np.asarray([[[0.0, 0.0, 0.2, 0.4]]], dtype=float), (n, 1, 1))
+
+    lines: list[str] = []
+    runner = IncrementalPopulationRunner(
+        planner_factory=lambda *_a: planner,
+        validator=lambda plan, *_a: _validated(plan),
+        contact_detector_factory=lambda _ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lines.append,
+        apply_reach_prefilter=False,
+        waypoint_spheres_fn=corridor_spheres,
+    )
+    suite = runner.run_suite(config, root_seed=55, episode_count=1)
+    extra = suite.extras[0]
+    assert len(suite.results[0].contacted_ids) == 1
+    assert extra.stop_reason is PopulationStopReason.GEOMETRIC_FULL
+    assert extra.consecutive_failures_at_stop == 0
+    assert extra.geometric_rejects.corridor > 0
+    assert any("corridor" in line for line in lines if "phase7_5_sampling:" in line)
+
+
+def test_populate_fail_line_includes_category_and_reason() -> None:
+    line = format_populate_candidate(
+        episode_index=1,
+        episode_count=3,
+        accepted=12,
+        candidate_index=18,
+        center_m=(0.1, 0.15, 0.331),
+        plan_ok=False,
+        plan_duration_s=22.1,
+        failure_category="validation_failed",
+        failure_reason="world-collision clearance is insufficient",
+        streak=3,
+        threshold=5,
+    )
+    assert "(validation_failed: world-collision clearance is insufficient)" in line

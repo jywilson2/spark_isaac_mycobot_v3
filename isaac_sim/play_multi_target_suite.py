@@ -145,7 +145,10 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
     from isaacsim.core.api import World
     from isaacsim.core.prims import SingleArticulation
 
-    from isaac_sim.articulation_playback import articulation_position_targets
+    from isaac_sim.articulation_playback import (
+        articulation_position_targets,
+        revolute_dof_indices,
+    )
     from isaac_sim.scene_setup import (
         BODY_CONTACT_COLOR_RGBA,
         DEFAULT_ARM_ENVELOPE_MAX_M,
@@ -186,8 +189,17 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         format_leg_console_row,
         serialize_episode,
     )
+    from mycobot_curobo.robot_model import (
+        JOINT_NAMES,
+        forward_kinematics,
+        load_robot_model_spec,
+    )
     from mycobot_curobo.trajectory import JointTrajectory
     from mycobot_curobo.validation import ValidationMetrics
+
+    # Cache once: uncached forward_kinematics reloads YAML+URDF (~100 ms/call) and
+    # made Phase 7.5 incremental mid-path tip checks ~10–20× slower than 7.2.
+    robot_spec = load_robot_model_spec()
 
     def _viewport_eye_target_from_results(
         episode_results: list[MultiTargetEpisodeResult],
@@ -341,9 +353,6 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
     def _tip_pose_from_joints(robot: Any) -> np.ndarray | None:
         """TCP position from measured articulation joints via project FK."""
         try:
-            from isaac_sim.articulation_playback import revolute_dof_indices
-            from mycobot_curobo.robot_model import JOINT_NAMES, forward_kinematics
-
             getter = getattr(robot, "get_joint_positions", None)
             if not callable(getter):
                 return None
@@ -351,7 +360,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
             if measured.shape != (len(dof_names),):
                 return None
             revolute = measured[list(revolute_dof_indices(dof_names, JOINT_NAMES))]
-            return forward_kinematics(revolute).position_m
+            return forward_kinematics(revolute, spec=robot_spec).position_m
         except Exception:
             return None
 
@@ -448,6 +457,15 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         episode_count: int,
         pass_label: str,
     ) -> MultiTargetEpisodeResult:
+        populate_duration_s: float | None = None
+        if incremental and episode_index < len(incremental_meta):
+            raw_populate = incremental_meta[episode_index].get(
+                "populate_duration_s",
+                incremental_meta[episode_index].get("wall_duration_s"),
+            )
+            if raw_populate is not None:
+                populate_duration_s = float(raw_populate)
+
         playable = any(leg.planning_succeeded and leg.validation_passed for leg in planned.legs)
         if not playable:
             print(
@@ -456,6 +474,16 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 flush=True,
             )
             print(format_episode_console_row(planned, count=episode_count), flush=True)
+            if incremental:
+                populate_text = (
+                    "n/a" if populate_duration_s is None else f"{float(populate_duration_s):.1f}"
+                )
+                print(
+                    f"phase7_5_episode_metrics: ep {episode_index + 1}/{episode_count} | "
+                    f"tip_contacts {planned.tip_contact_count} | "
+                    f"populate_s {populate_text}",
+                    flush=True,
+                )
             return planned
 
         episode = planned.episode
@@ -591,6 +619,21 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                                     f"link={classification.link_name} "
                                     f"target={classification.target_id}"
                                 )
+                        elif incremental and tip_seen_at is None:
+                            # Geometric mid-path tip evidence for legs that end
+                            # retreated (terminal pose is intentionally off-face).
+                            # Prefer USD tip (cheap); joint FK uses a cached spec.
+                            tip = _tip_pose_from_usd(stage)
+                            if tip is None:
+                                tip = _tip_pose_from_joints(robot)
+                            face = np.asarray(
+                                episode.field.target_by_id(leg.to_id)
+                                .to_surface_target()
+                                .position_base_m,
+                                dtype=float,
+                            )
+                            if tip is not None and tip_reaches_surface_m(tip, face):
+                                tip_seen_at = time.perf_counter()
                 # Snap to the planned terminal waypoint so tip-face classification
                 # is not lost to short-hold PD lag under headless stepping.
                 snapped = _snap_joint_positions(robot, terminal)
@@ -616,6 +659,34 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                     contact = _classify_leg_contact(
                         monitor=monitor, robot=robot, target=target_obj, to_id=leg.to_id
                     )
+                # Phase 7.5 incremental legs end at a post-contact retreat pose, so
+                # tip-face geometry at the terminal waypoint is expected to miss.
+                # Honor tip evidence from live mid-path checks, and fall back to
+                # planned-trajectory FK (PD lag can miss live tip-at-face samples).
+                if (
+                    incremental
+                    and contact.kind is ContactKind.NONE
+                    and body_contact_during_motion is None
+                ):
+                    if tip_seen_at is None:
+                        face = np.asarray(
+                            target_obj.to_surface_target().position_base_m, dtype=float
+                        )
+                        for waypoint in trajectory.position_rad:
+                            revolute = np.asarray(waypoint, dtype=float).reshape(-1)
+                            if revolute.shape[0] != len(JOINT_NAMES):
+                                # Trajectory is already in cuRobo joint order.
+                                continue
+                            tip_planned = forward_kinematics(revolute, spec=robot_spec).position_m
+                            if tip_reaches_surface_m(tip_planned, face):
+                                tip_seen_at = motion_started
+                                break
+                    if tip_seen_at is not None:
+                        contact = ContactEvent(
+                            ContactKind.ALLOWED_TIP_CONTACT,
+                            target_id=leg.to_id,
+                            link_name="joint6_flange",
+                        )
                 if contact_diag:
                     diag = monitor.summary().get("contact_diagnostics") or []
                     if diag:
@@ -765,10 +836,21 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                     target_count=len(episode.field.targets),
                     contacted=len(contacted),
                     plan_durations_s=recorded or replay_plan_durations,
+                    populate_duration_s=populate_duration_s,
                 ),
                 flush=True,
             )
         print(format_episode_console_row(updated_result, count=episode_count), flush=True)
+        if incremental:
+            populate_text = (
+                "n/a" if populate_duration_s is None else f"{float(populate_duration_s):.1f}"
+            )
+            print(
+                f"phase7_5_episode_metrics: ep {episode_index + 1}/{episode_count} | "
+                f"tip_contacts {updated_result.tip_contact_count} | "
+                f"populate_s {populate_text}",
+                flush=True,
+            )
         return updated_result
 
     pass_index = 0
