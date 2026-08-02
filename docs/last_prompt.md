@@ -1,10 +1,16 @@
+## BEGIN: 2026-08-02 05:31 -0700
+
+Go ahead and FF main to the fix, and resynch the phase 7.5 branch with these changes.
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-08-02 05:25 -0700
 
 Please fix the unit test failures on their own branch.
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-08-02 05:22 -0700
 
