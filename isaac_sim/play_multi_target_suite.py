@@ -168,12 +168,18 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         union_aabb_m,
     )
     from isaac_sim.tip_body_contact import TipBodyContactMonitor
+    from mycobot_curobo.incremental_population import (
+        format_replay_begin,
+        format_replay_done,
+        format_replay_leg,
+    )
     from mycobot_curobo.multi_target import (
         ContactEvent,
         ContactKind,
         MultiTargetEpisodeResult,
         MultiTargetFailureCategory,
         MultiTargetLegResult,
+        TargetPopulation,
         aggregate_multi_target_results,
         deserialize_episode,
         format_episode_console_row,
@@ -381,6 +387,12 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
     tip_links = tuple(bundle["tip_allow_link_names"])
     retain = bool(bundle["retain_targets_after_contact"])
     lighting_config = IsaacLightingConfig.from_mapping(bundle["lighting"])
+    incremental = (
+        str(bundle.get("target_population", TargetPopulation.FIXED.value))
+        == TargetPopulation.INCREMENTAL.value
+    )
+    incremental_meta = list(bundle.get("incremental_episodes") or [])
+    z_density = dict(bundle.get("z_density") or {})
     if bundle.get("root_seed") is None:
         episode_seeds = bundle.get("episode_seeds") or []
         root_seed = int(episode_seeds[0]) if episode_seeds else 0
@@ -447,6 +459,23 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
             return planned
 
         episode = planned.episode
+        replay_plan_durations: list[float] = []
+        if incremental:
+            delta_z = float(z_density.get("delta_z_m", 0.0))
+            meta = incremental_meta[episode_index] if episode_index < len(incremental_meta) else {}
+            # Prefer designated suite band from z_density; fall back to accepted Z.
+            z_lo = float(z_density.get("z_lo_m", meta.get("z_band_lo_m", 0.0)))
+            z_hi = float(z_density.get("z_hi_m", meta.get("z_band_hi_m", 0.0)))
+            z_fragment = f"z-dist uniform dz={delta_z:.2f} band {z_lo:.2f}–{z_hi:.2f} m"
+            print(
+                format_replay_begin(
+                    episode_index=episode_index,
+                    episode_count=episode_count,
+                    z_fragment=z_fragment,
+                    target_count=len(episode.field.targets),
+                ),
+                flush=True,
+            )
         target_paths = {
             target.target_id: f"/World/Phase7_2/Targets/target_{target.target_id}"
             for target in episode.field.targets
@@ -655,6 +684,20 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                         ),
                         flush=True,
                     )
+                    if incremental:
+                        replay_plan_durations.append(planning_s)
+                        print(
+                            format_replay_leg(
+                                episode_index=episode_index,
+                                episode_count=episode_count,
+                                leg_index=len(contacted) - 1,
+                                target_count=len(episode.field.targets),
+                                target_id=leg.to_id,
+                                plan_duration_s=planning_s,
+                                contact_kind=contact.kind.value,
+                            ),
+                            flush=True,
+                        )
                     continue
                 face = np.asarray(target_obj.to_surface_target().position_base_m, dtype=float)
                 tip_joint = _tip_pose_from_joints(robot)
@@ -709,6 +752,22 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
             planning_failure_count=planned.planning_failure_count,
             target_failure_count=planned.target_failure_count,
         )
+        if incremental:
+            recorded = [
+                float(leg.planning_duration_s)
+                for leg in planned.legs
+                if leg.planning_duration_s is not None
+            ]
+            print(
+                format_replay_done(
+                    episode_index=episode_index,
+                    episode_count=episode_count,
+                    target_count=len(episode.field.targets),
+                    contacted=len(contacted),
+                    plan_durations_s=recorded or replay_plan_durations,
+                ),
+                flush=True,
+            )
         print(format_episode_console_row(updated_result, count=episode_count), flush=True)
         return updated_result
 

@@ -1,6 +1,6 @@
 # STATUS — MyCobot 280 M5 Constrained Approach Planner
 
-Last updated: **2026-08-01**
+Last updated: **2026-08-02**
 
 ## Current phase
 
@@ -55,14 +55,18 @@ screen, `order: z_desc`, goal-set rolls for wide-band suites, regen on
 `max_consecutive_unplanned_targets` default
 `max(3, ceil(target_count/3))`.
 
-**Phase 7.5 — Variable-target-count Z-density stress suite: SPECIFIED
-(2026-08-02), implementation pending (`wip_phase7_5`)**
+**Phase 7.5 — Variable-target-count Z-density stress suite: COMPLETE
+(2026-08-02, `wip_phase7_5`)**
 `target_population: incremental` — targets created/verified/planned
 one-by-one against retained accepted cubes; one `plan_grasp` attempt per
 candidate is the feasibility oracle; population stops after
 `max_consecutive_target_failures` (default 5). Achieved counts become the
-metric and appear in artifact names (`…_dz0_30_n14-11-16_seed…`); normative
-human-readable console format (progress + streak proximity). See
+metric and appear in artifact names (`…_dz0_30_n1-1-1_seed4242…` on first
+host smoke); normative human-readable console format (progress + streak
+proximity). Module `mycobot_curobo.incremental_population`, config
+`config/phase7_5_variable_targets_dz_0_30.yml`, host smoke
+`scripts/host/smoke_phase7_5_variable_dz_0_30.sh`. Headless plan+play and
+GUI replay of the frozen bundle both exit 0 (tip=3, body=0). See
 [`spec.md`](spec.md) §8 Phase 7.5 and
 [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
 
@@ -98,7 +102,7 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 7.2 | Multi-target tip-contact clearance suite | **Complete** |
 | 7.3 | Controllable target-block placement (+ CI fixes) | **Complete** |
 | 7.4 | Extended Z variability + Z-aware EE-clearance spacing | **Partially functional (closed 2026-08-02)** |
-| 7.5 | Variable-target-count Z-density stress suite | Specified — approved for implementation |
+| 7.5 | Variable-target-count Z-density stress suite | **Complete** |
 | 8 | Bounded residual RL (sim only) | Planned |
 | 9 | Fabricated contact test tool | Requirements finalized |
 | 9.1 | Contact test tool evaluation | Requirements finalized |
@@ -156,20 +160,14 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Next step / resume (2026-08-02)
 
-**Where we left off:** Phase 7.4 goal-feasibility amendment implemented;
-3×15 densest headless smoke accepted (2/3, tip=43, body=0,
-`field_regenerations: 5`; `place_wall_s` median ≈ 3.9 s). GUI play of that
-accepted bundle exited 0 (`lighting_ready`, `joint_playback_completed`);
-full `--gui` plan+play was SIGKILL'd mid tip-IK on this host.
-**Decision 2026-08-02: Phase 7.4 closed as partially functional** — fixed-count
-wide-band stress moves to Phase 7.5. Phase 7.5 spec review items all
-approved 2026-08-02.
+**Where we left off:** Phase 7.5 complete on `wip_phase7_5`. Headless
+`dz0_30` smoke accepted `3/3` with achieved counts `n1-1-1` (tip=3,
+body=0); GUI replay of the frozen bundle exit 0. Phase 7.4 remains
+partially functional / closed (wide-band fixed-count stress superseded).
 
 **Next steps:**
 
-1. Implement Phase 7.5 (variable-target-count Z-density stress suite) on
-   `wip_phase7_5` per `spec.md` §8 Phase 7.5; headless then GUI smoke.
-2. Phase 8 (bounded residual RL, sim only) on `wip_phase8`. Entry criteria
+1. Phase 8 (bounded residual RL, sim only) on `wip_phase8`. Entry criteria
    verified 2026-07-31. **Note:** residual policies trained under
    scaffolding-only spheres may need retraining under the denser
    world-cover set now armed by default.

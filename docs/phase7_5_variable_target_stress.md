@@ -1,8 +1,20 @@
 # Phase 7.5 — Variable-target-count Z-density stress suite
 
-**Status:** Specified (2026-08-02); implementation pending.
+**Status:** Complete (2026-08-02).
 **Branch:** `wip_phase7_5`.
 Normative rules: [`spec.md`](../spec.md) §8 Phase 7.5.
+
+## Implementation
+
+| Piece | Location |
+|-------|----------|
+| Config key + fail-closed matrix | `mycobot_curobo.multi_target.load_multi_target_suite_config` |
+| Candidate sampler | `mycobot_curobo.target_placement.draw_incremental_candidate` |
+| Population runner + console/naming | `mycobot_curobo.incremental_population` |
+| Host plan/play | `isaac_sim/plan_multi_target_suite.py`, `play_multi_target_suite.py` |
+| Example config | `config/phase7_5_variable_targets_dz_0_30.yml` |
+| Host smoke | `scripts/host/smoke_phase7_5_variable_dz_0_30.sh` |
+| Unit tests | `tests/unit/test_phase7_5_variable_targets.py` |
 
 ## Problem
 
@@ -122,15 +134,19 @@ episode summary reports mean seconds per accepted target; suite summary is
 an aligned table with a totals row plus the artifact base name, with the
 machine JSON line last — no raw dict dumps as the primary human output.
 
-## Evidence / gates (planned)
+## Evidence / gates
 
 - Unit: fail-closed config matrix, streak/stop semantics, naming from
   achieved counts, world growth across acceptances, deterministic candidate
-  stream under a fake oracle (`tests/unit/test_phase7_5_variable_targets.py`).
-- Host: headless then GUI smoke
-  (`scripts/host/smoke_phase7_5_variable_dz_0_30.sh`), every episode ≥
-  `min_targets_per_episode`, required console lines present, zero
-  prohibited contacts in playback.
+  stream under a fake oracle (`tests/unit/test_phase7_5_variable_targets.py`)
+  — **22 passed**; full `pytest tests/unit` **265 passed** with Ruff clean
+  (`./scripts/run_verification.sh ci`, 2026-08-02).
+- Host headless (`smoke_phase7_5_variable_dz_0_30.sh --headless --root-seed
+  4242`): suite accepted `3/3`, achieved counts `n1-1-1`, tip=3, body=0,
+  artifact `phase7_5-variable_dz0_30_n1-1-1_seed4242`, required
+  `phase7_5_*` console lines present; wall ≈ 339 s population.
+- Host GUI replay of the frozen bundle (`--gui --auto-exit`):
+  `lighting_ready`, `joint_playback_completed`, tip=3, body=0, exit 0.
 
 ## Relation to Phase 7.4
 

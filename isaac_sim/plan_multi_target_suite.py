@@ -26,10 +26,16 @@ from mycobot_curobo.cube_scene import (  # noqa: E402
     flange_disk_face_overhang_m,
 )
 from mycobot_curobo.errors import ConfigurationError  # noqa: E402
+from mycobot_curobo.incremental_population import (  # noqa: E402
+    IncrementalPopulationRunner,
+    format_suite_table,
+    format_z_dist_header,
+)
 from mycobot_curobo.multi_target import (  # noqa: E402
     MultiTargetEpisode,
     MultiTargetEpisodeRunner,
     OptimisticTipContactDetector,
+    TargetPopulation,
     aggregate_multi_target_results,
     format_episode_console_row,
     format_suite_summary,
@@ -127,31 +133,27 @@ def _multi_cube_clearance_fn(geometries: tuple[Any, ...]):
     return clearance
 
 
-def plan_and_validate(
-    episodes: tuple[Any, ...],
+def _build_planner_and_validator(
     *,
+    planner_profile_name: str,
     validation_profile_name: str,
-    warn_planning_duration_s: float | None,
-    minimum_self_collision_clearance_m: float = 0.0,
-    minimum_world_collision_clearance_m: float = 0.0,
-    flange_diameter_assumption_m: float | None = None,
-    require_flange_face_containment: bool = False,
-    flange_face_overhang_tolerance_m: float = 0.005,
-    app_config_path: Path | None = None,
-    regenerate_field: Any | None = None,
-    max_field_regenerations: int = 0,
-) -> tuple[tuple[Any, ...], dict[str, Any]]:
-    """Run the multi-target runner with optimistic tip contact (planning process)."""
+    minimum_self_collision_clearance_m: float,
+    minimum_world_collision_clearance_m: float,
+    flange_diameter_assumption_m: float | None,
+    require_flange_face_containment: bool,
+    flange_face_overhang_tolerance_m: float,
+    app_config_path: Path | None,
+) -> tuple[Any, Any, Any]:
+    """Return ``(app, planner_factory, validator)`` shared by fixed/incremental hosts."""
 
     app = load_app_config() if app_config_path is None else load_app_config(app_config_path)
-    base_profile = load_planner_profile(episodes[0].planner_profile)
+    base_profile = load_planner_profile(planner_profile_name)
     validation_profile = replace(
         load_validation_profile(validation_profile_name),
         minimum_self_collision_clearance_m=float(minimum_self_collision_clearance_m),
         minimum_world_collision_clearance_m=float(minimum_world_collision_clearance_m),
     )
     robot_spec = load_robot_model_spec(app.robot_config_path)
-    trajectories: dict[str, Any] = {}
     flange_diameter = (
         None if flange_diameter_assumption_m is None else float(flange_diameter_assumption_m)
     )
@@ -283,6 +285,37 @@ def plan_and_validate(
             executable=False,
         )
 
+    return app, planner_factory, validator
+
+
+def plan_and_validate(
+    episodes: tuple[Any, ...],
+    *,
+    validation_profile_name: str,
+    warn_planning_duration_s: float | None,
+    minimum_self_collision_clearance_m: float = 0.0,
+    minimum_world_collision_clearance_m: float = 0.0,
+    flange_diameter_assumption_m: float | None = None,
+    require_flange_face_containment: bool = False,
+    flange_face_overhang_tolerance_m: float = 0.005,
+    app_config_path: Path | None = None,
+    regenerate_field: Any | None = None,
+    max_field_regenerations: int = 0,
+) -> tuple[tuple[Any, ...], dict[str, Any]]:
+    """Run the multi-target runner with optimistic tip contact (planning process)."""
+
+    _app, planner_factory, validator = _build_planner_and_validator(
+        planner_profile_name=episodes[0].planner_profile,
+        validation_profile_name=validation_profile_name,
+        minimum_self_collision_clearance_m=minimum_self_collision_clearance_m,
+        minimum_world_collision_clearance_m=minimum_world_collision_clearance_m,
+        flange_diameter_assumption_m=flange_diameter_assumption_m,
+        require_flange_face_containment=require_flange_face_containment,
+        flange_face_overhang_tolerance_m=flange_face_overhang_tolerance_m,
+        app_config_path=app_config_path,
+    )
+    trajectories: dict[str, Any] = {}
+
     def plan_sink(plan: NominalPlan) -> None:
         trajectories[plan.request_id] = plan.combined_trajectory
 
@@ -299,6 +332,49 @@ def plan_and_validate(
         max_field_regenerations=max_field_regenerations,
     )
     return results, trajectories
+
+
+def plan_incremental(
+    config: Any,
+    *,
+    root_seed: int | None,
+    episode_count: int | None,
+    independent_random_episode_seeds: bool,
+    app_config_path: Path | None = None,
+) -> Any:
+    """Run Phase 7.5 incremental population with optimistic tip contact."""
+
+    _app, planner_factory, validator = _build_planner_and_validator(
+        planner_profile_name=config.planner_profile,
+        validation_profile_name=config.validation_profile,
+        minimum_self_collision_clearance_m=config.minimum_self_collision_clearance_m,
+        minimum_world_collision_clearance_m=config.minimum_world_collision_clearance_m,
+        flange_diameter_assumption_m=config.flange_diameter_assumption_m,
+        require_flange_face_containment=config.require_flange_face_containment,
+        flange_face_overhang_tolerance_m=config.flange_face_overhang_tolerance_m,
+        app_config_path=app_config_path,
+    )
+    trajectories: dict[str, Any] = {}
+
+    def plan_sink(plan: NominalPlan) -> None:
+        trajectories[plan.request_id] = plan.combined_trajectory
+
+    runner = IncrementalPopulationRunner(
+        planner_factory=planner_factory,
+        validator=validator,
+        contact_detector_factory=lambda _episode, to_id: OptimisticTipContactDetector(to_id),
+        plan_sink=plan_sink,
+        warn_planning_duration_s=config.warn_planning_duration_s,
+        console_log=lambda message: print(message, flush=True),
+    )
+    suite = runner.run_suite(
+        config,
+        root_seed=root_seed,
+        episode_count=episode_count,
+        independent_random_episode_seeds=independent_random_episode_seeds,
+        trajectories_out=trajectories,
+    )
+    return suite
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -319,6 +395,113 @@ def main(argv: list[str] | None = None) -> int:
         root_seed = resolve_invocation_root_seed(args.root_seed)
         print(f"phase7_2_plan: root_seed={root_seed} (cli)", flush=True)
     config = load_multi_target_suite_config(args.config)
+    if config.target_population is TargetPopulation.INCREMENTAL:
+        if args.targets is not None:
+            raise ConfigurationError(
+                "--targets is invalid for target_population=incremental "
+                "(achieved count is an outcome)"
+            )
+        print("phase7_5_populate: target_population=incremental", flush=True)
+        suite = plan_incremental(
+            config,
+            root_seed=root_seed,
+            episode_count=args.episodes,
+            independent_random_episode_seeds=independent_episode_seeds,
+            app_config_path=args.app_config,
+        )
+        print(
+            format_suite_table(
+                results=suite.results,
+                extras=suite.extras,
+                artifact_base_name=suite.artifact_base_name,
+            ),
+            flush=True,
+        )
+        fully_succeeded = suite.summary.successes == suite.summary.total_episodes
+        _z_frag, _z_width, _z_lo, _z_hi = format_z_dist_header(config)
+        # Write the caller-requested path (smoke env) and the normative named
+        # artifact beside it so logs/filenames both carry achieved counts.
+        requested_bundle = args.output_bundle
+        named_bundle = requested_bundle.with_name(f"{suite.artifact_base_name}.bundle.json")
+        payload = {
+            "schema_version": 1,
+            "target_population": TargetPopulation.INCREMENTAL.value,
+            "artifact_base_name": suite.artifact_base_name,
+            "root_seed": suite.root_seed if suite.root_seed is not None else root_seed,
+            "seed_mode": (
+                "independent_random_per_episode" if independent_episode_seeds else "cli_root"
+            ),
+            "episode_seeds": list(suite.episode_seeds),
+            "max_failed_episodes": int(config.max_failed_episodes),
+            "suite_accepted": bool(suite.suite_accepted),
+            "fully_succeeded": bool(fully_succeeded),
+            "tip_allow_link_names": list(config.tip_allow_link_names),
+            "retain_targets_after_contact": True,
+            "lighting": config.lighting,
+            "z_density": {
+                "delta_z_m": float(_z_width),
+                "z_band_fraction": config.z_band_fraction,
+                "z_lo_m": float(_z_lo),
+                "z_hi_m": float(_z_hi),
+            },
+            "incremental_episodes": [
+                {
+                    "stop_reason": extra.stop_reason.value,
+                    "consecutive_failures_at_stop": extra.consecutive_failures_at_stop,
+                    "total_target_failures": extra.total_target_failures,
+                    "accepted_plan_durations_s": list(extra.accepted_plan_durations_s),
+                    "failed_plan_durations_s": list(extra.failed_plan_durations_s),
+                    "draws": extra.draws,
+                    "planned_candidates": extra.planned_candidates,
+                    "geometric_rejects": asdict(extra.geometric_rejects),
+                    "z_band_lo_m": extra.z_band_lo_m,
+                    "z_band_hi_m": extra.z_band_hi_m,
+                    "wall_duration_s": extra.wall_duration_s,
+                }
+                for extra in suite.extras
+            ],
+            "placement_generation": None,
+            "summary": asdict(suite.summary),
+            "results": [asdict(result) for result in suite.results],
+            "frozen_requests": [serialize_episode(result.episode) for result in suite.results],
+            "trajectories": {
+                request_id: _serialize_trajectory(trajectory)
+                for request_id, trajectory in suite.trajectories.items()
+            },
+        }
+        text = (
+            json.dumps(
+                payload,
+                indent=2,
+                sort_keys=True,
+                default=lambda value: value.value if isinstance(value, Enum) else value,
+            )
+            + "\n"
+        )
+        requested_bundle.parent.mkdir(parents=True, exist_ok=True)
+        requested_bundle.write_text(text, encoding="utf-8")
+        if named_bundle.resolve() != requested_bundle.resolve():
+            named_bundle.write_text(text, encoding="utf-8")
+        print(
+            json.dumps(
+                {
+                    "bundle": str(named_bundle),
+                    "bundle_alias": str(requested_bundle),
+                    "artifact_base_name": suite.artifact_base_name,
+                    "episodes": len(suite.results),
+                    "accepted_counts": [len(r.contacted_ids) for r in suite.results],
+                    "suite_accepted": suite.suite_accepted,
+                    "fully_succeeded": fully_succeeded,
+                    "failed_episodes": suite.summary.failed_episodes,
+                    "max_failed_episodes": config.max_failed_episodes,
+                    "total_planning_failures": suite.summary.total_planning_failures,
+                    "total_target_failures": suite.summary.total_target_failures,
+                }
+            ),
+            flush=True,
+        )
+        return 0 if suite.suite_accepted else 1
+
     if args.targets is not None:
         before = config
         config = override_suite_target_count(config, args.targets)
@@ -442,6 +625,7 @@ def main(argv: list[str] | None = None) -> int:
     fully_succeeded = summary.successes == summary.total_episodes
     payload = {
         "schema_version": 1,
+        "target_population": TargetPopulation.FIXED.value,
         "root_seed": root_seed,
         "seed_mode": (
             "independent_random_per_episode" if independent_episode_seeds else "cli_root"

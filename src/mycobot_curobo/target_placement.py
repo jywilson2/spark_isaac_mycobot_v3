@@ -702,6 +702,99 @@ def _pair_ok(
     return True
 
 
+@dataclass
+class GeometricRejectCounts:
+    """Aggregated non-counting pre-filter rejections for incremental sampling."""
+
+    separation: int = 0
+    keep_out: int = 0
+    rim: int = 0
+    reach: int = 0
+    aabb: int = 0
+
+    @property
+    def total(self) -> int:
+        return self.separation + self.keep_out + self.rim + self.reach + self.aabb
+
+
+def draw_incremental_candidate(
+    rng: np.random.Generator,
+    *,
+    field_minimum_m: Sequence[float],
+    field_maximum_m: Sequence[float],
+    arm_z_motion_range_m: float,
+    edge_m: float,
+    min_center_separation_m: float,
+    accepted_centers_m: Sequence[Sequence[float]],
+    keep_outs: Sequence[KeepOutAabb] = (),
+    outward_normal_base: Sequence[float] = (0.0, 0.0, 1.0),
+    max_target_radial_m: float | None = None,
+    z_band_fraction: float = DEFAULT_Z_BAND_FRACTION,
+    delta_z_m: float | None = None,
+    z_separation_gain: float = 1.0,
+    pre_approach_distance_m: float = 0.05,
+    dexterous_reach: DexterousReachModel = DEFAULT_DEXTEROUS_REACH,
+    apply_reach_prefilter: bool = True,
+    reject_counts: GeometricRejectCounts | None = None,
+) -> tuple[float, float, float] | None:
+    """Draw one centre; return ``None`` when a cheap geometric pre-filter rejects it.
+
+    Dexterous-reach screening is advisory (non-counting for planner failure
+    streaks). Rejection tallies are recorded on ``reject_counts`` when provided.
+    """
+
+    lo = _tuple3(field_minimum_m, "field_minimum_m")
+    hi = _tuple3(field_maximum_m, "field_maximum_m")
+    _, z_lo, z_hi = z_band_bounds(
+        lo,
+        hi,
+        arm_z_motion_range_m=arm_z_motion_range_m,
+        z_band_fraction=z_band_fraction,
+        delta_z_m=delta_z_m,
+    )
+    candidate = (
+        float(rng.uniform(lo[0], hi[0])),
+        float(rng.uniform(lo[1], hi[1])),
+        float(rng.uniform(z_lo, z_hi)),
+    )
+    counts = reject_counts if reject_counts is not None else GeometricRejectCounts()
+    half = 0.5 * edge_m
+    if (
+        candidate[0] - half < lo[0] - 1.0e-12
+        or candidate[0] + half > hi[0] + 1.0e-12
+        or candidate[1] - half < lo[1] - 1.0e-12
+        or candidate[1] + half > hi[1] + 1.0e-12
+    ):
+        counts.aabb += 1
+        return None
+    if center_violates_rim(candidate, edge_m=edge_m, max_target_radial_m=max_target_radial_m):
+        counts.rim += 1
+        return None
+    if center_violates_keep_outs(candidate, edge_m, keep_outs):
+        counts.keep_out += 1
+        return None
+    if not _pair_ok(
+        candidate,
+        accepted_centers_m,
+        min_center_separation_m=min_center_separation_m,
+        edge_m=edge_m,
+        outward_normal_base=outward_normal_base,
+        z_separation_gain=z_separation_gain,
+        pre_approach_distance_m=pre_approach_distance_m,
+    ):
+        counts.separation += 1
+        return None
+    if apply_reach_prefilter and center_outside_dexterous_reach(
+        candidate,
+        edge_m=edge_m,
+        outward_normal_base=outward_normal_base,
+        reach=dexterous_reach,
+    ):
+        counts.reach += 1
+        return None
+    return candidate
+
+
 def build_random_centers(
     count: int,
     field_minimum_m: Sequence[float],

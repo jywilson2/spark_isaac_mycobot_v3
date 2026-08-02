@@ -1,10 +1,20 @@
+## BEGIN: 2026-08-02 05:34 -0700
+
+Implement Phase 7.5 as specified.
+
+If all tests pass commit and push.
+
+Stream the output during testing to a dedicated console to simplify viewing.
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-08-02 05:31 -0700
 
 Go ahead and FF main to the fix, and resynch the phase 7.5 branch with these changes.
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-08-02 05:25 -0700
 

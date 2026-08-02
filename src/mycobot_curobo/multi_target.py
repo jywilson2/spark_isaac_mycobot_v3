@@ -70,6 +70,17 @@ class OrderPolicy(str, Enum):
     Z_DESC = "z_desc"
 
 
+class TargetPopulation(str, Enum):
+    """How episode target fields are obtained.
+
+    ``fixed`` preserves Phase 7.2–7.4 whole-field placement. ``incremental``
+    (Phase 7.5) grows the field one planner-verified candidate at a time.
+    """
+
+    FIXED = "fixed"
+    INCREMENTAL = "incremental"
+
+
 class ContactKind(str, Enum):
     ALLOWED_TIP_CONTACT = "allowed_tip_contact"
     PROHIBITED_BODY_CONTACT = "prohibited_body_contact"
@@ -87,7 +98,24 @@ class MultiTargetFailureCategory(str, Enum):
     TARGETS_UNPLANNED = "targets_unplanned"
     MAX_RECONSIDER_PASSES_EXCEEDED = "max_reconsider_passes_exceeded"
     MAX_CONSECUTIVE_UNPLANNED_TARGETS_EXCEEDED = "max_consecutive_unplanned_targets_exceeded"
+    INSUFFICIENT_TARGETS = "insufficient_targets"
     CONFIGURATION_MODEL_FAILURE = "configuration_model_failure"
+
+
+# Keys that must be absent under target_population: incremental (fail closed).
+INCREMENTAL_FORBIDDEN_KEYS: frozenset[str] = frozenset(
+    {
+        "target_count",
+        "order",
+        "max_planning_failure_per_target",
+        "max_reconsider_passes",
+        "max_consecutive_unplanned_targets",
+        "max_field_regenerations",
+        "require_tip_ik",
+        "max_ik_rejections",
+        "max_reach_rejections",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -180,8 +208,6 @@ class TargetField:
     contact_order_ids: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        if not self.targets:
-            raise ConfigurationError("TargetField requires at least one target")
         ids = [target.target_id for target in self.targets]
         if len(set(ids)) != len(ids):
             raise ConfigurationError("target_id values must be unique")
@@ -218,10 +244,13 @@ class TargetField:
 @dataclass(frozen=True)
 class MultiTargetSuiteConfig:
     episode_count: int
+    # Fixed mode: required positive count. Incremental mode: 0 (count is an outcome).
     target_count: int
     root_seed: int
     frame: str
     placement: PlacementPolicy
+    # Fixed mode: required order policy. Incremental mode: LISTED placeholder
+    # (contact order is acceptance order by construction; YAML must omit ``order``).
     order: OrderPolicy
     retain_targets_after_contact: bool
     max_planning_failure_per_target: int
@@ -283,6 +312,12 @@ class MultiTargetSuiteConfig:
     require_tip_ik: bool = False
     # Suite-wide field regenerations after consecutive-unplanned abort (default 3).
     max_field_regenerations: int = 3
+    # Phase 7.5: fixed (default) vs incremental population.
+    target_population: TargetPopulation = TargetPopulation.FIXED
+    max_consecutive_target_failures: int = 5
+    max_total_target_failures: int = 0
+    max_targets_per_episode: int = 0
+    min_targets_per_episode: int = 1
 
 
 def _tuple3(value: Any, label: str) -> tuple[float, float, float]:
@@ -338,7 +373,7 @@ def _max_consecutive_unplanned_targets(value: Any) -> int:
 def load_multi_target_suite_config(
     path: Path | str = Path("config/phase7_2_multi_target.yml"),
 ) -> MultiTargetSuiteConfig:
-    """Load and validate the Phase 7.2 suite without simulator dependencies."""
+    """Load and validate a multi-target suite without simulator dependencies."""
 
     source = Path(path)
     if not source.is_file():
@@ -346,37 +381,94 @@ def load_multi_target_suite_config(
     payload = yaml.safe_load(source.read_text(encoding="utf-8"))
     if not isinstance(payload, dict) or payload.get("frame") != "g_base":
         raise ConfigurationError("multi-target suite must explicitly use frame g_base")
-    placement = PlacementPolicy(str(payload["placement"]))
-    order = OrderPolicy(str(payload["order"]))
-    target_count = _positive_int(payload["target_count"], "target_count")
+    population_raw = payload.get("target_population", TargetPopulation.FIXED.value)
+    try:
+        target_population = TargetPopulation(str(population_raw))
+    except ValueError as exc:
+        raise ConfigurationError("target_population must be 'fixed' or 'incremental'") from exc
+    incremental = target_population is TargetPopulation.INCREMENTAL
+    if incremental:
+        for key in sorted(INCREMENTAL_FORBIDDEN_KEYS):
+            if key in payload:
+                raise ConfigurationError(
+                    f"target_population=incremental forbids key '{key}' "
+                    "(count/order/deferral/regen/tip-IK machinery does not run)"
+                )
+        if "placement" not in payload or str(payload["placement"]) != PlacementPolicy.RANDOM.value:
+            raise ConfigurationError("target_population=incremental requires placement: random")
+        if "retain_targets_after_contact" not in payload:
+            raise ConfigurationError(
+                "target_population=incremental requires retain_targets_after_contact: true"
+            )
+        if not bool(payload["retain_targets_after_contact"]):
+            raise ConfigurationError(
+                "target_population=incremental requires retain_targets_after_contact: true"
+            )
+        placement = PlacementPolicy.RANDOM
+        order = OrderPolicy.LISTED
+        target_count = 0
+        retain = True
+        max_planning_failure_per_target = 1
+        max_target_failures = 0
+        max_consecutive_unplanned_targets = 0
+        max_reconsider_passes = 0
+        max_field_regenerations = 0
+        require_tip_ik = False
+        max_reach_rejections = None
+        max_ik_rejections = None
+        max_consecutive_target_failures = _positive_int(
+            payload.get("max_consecutive_target_failures", 5),
+            "max_consecutive_target_failures",
+        )
+        max_total_target_failures = _non_negative_int(
+            payload.get("max_total_target_failures", 0), "max_total_target_failures"
+        )
+        max_targets_per_episode = _non_negative_int(
+            payload.get("max_targets_per_episode", 0), "max_targets_per_episode"
+        )
+        min_targets_per_episode = _positive_int(
+            payload.get("min_targets_per_episode", 1), "min_targets_per_episode"
+        )
+        if max_targets_per_episode > 0 and max_targets_per_episode < min_targets_per_episode:
+            raise ConfigurationError(
+                "max_targets_per_episode must be 0 (disabled) or >= min_targets_per_episode"
+            )
+    else:
+        placement = PlacementPolicy(str(payload["placement"]))
+        order = OrderPolicy(str(payload["order"]))
+        target_count = _positive_int(payload["target_count"], "target_count")
+        retain = bool(payload.get("retain_targets_after_contact", False))
+        max_planning_raw = payload.get("max_planning_failure_per_target")
+        max_planning_failure_per_target = (
+            3
+            if max_planning_raw is None
+            else _positive_int(max_planning_raw, "max_planning_failure_per_target")
+        )
+        max_target_raw = payload.get("max_target_failures")
+        max_target_failures = (
+            default_max_target_failures(target_count)
+            if max_target_raw is None
+            else _non_negative_int(max_target_raw, "max_target_failures")
+        )
+        max_consecutive_raw = payload.get("max_consecutive_unplanned_targets")
+        max_consecutive_unplanned_targets = (
+            default_max_consecutive_unplanned_targets(target_count)
+            if max_consecutive_raw is None
+            else _max_consecutive_unplanned_targets(max_consecutive_raw)
+        )
+        reconsider_raw = payload.get("max_reconsider_passes")
+        max_reconsider_passes = (
+            target_count
+            if reconsider_raw is None
+            else _positive_int(reconsider_raw, "max_reconsider_passes")
+        )
+        max_consecutive_target_failures = 5
+        max_total_target_failures = 0
+        max_targets_per_episode = 0
+        min_targets_per_episode = 1
     episode_count = _positive_int(payload["episode_count"], "episode_count")
-    retain = bool(payload.get("retain_targets_after_contact", False))
-    max_planning_raw = payload.get("max_planning_failure_per_target")
-    max_planning_failure_per_target = (
-        3
-        if max_planning_raw is None
-        else _positive_int(max_planning_raw, "max_planning_failure_per_target")
-    )
-    max_target_raw = payload.get("max_target_failures")
-    max_target_failures = (
-        default_max_target_failures(target_count)
-        if max_target_raw is None
-        else _non_negative_int(max_target_raw, "max_target_failures")
-    )
     max_failed_episodes = _non_negative_int(
         payload.get("max_failed_episodes", 0), "max_failed_episodes"
-    )
-    max_consecutive_raw = payload.get("max_consecutive_unplanned_targets")
-    max_consecutive_unplanned_targets = (
-        default_max_consecutive_unplanned_targets(target_count)
-        if max_consecutive_raw is None
-        else _max_consecutive_unplanned_targets(max_consecutive_raw)
-    )
-    reconsider_raw = payload.get("max_reconsider_passes")
-    max_reconsider_passes = (
-        target_count
-        if reconsider_raw is None
-        else _positive_int(reconsider_raw, "max_reconsider_passes")
     )
     tip_links = tuple(str(item) for item in payload["tip_allow_link_names"])
     if not tip_links or any(not item.strip() for item in tip_links):
@@ -529,18 +621,21 @@ def load_multi_target_suite_config(
     if not math.isfinite(z_separation_gain) or z_separation_gain < 1.0:
         raise ConfigurationError("z_separation_gain must be finite and >= 1.0")
     dexterous_reach = parse_dexterous_reach(payload.get("dexterous_reach"))
-    max_reach_raw = payload.get("max_reach_rejections")
-    max_reach_rejections = (
-        None if max_reach_raw is None else _non_negative_int(max_reach_raw, "max_reach_rejections")
-    )
-    max_ik_raw = payload.get("max_ik_rejections")
-    max_ik_rejections = (
-        None if max_ik_raw is None else _non_negative_int(max_ik_raw, "max_ik_rejections")
-    )
-    require_tip_ik = bool(payload.get("require_tip_ik", False))
-    max_field_regenerations = _non_negative_int(
-        payload.get("max_field_regenerations", 3), "max_field_regenerations"
-    )
+    if not incremental:
+        max_reach_raw = payload.get("max_reach_rejections")
+        max_reach_rejections = (
+            None
+            if max_reach_raw is None
+            else _non_negative_int(max_reach_raw, "max_reach_rejections")
+        )
+        max_ik_raw = payload.get("max_ik_rejections")
+        max_ik_rejections = (
+            None if max_ik_raw is None else _non_negative_int(max_ik_raw, "max_ik_rejections")
+        )
+        require_tip_ik = bool(payload.get("require_tip_ik", False))
+        max_field_regenerations = _non_negative_int(
+            payload.get("max_field_regenerations", 3), "max_field_regenerations"
+        )
     warn = payload.get("warn_planning_duration_s")
     warn_s = None if warn is None else float(warn)
     if warn_s is not None and (not math.isfinite(warn_s) or warn_s <= 0.0):
@@ -597,6 +692,11 @@ def load_multi_target_suite_config(
         max_ik_rejections=max_ik_rejections,
         require_tip_ik=require_tip_ik,
         max_field_regenerations=max_field_regenerations,
+        target_population=target_population,
+        max_consecutive_target_failures=max_consecutive_target_failures,
+        max_total_target_failures=max_total_target_failures,
+        max_targets_per_episode=max_targets_per_episode,
+        min_targets_per_episode=min_targets_per_episode,
     )
 
 
@@ -627,6 +727,11 @@ def override_suite_target_count(
     differs from the previous ``target_count``.
     """
 
+    if config.target_population is TargetPopulation.INCREMENTAL:
+        raise ConfigurationError(
+            "override_suite_target_count is invalid for target_population=incremental "
+            "(achieved count is an outcome, not an input)"
+        )
     count = _positive_int(target_count, "target_count")
     reconsider = (
         count
@@ -1089,6 +1194,11 @@ def sample_multi_target_episodes(
     provided, a single :class:`SuitePlacementStats` is appended.
     """
 
+    if config.target_population is TargetPopulation.INCREMENTAL:
+        raise ConfigurationError(
+            "sample_multi_target_episodes does not support target_population=incremental; "
+            "use IncrementalPopulationRunner"
+        )
     count = (
         config.episode_count
         if episode_count is None
@@ -1300,9 +1410,12 @@ def deserialize_episode(payload: dict[str, Any]) -> MultiTargetEpisode:
         ),
         max_failed_episodes=int(data.get("max_failed_episodes", 0)),
         max_consecutive_unplanned_targets=_max_consecutive_unplanned_targets(
-            data.get(
-                "max_consecutive_unplanned_targets",
-                default_max_consecutive_unplanned_targets(len(target_field.contact_order_ids)),
+            data["max_consecutive_unplanned_targets"]
+            if "max_consecutive_unplanned_targets" in data
+            else (
+                0
+                if not target_field.contact_order_ids
+                else default_max_consecutive_unplanned_targets(len(target_field.contact_order_ids))
             )
         ),
         scene_revision_prefix=str(data["scene_revision_prefix"]),

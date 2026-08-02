@@ -23,7 +23,7 @@ fallback, learned policy, simulator feature, or integration.
 | **7.2** | Multi-target tip-contact clearance suite | Clear/contact all targets per episode; tip OK; body fails |
 | **7.3** | Controllable target-block placement | Random/layout policies, fail-closed separation and keep-outs |
 | **7.4** | Extended Z variability & Z-aware EE-clearance spacing | **Partially functional (closed 2026-08-02)** — wide-band stress moves to 7.5 |
-| **7.5** | Variable-target-count Z-density stress suite | Specified & approved — incremental population, achieved-count metric |
+| **7.5** | Variable-target-count Z-density stress suite | **Complete** |
 | **8** | Bounded residual RL (Isaac Lab / Isaac Sim only) | Residual improves sim metrics; never replaces planner |
 | **9** | Fabricated contact test tool | OpenSCAD/STL, fit, optional TCP/collision profile |
 | **9.1** | Contact test tool evaluation | Calibration and remounting repeatability characterized |
@@ -323,7 +323,7 @@ work landed.
 
 **Branch:** `wip_phase7_5`
 
-**Status:** Specified (2026-08-02); implementation pending. See
+**Status:** Complete (2026-08-02). See
 [`spec.md`](../spec.md) §8 Phase 7.5 and
 [`docs/phase7_5_variable_target_stress.md`](phase7_5_variable_target_stress.md).
 

@@ -2083,7 +2083,7 @@ the default upward normal). The minimum approach-plane centre separation is:
 
 ## Phase 7.5 — Variable-target-count Z-density stress suite
 
-**Status:** Specified (2026-08-02); implementation pending.
+**Status:** Complete (2026-08-02).
 **Branch:** `wip_phase7_5`.
 Design notes:
 [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).

@@ -1,5 +1,43 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-02 — Phase 7.5 implemented: incremental Z-density stress suite
+
+Branch `wip_phase7_5`. Adds `target_population: incremental` so suites
+measure how many targets can be placed and tip-contacted under a designated
+Z-density instead of requiring a fixed-count field.
+
+1. **Config fail-closed matrix** in `load_multi_target_suite_config`:
+   incremental forbids `target_count` / `order` / deferral / regen / tip-IK
+   keys; requires `placement: random` and `retain_targets_after_contact:
+   true`; new keys `max_consecutive_target_failures` (default 5),
+   `max_total_target_failures`, `max_targets_per_episode`,
+   `min_targets_per_episode`.
+2. **`IncrementalPopulationRunner`**
+   (`mycobot_curobo.incremental_population`): sample → geometric pre-filters
+   → one `plan_grasp`+validate → accept (retain cube, advance joints) or
+   count a streak failure; stops on consecutive/total/geometric-full/max
+   caps; `insufficient_targets` below the min floor.
+3. **Normative console tags** `phase7_5_populate:` / `_sampling:` /
+   `_episode:` / `_suite:` / `_replay:`; artifact naming
+   `{prefix}_dz{w}_n{N1-N2-…}_seed{S}`; bundles marked
+   `target_population: incremental`.
+4. Example `config/phase7_5_variable_targets_dz_0_30.yml` and host smoke
+   `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`.
+5. Unit tests: `tests/unit/test_phase7_5_variable_targets.py` (22 passed);
+   `./scripts/run_verification.sh ci` → 265 unit + Ruff clean.
+6. Host headless smoke (`--root-seed 4242`): suite accepted `3/3`, achieved
+   counts `n1-1-1`, tip=3, body=0, artifact
+   `phase7_5-variable_dz0_30_n1-1-1_seed4242`; GUI replay of the frozen
+   bundle exit 0 (`lighting_ready`, tip=3, body=0).
+
+### Needs review
+
+- First `dz0_30` host smoke achieved only **1 target per episode** before
+  five consecutive planner failures. Mechanically correct (oracle + streak
+  stop), but capacity is low vs the motivational example (`n14-11-16`).
+  Worth a follow-up look at candidate distribution / advisory reach
+  prefilter aggressiveness — not a gate failure.
+
 ## 2026-08-02 — fix(phase1.1): repair two pre-existing unit test failures
 
 Branch `wip_phase1_1_test_fixes` (from `main` @ `516c93d`). Both tests
