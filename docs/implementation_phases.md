@@ -22,7 +22,8 @@ fallback, learned policy, simulator feature, or integration.
 | **7.1** | Unknown-start normal-approach cube visualization | Five-episode default; all A–D modes validated |
 | **7.2** | Multi-target tip-contact clearance suite | Clear/contact all targets per episode; tip OK; body fails |
 | **7.3** | Controllable target-block placement | Random/layout policies, fail-closed separation and keep-outs |
-| **7.4** | Extended Z variability & Z-aware EE-clearance spacing | **Complete** — unclamped `delta_z_m`, ROM retries, Z-aware floor |
+| **7.4** | Extended Z variability & Z-aware EE-clearance spacing | **Partially functional (closed 2026-08-02)** — wide-band stress moves to 7.5 |
+| **7.5** | Variable-target-count Z-density stress suite | Specified & approved — incremental population, achieved-count metric |
 | **8** | Bounded residual RL (Isaac Lab / Isaac Sim only) | Residual improves sim metrics; never replaces planner |
 | **9** | Fabricated contact test tool | OpenSCAD/STL, fit, optional TCP/collision profile |
 | **9.1** | Contact test tool evaluation | Calibration and remounting repeatability characterized |
@@ -48,6 +49,7 @@ flowchart LR
   P72 --> P11s[Phase 1.1 spheres review]
   P72 --> P73[Phase 7.3 placement]
   P73 --> P74[Phase 7.4 Z variability]
+  P74 --> P75[Phase 7.5 variable-count]
   P72 --> P8[Phase 8 Residual RL]
   P8 --> P9[Phase 9 contact tool]
   P9 --> P91[Phase 9.1 tool evaluation]
@@ -293,8 +295,14 @@ treat PhysX as the planner collision oracle.
 
 **Branch:** `wip_phase7_4`
 
-**Status:** **Complete** (2026-08-01). See [`spec.md`](../spec.md) §8 Phase
-7.4 and [`docs/phase7_4_z_variability.md`](phase7_4_z_variability.md).
+**Status:** **Partially functional — closed in this state by decision
+2026-08-02.** Machinery (Z band, Z-aware floor, dexterous-reach screening,
+goal-feasibility amendment) implemented and unit-tested;
+default/mid-width band suites pass. Wide-band `delta_z_m: 0.30`
+fixed-count acceptance evidence is partial (one 3×15 headless pass; GUI
+and 2×15 / 2×20 unproven) and accepted as-is — the wide-band stress goal
+moves to Phase 7.5. See [`spec.md`](../spec.md) §8 Phase 7.4 and
+[`docs/phase7_4_z_variability.md`](phase7_4_z_variability.md).
 
 **Objective:** Configurable Z band (`z_band_fraction` default 0.5 ≈ 50% of
 `arm_z_motion_range_m`; optional unclamped `delta_z_m`) plus pairwise
@@ -308,6 +316,38 @@ fields.
 
 **Entry criteria:** Phase 7.3 acceptance passes; Phase 1.1 Option B sphere
 work landed.
+
+---
+
+## Phase 7.5 — Variable-target-count Z-density stress suite
+
+**Branch:** `wip_phase7_5`
+
+**Status:** Specified (2026-08-02); implementation pending. See
+[`spec.md`](../spec.md) §8 Phase 7.5 and
+[`docs/phase7_5_variable_target_stress.md`](phase7_5_variable_target_stress.md).
+
+**Objective:** Measure how many targets can be placed and tip-contacted
+within a given Z-density. Targets are created, verified, and planned
+one-by-one (`target_population: incremental`), each candidate getting
+exactly one `plan_grasp` attempt against all previously accepted (retained)
+cubes; population stops after `max_consecutive_target_failures` (default
+**5**) planner-verified failures. The achieved count per episode is the
+metric and is embedded in generated artifact names
+(`…_dz0_30_n14-11-16_seed4242…`). Human-readable console output must show
+progress ("accepted N") and proximity to stop ("streak k/K") on every
+planner-verified candidate line.
+
+**Must not:** Replace cuRobo or add a second feasibility authority beyond
+the plan attempt + Phase 4 validation; remove contacted cubes
+(`retain_targets_after_contact` must stay `true`); reuse fixed-count keys
+(`target_count`, deferral/reconsider/regen/tip-IK budgets) in incremental
+mode; claim the greedy achieved count validates adversarial fixed fields.
+
+**Entry criteria:** Phase 7.4 resolved — **satisfied 2026-08-02** by the
+decision to close Phase 7.4 as partially functional (amendment landed;
+wide-band evidence gap accepted). Spec review items approved 2026-08-02;
+implementation may begin on `wip_phase7_5`.
 
 ---
 

@@ -1426,12 +1426,37 @@ over successive independently validated plans with an explicit world revision.
     or `targets_unplanned`).
   - **`max_failed_episodes`** (default **`0`**): suite / acceptance budget;
     the number of failed episodes must not exceed this value.
+  - **`max_consecutive_unplanned_targets`** (default
+    **`max(3, ceil(target_count / 3))`**): when **`0`**, there is **no
+    maximum** — consecutive deferred targets are not tracked and do not
+    abort the episode. When a **positive** integer, count of consecutive
+    targets deferred after exhausting `max_planning_failure_per_target`
+    without an intervening allowed tip contact; reaching that limit fails
+    the current episode (`max_consecutive_unplanned_targets_exceeded`). The
+    host planner may then **regenerate that episode's target field** (fresh
+    seeds, same suite geometry / tip-IK rules) up to suite-wide
+    **`max_field_regenerations`** (default **`3`**) and retry the episode.
+    When the regen budget is exhausted after consecutive-unplanned, remaining
+    suite planning is **aborted**. Regeneration also triggers on
+    `targets_unplanned` (suite continues after budget exhaustion). A tip
+    success resets the consecutive counter to zero when tracking is enabled.
+  - **`max_field_regenerations`** (default **`3`**): suite-wide count of
+    full episode-field regenerations allowed after consecutive-unplanned
+    abort. Regenerations do not consume `max_failed_episodes`.
+  - **`require_tip_ik`** (default **`false`**): when true, host planning must
+    supply a tip-IK pre-screen during placement (fail closed if missing).
+  - **`max_ik_rejections`** (optional non-negative int; default
+    **`target_count` per episode**): tip-IK reject-and-regenerate budget
+    during placement. Counted **per episode** (unlike suite-wide
+    `max_reach_rejections`). Exceeding the budget fails that episode's
+    field generation closed.
   - **`max_target_failures`:** **deprecated for episode PASS**. Historical
     configs may still declare it; it must not allow an episode to PASS with
     any target left unplanned. Prefer `max_reconsider_passes`.
 - Observed counters: `current_count_planning_failure_per_target` (resets each
   target attempt window), episode `planning_failure_count`,
-  `deferred_target_ids`, `planned_target_ids`, and suite `failed_episodes`.
+  `deferred_target_ids`, `planned_target_ids`, consecutive unplanned count,
+  and suite `failed_episodes`.
 
 ### Scene and episode model
 
@@ -1752,7 +1777,26 @@ Layout parameters (when `placement: layout`):
 
 ## Phase 7.4 — Extended Z variability and Z-aware EE-clearance spacing
 
-**Status:** Implemented (2026-08-01). **Branch:** `wip_phase7_4`.
+**Status:** **PARTIALLY FUNCTIONAL — closed in this state by decision
+2026-08-02.** Implemented (2026-08-01); **amended 2026-08-01** —
+dexterous-reach screening with suite-wide reject-and-regenerate target
+generation supersedes the original substitute-retry rules
+(**implemented**). **Second amendment 2026-08-01 (goal-feasibility):
+implemented** — world-aware tip-IK screening, `z_desc` contact order,
+goal-set rolls for wide-band suites, and `targets_unplanned` field
+regeneration (see "Goal-feasibility amendment" below).
+**Partial-functionality boundary:** the Z band configuration, Z-aware
+floor, dexterous-reach screening, and the goal-feasibility amendment
+machinery are implemented and unit-tested, and default/mid-width band
+suites pass. Wide-band fixed-count acceptance evidence is **partial**: one
+post-amendment 3×15 `delta_z_m: 0.30` headless run reached its configured
+acceptance (2/3 episodes with `max_failed_episodes: 1`, 5 field
+regenerations), but GUI evidence and the 2×15 / 2×20 variants remain
+unproven, and per-episode results stay lottery-like. By the 2026-08-02
+decision this evidence gap is accepted as-is: fixed-count wide-band stress
+is superseded by the Phase 7.5 variable-target-count suite, and no further
+Phase 7.4 remediation is planned.
+**Branch:** `wip_phase7_4`.
 Design notes: [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
 
 ### Objective
@@ -1774,22 +1818,161 @@ must surface as structured planning outcomes, never as unsafe packing.
 - Suite key **`delta_z_m`** (optional positive float): absolute **full** band
   width in metres. When set, overrides `z_band_fraction`. **Do not clamp**
   `delta_z_m` (or an oversized fraction) to `field_aabb` Z or to the arm
-  reach envelope — arm-reach validation and substitute retries (below) are
-  the fail-closed path for unreachable samples.
+  reach envelope — bands may exceed the dexterous space; dexterous-reach
+  screening (below) rejects and regenerates unreachable samples under the
+  suite-wide `max_reach_rejections` budget.
 - Explicit `layout.z_m` and manual target lists remain author-owned poses;
-  they must still pass arm-reach and Z-aware separation checks.
+  they must still pass dexterous-reach and Z-aware separation checks.
 
-### Arm-reach validation and substitute retries (normative)
+### Dexterous-reach screening and target regeneration (normative)
 
-1. A centre is **outside arm reach** when its Z lies outside
-   `arm_z_motion_range_m` centered on field mid-Z, or when it violates the
-   optional `max_target_radial_m` rim guard.
-2. For generated modes (`grid`, `random`, `layout`): discard an out-of-reach
-   (or Z-aware-infeasible) centre and generate a substitute (same XY where
-   applicable, Z resampled in band ∩ reach). After **3** failed substitutes
-   for one target, fail suite target generation (`ConfigurationError`).
-3. Manual lists do not substitute; they fail closed on reach / separation
-   violations.
+*Amended 2026-08-01; supersedes the original "arm-reach validation and
+substitute retries" rules. The declared envelope (`arm_z_motion_range_m`
+Z band × `max_target_radial_m` XY rim) is axis-separable and
+over-approximates the workspace: it accepts centres whose height and radial
+extent are individually in range but jointly unreachable for a flange-normal
+descent. It is retained only as a coarse pre-filter; the authoritative screen
+couples height and radial motion.*
+
+1. **Model.** For a candidate centre with contact face `p_face` and outward
+   normal `n̂`, compute the required wrist point
+   `W = p_face + L_wrist_to_tcp_m · n̂` (tool antiparallel to `n̂`). The
+   centre is **inside dexterous reach** iff
+   `‖W − S‖ ≤ R_wrist_max_m − reach_margin_m`, where
+   `S = (0, 0, shoulder_height_m)` is the J2 shoulder centre in `g_base`.
+2. **Parameters are declared, never inferred.** `shoulder_height_m`,
+   `L_wrist_to_tcp_m`, `R_wrist_max_m`, and optional `reach_margin_m`
+   (default `0.0`) live in a `dexterous_reach` mapping in the robot model
+   spec, with values measured from the vendored URDF
+   (`assets/mycobot_280_m5/urdf/mycobot_280_m5_kinematics.urdf`) and
+   documented provenance.
+3. **Calibration gate.** A unit test cross-checks the model against the
+   measured tip-contact workspace artifact
+   (`artifacts/workspace/tip_contact_workspace_v1.json`): no measured-success
+   sample may be classified out-of-reach. Classification of measured-failure
+   samples is advisory (they may fail for packing, not reach). Measured
+   regions remain simulation planning evidence only, never a physical
+   workspace claim.
+4. **Reject and regenerate, suite-wide error budget.** Random sampling draws
+   Z from the **full** requested band (no longer band ∩ declared reach). A
+   generated centre outside dexterous reach is **rejected and recorded as one
+   target-placement error**; generation continues drawing replacement
+   candidates until the field contains the full `target_count` targets. A
+   field is never delivered short.
+5. **Suite key `max_reach_rejections`** (non-negative int, default
+   **`target_count × episode_count`** for the suite invocation): the error
+   count is **suite-wide** — one counter accumulated across all episode
+   fields generated for a single suite invocation, in episode order. When
+   the count exceeds `max_reach_rejections`, suite target generation fails
+   closed (`ConfigurationError`) identifying the episode, the rejected
+   centre, and the running count. Each rejected centre is recorded (episode
+   index, centre, reason `outside_dexterous_reach`) in the suite record and
+   plan bundle for replay and review.
+6. **Optional tip-IK pre-screen (world-aware after the goal-feasibility
+   amendment).** When a tip-IK callback is supplied (host planning with
+   `require_tip_ik: true`), each centre that passes dexterous-reach must
+   also have feasible tip IK for the flange-normal surface pose (cuRobo
+   `ik_solver.solve_pose`, not `plan_grasp`), **checked against a collision
+   world containing the cubes already accepted into the same episode
+   field** (omit-candidate semantics, matching the planner's omit-active
+   per-leg world). Candidates are screened in draw order; each accepted
+   centre joins the screen world for subsequent candidates. IK failures are
+   reject-and-regenerate with a **per-episode** budget `max_ik_rejections`
+   (default **`target_count`**). Exceeding the budget fails that episode's
+   field generation closed. Manual centres fail closed on IK miss (no
+   resample). CPU placement-only tools may skip the screen; host
+   `plan_multi_target_suite` enforces it when `require_tip_ik` is true.
+   The screen removes goal-in-collision placements only; it does not
+   guarantee a collision-free path or start state. *The original
+   empty-world screen is superseded: it accepted centres whose grasp
+   configuration collides with neighboring cubes in-scene (pervasive cuRobo
+   "Start or End state in collision" legs in the `delta_z_m: 0.30` 3×15
+   headless smoke, 2026-08-01).*
+7. **Determinism.** Rejected draws consume samples from the per-episode
+   seeded generator, so a fixed `episode_seed` reproduces the identical
+   final field and the identical rejection sequence (for a fixed tip-IK
+   oracle). Field regenerations after planning abort draw **fresh** seeds.
+8. Manual lists do not regenerate for reach; an out-of-reach manual centre
+   remains a `ConfigurationError`. Separation, keep-out, and rim violations
+   keep their existing behaviour (resample within `max_placement_attempts`
+   for `random`; fail closed for `grid`/`layout`) and do **not** count
+   against `max_reach_rejections`, which tracks dexterous-reach rejections
+   only.
+
+Rationale for rejection over substitution-in-reach: substitution silently
+bunches targets back into reachable space, misrepresenting the requested Z
+distribution; regeneration preserves the declared band while surfacing reach
+pressure as a counted, fail-closed signal. Any upward inter-target motion
+remains an emergent property of cuRobo optimization — no lift waypoints are
+injected.
+
+### Goal-feasibility amendment (normative; implemented 2026-08-01)
+
+*Motivating evidence (3×15 `delta_z_m: 0.30` headless smoke, root seed
+72152210): episodes 2 and 3 failed their legs with cuRobo "Start or End
+state in collision" (48 and 588 log lines respectively; episode 3 planned
+0/15 from home). Episode 2 discriminates the failing end: from the identical
+home start one target planned while three others failed in-collision, so the
+**goal state** — not the start — collided with neighboring cubes.
+Zero-configuration FK clears the nearest generated cube by ≈ 63 mm. When the
+goal joint configuration is in collision, no amount of replanning can
+succeed; feasibility must be restored at placement/goal-selection time.
+Episode 1's six failures showed no collision-state messages and concentrated
+at z ≥ 0.22 m — genuine near-reach-shell optimization difficulty, out of
+scope for this amendment.*
+
+1. **World-aware tip-IK pre-screen.** Screening rule 6 above is amended in
+   place: the tip-IK screen solves IK against the already-accepted cubes of
+   the episode field instead of an empty world. The `TipIkScreen` callback
+   signature gains the accepted centres
+   (`__call__(center_m, accepted_centers_m) -> bool`); determinism is
+   unchanged for a fixed seed and deterministic IK oracle because candidates
+   are screened in draw order. After a full pack, placement also runs an
+   **omit-self** tip-IK pass (each centre vs all other centres), matching the
+   planner's omit-active per-leg world; failure redraws the field under
+   `max_ik_rejections`. Wide-band suites should expect higher IK rejection
+   pressure and may raise `max_ik_rejections` explicitly.
+2. **Contact order `z_desc`.** New `OrderPolicy` value **`z_desc`**: the
+   contact order sorts targets by **descending top-face position** along
+   `outward_normal_base` (`z_center + 0.5 · target_edge_m` for the default
+   upward normal), ties broken by ascending numeric target id. Target ids
+   must parse as integers under this policy; a non-numeric id (possible
+   only in manual lists) is a `ConfigurationError` — never a silent
+   fallback to string ordering. `order_seed` is recorded but not consumed
+   by this policy. Rationale: with
+   `retain_targets_after_contact: false`, contacting taller cubes first
+   monotonically un-shadows the descent corridors of lower cubes; the
+   deferral / reconsider machinery achieves the same effect only reactively
+   at `max_planning_failure_per_target` failed attempts (~12 s each) per
+   shadowed target. Deferral, reconsider, and all failure budgets are
+   unchanged; `z_desc` alters only the initial contact order.
+3. **Goal-set rolls for wide-band suites.** No new key: the existing
+   suite-level `roll_candidates_deg` (mutually exclusive with
+   `fixed_roll_rad`) already threads per-target `roll_candidates_rad` into
+   the `plan_grasp` goal bank. The amendment is normative guidance plus
+   config updates: **wide-band stress suites (those setting `delta_z_m`)
+   must provide a non-trivial roll goal set** (recommended: 8 evenly spaced
+   rolls, `[0, 45, 90, 135, 180, 225, 270, 315]`) instead of
+   `fixed_roll_rad: 0.0`, so cuRobo selects a wrist orientation whose goal
+   posture clears neighbors instead of retrying one fixed goal. All rolls
+   remain valid flange-normal tip contacts; roll changes arm posture, not
+   contact validity.
+4. **Field regeneration on `targets_unplanned`.** The suite runner's field
+   regeneration (fresh seeds, suite-wide `max_field_regenerations` budget,
+   default 3) triggers on episode planning failure category
+   **`targets_unplanned`** in addition to
+   `max_consecutive_unplanned_targets_exceeded`. As with the existing
+   trigger, the discarded attempt's episode result is not recorded; the
+   regenerated field re-runs the full placement pipeline including the
+   world-aware tip-IK screen. `max_reconsider_passes_exceeded` deliberately
+   does **not** trigger regeneration (it indicates budget exhaustion after
+   progress, not a poisoned field).
+
+Unchanged by this amendment: cuRobo remains the exclusive planner; no lift
+waypoints, no alternate planner, no collision-geometry manipulation. The
+Z-aware EE-clearance floor and its `pre_approach_distance_m` clamp are
+unchanged here (a descent-corridor / clamp revision was considered and
+deferred; see the phase report).
 
 ### Z-aware EE-clearance spacing (normative)
 
@@ -1830,25 +2013,333 @@ the default upward normal). The minimum approach-plane centre separation is:
    no clamp of `delta_z_m`.
 2. Implement the pairwise Z-aware floor in `validate_centers_separation` and
    generators; thread `pre_approach_distance_m` and `z_separation_gain`.
-3. Implement arm-reach discard + ≤3 substitute retries; fail closed afterward.
+3. Implement dexterous-reach screening (wrist-sphere model with URDF-declared
+   `dexterous_reach` parameters) with reject-and-regenerate target generation
+   and the suite-wide `max_reach_rejections` budget (default
+   `target_count × episode_count`); record rejected centres in suite records.
 4. Ship `config/phase7_4_*.yml` and update Phase 7.2/7.3 docs supersession
    pointers.
 5. Unit tests: Z-aware floor pairs, unclamped `delta_z_m`, gain-below-1
-   fail-closed, ROM retry exhaustion, widened-band sampling, densest 2×20
-   pack under the Z-aware floor.
+   fail-closed, widened-band sampling, densest 2×20 pack under the Z-aware
+   floor; amended screening: full-count regenerated fields with all centres
+   in-reach, suite-wide rejection accumulation across episodes, budget
+   exceeded fails closed naming episode and centre, seed-reproducible
+   rejection sequences, manual-list fail-closed, and the workspace-artifact
+   calibration cross-check.
+6. *(Goal-feasibility amendment)* Make the tip-IK screen world-aware:
+   extend the `TipIkScreen` protocol and `CuroboTipIkScreen` with the
+   accepted-centres world; thread accepted centres through field
+   generation.
+7. *(Goal-feasibility amendment)* Add `OrderPolicy.Z_DESC` (`order:
+   z_desc`) with deterministic top-face-Z descending order and id
+   tiebreak; serialization round-trip.
+8. *(Goal-feasibility amendment)* Switch the `delta_z_m: 0.30` stress-suite
+   YAMLs (2×15, 2×20, 3×15) from `fixed_roll_rad: 0.0` to
+   `roll_candidates_deg: [0, 45, 90, 135, 180, 225, 270, 315]` and from
+   `order: shuffle` to `order: z_desc`.
+9. *(Goal-feasibility amendment)* Trigger field regeneration on
+   `targets_unplanned` under the existing `max_field_regenerations`
+   budget.
+10. *(Goal-feasibility amendment)* Unit tests: world-aware screen rejects a
+    candidate whose goal IK fails only with an accepted neighbor present
+    (fake oracle asserting the accepted-centres argument); `z_desc`
+    ordering, tiebreak, and non-numeric-id fail-closed; stress YAMLs load
+    with roll goal sets and no
+    `fixed_roll_rad`; runner regenerates on `targets_unplanned` up to the
+    budget and records the failure when the budget is exhausted.
 
 ### Acceptance criteria
 
 - Default `z_band_fraction=0.5` keeps the historical mid-Z band width
   (~50% of `arm_z_motion_range_m`) for testing.
-- `delta_z_m` may be supplied without clamping; unreachable centres are
-  discarded and substituted (max 3), then suite generation fails closed.
+- `delta_z_m` may be supplied without clamping, including bands exceeding the
+  dexterous space; out-of-reach centres are rejected and regenerated until
+  each field holds the full `target_count`, and generation fails closed when
+  suite-wide rejections exceed `max_reach_rejections` (default
+  `target_count × episode_count`).
+- The dexterous-reach model rejects no measured-success sample from the
+  tip-contact workspace artifact (calibration unit test).
 - Generated and manual fields enforce the pairwise Z-aware floor; violations
   are `ConfigurationError`, never silent repacking.
 - Densest standard 2×20 smoke remains valid under the Z-aware floor; widened
   example config loads and samples.
+- *(Goal-feasibility amendment)* The tip-IK screen rejects placements whose
+  flange-normal goal lacks collision-free IK against the already-accepted
+  cubes of the field; `z_desc` produces the documented deterministic order;
+  the runner regenerates a `targets_unplanned` field within
+  `max_field_regenerations`.
+- *(Goal-feasibility amendment)* ~~The `delta_z_m: 0.30` stress suites
+  (2×15, 3×15, 2×20) pass their configured headless acceptance
+  (`max_failed_episodes`) with the amendment applied; GUI smoke follows a
+  passing headless run.~~ **Waived 2026-08-02:** partially met — one 3×15
+  headless run reached configured acceptance (2/3 episodes,
+  `max_failed_episodes: 1`), but GUI evidence and the 2×15 / 2×20 variants
+  remain unproven. Phase 7.4 is closed as partially functional;
+  fixed-count wide-band stress moves to Phase 7.5.
 - No alternate planner, no heuristic lift waypoints, no collision-geometry
   manipulation to shape trajectories.
+
+---
+
+## Phase 7.5 — Variable-target-count Z-density stress suite
+
+**Status:** Specified (2026-08-02); implementation pending.
+**Branch:** `wip_phase7_5`.
+Design notes:
+[`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
+
+### Objective
+
+Measure **how many targets can be placed and tip-contacted within a given
+Z-density** instead of demanding that a pre-drawn fixed-count field be fully
+plannable. Targets are created, verified, and planned **one at a time**;
+population stops when a configurable number of consecutive planner-verified
+failures is reached. The achieved target count is the suite's primary
+metric. cuRobo remains the exclusive planner, and the single `plan_grasp`
+attempt (plus independent validation) is the **authoritative feasibility
+oracle** — predictive screens are demoted to advisory pre-filters.
+
+Motivation (see the phase report for the full cost analysis): fixed-count
+wide-band suites made feasibility a whole-field lottery — placement screens
+try to predict the planner, and any residual mismatch costs
+`episodes × regenerations × (placement + N × attempts × ~22 s)`. Incremental
+population converts that multiplicative retry structure into a linear
+sequence in which every rejected candidate costs at most one plan attempt.
+
+### Terminology: Z-density (normative)
+
+The **Z-density** of a suite is its designated vertical placement
+distribution: uniform over a band of full width `delta_z_m` (or
+`z_band_fraction × arm_z_motion_range_m` when `delta_z_m` is unset),
+centered on the `field_aabb` mid-Z, combined with the XY packing pressure of
+the Phase 7.4 Z-aware EE-clearance floor. Suites are labeled by the band
+width: the **Z-density label** is `dz` followed by the band width in metres
+with the decimal point replaced by an underscore (`delta_z_m: 0.30` →
+`dz0_30`).
+
+### Incremental population loop (normative)
+
+Per episode, starting from an empty field and the configured
+`start_joint_position_rad`:
+
+1. **Sample** a candidate centre: XY uniform in `field_aabb` outside
+   `keep_outs` and inside `max_target_radial_m`; Z from the designated
+   Z-density.
+2. **Geometric pre-filters** (cheap, non-counting): Z-aware EE-clearance
+   separation floor against all accepted targets, keep-outs, radial rim,
+   AABB containment. The dexterous-reach wrist-sphere model **may** be
+   applied as an advisory pre-filter to save plan calls; it is no longer
+   authoritative and its rejections are non-counting. Pre-filter rejections
+   are bounded by `max_placement_attempts`; exhausting it means the field
+   is **geometrically full** and ends the episode as a normal stop (not a
+   failure).
+3. **Plan-verify** (the oracle): exactly **one** `plan_grasp` attempt from
+   the arm's current joint state to the candidate's flange-normal goal set
+   (roll candidates per Phase 2/7.4), with the world containing **all
+   previously accepted targets**, followed by Phase 4 independent
+   validation. Success → the candidate is **accepted**: it joins the field
+   and the world, the leg trajectory is recorded, and the arm state
+   advances to the leg's terminal configuration. Failure (plan or
+   validation) → the candidate is **discarded** and counts **one target
+   failure**; the arm does not move.
+4. **Stop conditions**, checked in order:
+   - consecutive target failures reach `max_consecutive_target_failures`
+     (primary stop — the dexterous space at this Z-density is exhausted);
+   - total target failures reach `max_total_target_failures` (optional
+     runtime guard, disabled by default);
+   - geometric fullness per rule 2;
+   - `max_targets_per_episode` reached (optional cap, disabled by
+     default).
+
+Accepted targets are **retained** in the world after contact
+(`retain_targets_after_contact: true` is mandatory in this mode — removing
+contacted cubes would deflate the density stress that the suite exists to
+measure). Allowed tip contact applies only to the active leg's target;
+any contact with a previously contacted retained cube is prohibited and
+fails the episode at playback (existing Phase 7.2 policy).
+
+There is no deferral, no reconsider pass, no per-target retry, no field
+regeneration, and no tip-IK placement screen in this mode: a failed
+candidate is replaced by a fresh draw, not retried.
+
+**Playback order (normative).** Playback replays the frozen bundle's legs
+in **acceptance order** — exactly the accepted targets, in exactly the
+order they were accepted, using the recorded trajectories. This is
+structurally required, not merely policy: each accepted leg starts at the
+previous leg's terminal joint state, so any reordering would break
+kinematic continuity between legs.
+
+### Configuration (normative)
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `target_population` | `fixed` | `incremental` selects this suite type. `fixed` preserves Phase 7.2–7.4 behaviour unchanged. |
+| `max_consecutive_target_failures` | **`5`** | Positive int. Consecutive planner-verified candidate failures that end episode population. Resets on each acceptance. |
+| `max_total_target_failures` | `0` (disabled) | Non-negative int. Optional absolute failure cap per episode. |
+| `max_targets_per_episode` | `0` (disabled) | Non-negative int. Optional acceptance cap per episode. |
+| `min_targets_per_episode` | `1` | Episode acceptance floor: an episode that stops with fewer accepted targets **fails** (`insufficient_targets`). Suite acceptance then follows `max_failed_episodes` (default 0). |
+
+Default rationale for `max_consecutive_target_failures = 5`: a failing
+high-effort plan attempt costs ~22 s, so the stop tail is ≤ ~2 minutes; and
+if the true marginal feasibility were still ≥ 50%, five consecutive
+failures occur with probability ≤ 3%, so premature stops are rare.
+
+Fail-closed constraints in `incremental` mode (each violation is a
+`ConfigurationError`):
+
+- `target_count` must be **absent** (the count is an outcome, not an
+  input);
+- `placement` must be `random` (grid/layout/manual are fixed-count by
+  construction);
+- `retain_targets_after_contact` must be `true`;
+- `max_planning_failure_per_target`, `max_reconsider_passes`,
+  `max_consecutive_unplanned_targets`, `max_field_regenerations`,
+  `require_tip_ik`, `max_ik_rejections`, and `max_reach_rejections` must
+  be absent — their machinery does not run in this mode;
+- `order` must be absent (contact order **is** acceptance order by
+  construction).
+
+Existing keys `delta_z_m` / `z_band_fraction`, `field_aabb`, `keep_outs`,
+`max_target_radial_m`, `z_separation_gain`, `pre_approach_distance_m`,
+`roll_candidates_deg`, `episode_count`, `root_seed`, planner/validation
+profiles, and lighting keep their meanings.
+
+### Suite naming (normative)
+
+The achieved target count is an outcome, so it appears in **generated
+artifact names**, not in the config filename:
+
+- Config files carry the Z-density label:
+  `config/phase7_5_variable_targets_dz_0_30.yml`.
+- Generated report / bundle / scene-revision names embed the Z-density
+  label, the per-episode achieved counts (episode order, `-`-separated),
+  and the root seed:
+
+```text
+{scene_revision_prefix}_dz{width}_n{N1-N2-...}_seed{root_seed}
+e.g. phase7_5-variable_dz0_30_n14-11-16_seed4242.bundle.json
+```
+
+- The suite summary line and the JSON summary must echo the same name so a
+  log excerpt is traceable to its artifacts.
+
+### Debug / console output (normative)
+
+Console output must let a human answer, at a glance, (a) how far the
+episode has progressed toward its goal and (b) how close it is to a stop
+condition. Requirements:
+
+1. **Fixed tags.** Every line begins with `phase7_5_populate:`,
+   `phase7_5_sampling:`, `phase7_5_episode:`, `phase7_5_suite:`, or (at
+   playback) `phase7_5_replay:`.
+2. **Z-distribution header.** Each episode (population and replay) opens
+   with the designated Z-density: distribution type, band width, and band
+   bounds:
+
+```text
+phase7_5_populate: ep 2/3 BEGIN | z-dist uniform dz=0.30 band 0.08–0.38 m | threshold 5
+```
+
+3. **One line per planner-verified candidate**, with status relative to
+   goal (accepted so far), the plan time, and proximity to failure
+   (streak vs threshold) in fixed key order:
+
+```text
+phase7_5_populate: ep 2/3 | accepted 12 | cand 15 z=0.264 r=0.151 | plan OK 6.4s | streak 0/5
+phase7_5_populate: ep 2/3 | accepted 12 | cand 18 z=0.331 r=0.204 | plan FAIL 22.1s (plan_failed) | streak 3/5 — 2 more failures end episode
+```
+
+   When the streak is non-zero the line must state, in words, how many
+   failures remain before the episode stops.
+4. **Aggregated sampler statistics** (geometric rejections are never
+   per-line at default verbosity), emitted at least every 25 draws and at
+   episode end:
+
+```text
+phase7_5_sampling: ep 2/3 | draws 240 | geometric rejects 198 (separation 120, keep_out 40, rim 38) | planned 42
+```
+
+5. **Episode summary** with achieved count (total targets), stop reason,
+   failure totals, accepted Z range, wall time, planning-time statistics,
+   and acceptance verdict:
+
+```text
+phase7_5_episode: ep 2/3 DONE | accepted 14 | stop consecutive_failures 5/5 | fails 9 total | z 0.084–0.331 | plan µ=7.1s σ=2.3s | wall 411s | min 1: PASS
+```
+
+6. **Suite summary**: an aligned human-readable table (episode, accepted,
+   stop reason, failures, plan µ/σ, wall) with a totals row (suite-wide
+   accepted count and suite-wide plan µ/σ), followed by the artifact base
+   name from the naming rule, then the machine JSON line. Raw Python dict
+   dumps are not acceptable as the primary human summary.
+7. **Planning-time statistics.** Per-target planning durations are the
+   successful `plan_grasp` wall times of accepted targets (candidate
+   failures are counted and timed separately and excluded from µ/σ). The
+   mean and **sample** standard deviation (n−1 denominator) are reported
+   per episode and suite-wide; σ is reported as `n/a` when fewer than two
+   targets were accepted. Per-leg planning durations are recorded in the
+   frozen bundle so replay can restate them without re-planning.
+8. **Wall-clock accounting.** Per accepted target, report the plan time
+   and cumulative episode wall time; the episode summary reports mean
+   seconds per accepted target.
+9. **Replay output.** Bundle playback restates the population facts it
+   cannot regenerate: per episode, a header with the Z-distribution and
+   total target count; one line per leg with the target id and its
+   **recorded** planning time; and an episode footer with plan µ/σ. All
+   values come from the frozen bundle — replay never re-plans.
+
+```text
+phase7_5_replay: ep 2/3 BEGIN | z-dist uniform dz=0.30 band 0.08–0.38 m | targets 14
+phase7_5_replay: ep 2/3 | leg 3/14 target 3 | recorded plan 6.4s | contact allowed_tip_contact
+phase7_5_replay: ep 2/3 DONE | targets 14 contacted 14 | plan µ=7.1s σ=2.3s (recorded)
+```
+
+### Determinism and replay (normative)
+
+- The candidate stream (centres and roll sets) is a deterministic function
+  of the per-episode seed, exactly as in fixed mode.
+- The **accepted field depends on planner outcomes**, which are not
+  bit-stable across GPU runs. Therefore, under `target_population:
+  incremental`, the reproducibility guarantee is: **the frozen plan bundle
+  is authoritative** — playback replays the recorded field and
+  trajectories exactly; re-running population from the same root seed may
+  legitimately produce a different accepted field. This is a documented
+  exception to the fixed-mode rule that a seed regenerates the identical
+  field, and suite records must mark bundles with
+  `target_population: incremental`.
+
+### Tasks
+
+1. `target_population` config key, incremental-mode fail-closed constraint
+   validation, and the population loop in the episode runner (single plan
+   attempt per candidate, streak accounting, stop conditions).
+2. Artifact naming per the suite-naming rule; summary echoes the name.
+3. Console output per the debug-output rules.
+4. Example config `config/phase7_5_variable_targets_dz_0_30.yml` and host
+   smoke `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`
+   (headless + GUI).
+5. Unit tests: incremental-mode config fail-closed matrix (each forbidden
+   key), streak reset on acceptance, stop at `max_consecutive_target_failures`
+   / `max_total_target_failures` / geometric fullness /
+   `max_targets_per_episode`, `insufficient_targets` below
+   `min_targets_per_episode`, artifact-name construction from achieved
+   counts, retained-cube world growth across acceptances, and
+   deterministic candidate streams for a fixed seed with a fake planner
+   oracle.
+
+### Acceptance criteria
+
+- Incremental mode enforces every fail-closed constraint above.
+- With a fake oracle, the population loop accepts/rejects/stops exactly as
+  specified and the achieved counts drive artifact names.
+- Host headless smoke at `dz0_30` completes with every episode ≥
+  `min_targets_per_episode` and produces the required console lines
+  (spot-checked in the smoke log); GUI smoke replays the frozen bundle
+  with tip contacts on accepted targets and zero prohibited contacts.
+- Population wall time scales linearly with accepted targets (no field
+  regeneration, no reconsider passes in the log).
+- No alternate planner, no lift waypoints, no collision-geometry
+  manipulation; the plan attempt is the only feasibility authority.
 
 ---
 

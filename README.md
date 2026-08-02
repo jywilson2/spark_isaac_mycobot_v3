@@ -46,17 +46,26 @@ half of the corpus per pass) as the practical worst-case upper bound.
 unknown-start cube approach suite: complete. Phase 7.2 — multi-target
 tip-contact clearance suite: complete. Phase 7.3 — controllable
 target-block placement: complete. Phase 7.4 — extended Z variability and
-Z-aware EE-clearance spacing: complete on `wip_phase7_4`.** See
+Z-aware EE-clearance spacing: partially functional, closed in that state
+by decision 2026-08-02 on `wip_phase7_4` (wide-band `delta_z_m: 0.30`
+fixed-count acceptance evidence stays partial; the wide-band stress goal
+moves to Phase 7.5).** See
 [`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md),
 [`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md),
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md),
-and [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
+and [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md)
+(dexterous-reach reject-and-regenerate; optional `delta_z_m` stress suites
+including `delta_z_m: 0.30`).
 A demo video of the densest 2×20 suite (GUI playback) is at
 [`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
 (inline streaming player in the Phase 7.2 suite section below).
 
-Full roadmap (Phases 0–11, including decimal Phases 7.1–7.4 and 9.1):
+Full roadmap (Phases 0–11, including decimal Phases 7.1–7.5 and 9.1):
 [`docs/implementation_phases.md`](docs/implementation_phases.md).
+Phase 7.5 (variable-target-count Z-density stress suite,
+`target_population: incremental`) is specified and approved 2026-08-02,
+implementation pending — see
+[`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
 
 ```mermaid
 flowchart LR
@@ -110,8 +119,14 @@ Implemented now:
   demo video
   [`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4));
 - Phase 7.4 Z band (`z_band_fraction` / unclamped `delta_z_m`), Z-aware EE
-  floor, and arm-reach substitute retries (≤3) —
+  floor, and dexterous-reach screening (wrist-sphere model from URDF
+  geometry) with suite-wide reject-and-regenerate generation bounded by
+  `max_reach_rejections` (default `target_count × episode_count`) —
   [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
+  Goal-feasibility amendment implemented 2026-08-01:
+  world-aware tip-IK placement screen, `order: z_desc` tallest-first
+  contact order, goal-set rolls (`roll_candidates_deg`) for wide-band
+  suites, and field regeneration on `targets_unplanned`.
 
 Not implemented:
 

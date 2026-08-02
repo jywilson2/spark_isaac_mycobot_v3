@@ -1,5 +1,261 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-02 — Phase 7.4 closed as partially functional; Phase 7.5 approved (docs only)
+
+Decision 2026-08-02: **Phase 7.4 is left in its current state — partially
+functional — with no further remediation planned.**
+
+1. What works: Z band configuration, Z-aware EE floor, dexterous-reach
+   screening, and the full goal-feasibility amendment (world-aware tip-IK
+   screen, `order: z_desc`, goal-set rolls, regen on `targets_unplanned`),
+   all unit-tested; default/mid-width band suites pass.
+2. Evidence gap accepted as-is: one post-amendment 3×15 `delta_z_m: 0.30`
+   headless run reached configured acceptance (2/3 episodes,
+   `max_failed_episodes: 1`, 5 field regens; `place_wall_s` median ≈ 3.9 s).
+   GUI **play** of that accepted bundle exited 0 (`lighting_ready`,
+   `joint_playback_completed`); full `--gui` plan+play was SIGKILL'd mid
+   tip-IK. The 2×15 / 2×20 variants remain unproven and per-episode results
+   stay lottery-like. The amendment acceptance criterion requiring those
+   suites to pass is **waived** in `spec.md` §8 Phase 7.4; the wide-band
+   stress goal moves to Phase 7.5.
+3. All remaining Phase 7.5 review items approved (failure-threshold
+   default 5, `min_targets_per_episode` 1, one-attempt-per-candidate,
+   bundle-authoritative determinism, artifact naming, sample-σ
+   statistics). Phase 7.5 entry criteria are satisfied; implementation may
+   begin on `wip_phase7_5`.
+4. Updated: `spec.md` (§8 Phase 7.4 status/boundary + waived criterion),
+   `docs/phase7_4_z_variability.md`, `docs/implementation_phases.md`
+   (7.4/7.5 rows, section statuses, 7.5 entry criteria), `README.md`,
+   `STATUS.md` (headline, roadmap table, next steps), `CHANGES.md`,
+   `docs/last_prompt.md`.
+
+### Verification
+
+- Docs-only change set; no code, config, or test changes.
+
+**Follow-up (2026-08-02):** added an explicit accuracy note to `STATUS.md`
+("2026-08-02 accuracy note (Phase 7.4 closure)") stating that "partially
+functional" describes the wide-band **evidence gap** (GUI and 2×15 / 2×20
+unproven; results lottery-like across seeds), not broken machinery — the
+implemented behavior is unit-tested and the 3×15 headless smoke did reach
+configured acceptance once.
+
+---
+
+## 2026-08-02 — Phase 7.5 specified: variable-target-count Z-density stress suite (docs only)
+
+New phase specification (`spec.md` §8 Phase 7.5, new report
+`docs/phase7_5_variable_target_stress.md`, roadmap/README/STATUS updated).
+Implementation pending on `wip_phase7_5`.
+
+1. **Incremental population** (`target_population: incremental`): targets
+   are created, verified, and planned one at a time; each candidate gets
+   exactly **one** `plan_grasp` attempt (plus Phase 4 validation) from the
+   arm's current pose against all previously accepted cubes — the plan
+   attempt is the sole feasibility authority. Accepted cubes are retained
+   (`retain_targets_after_contact: true` mandatory); geometric pre-filters
+   are advisory and non-counting.
+2. **Configurable stop threshold:** `max_consecutive_target_failures`
+   default **5** (~2 min worst-case stop tail at ~22 s per failed
+   high-effort attempt; ≤ 3% premature-stop probability at ≥ 50% marginal
+   feasibility). Optional `max_total_target_failures`,
+   `max_targets_per_episode`; acceptance floor `min_targets_per_episode`
+   (default 1, `insufficient_targets` on violation).
+3. **Fail-closed key matrix:** in incremental mode `target_count`, `order`,
+   deferral/reconsider/consecutive-unplanned budgets, field regen, tip-IK
+   screen, and reach budgets must be absent; `placement` must be `random`.
+4. **Suite naming:** configs carry the Z-density label
+   (`phase7_5_variable_targets_dz_0_30.yml`); generated artifacts embed
+   achieved counts and seed
+   (`{prefix}_dz{width}_n{N1-N2-...}_seed{root_seed}`).
+5. **Normative human-readable console output:** fixed `phase7_5_*:` tags;
+   per-candidate lines show progress (`accepted N`) and stop proximity
+   (`streak k/K` + plain-English remaining count); aggregated sampler
+   stats; episode/suite summaries with stop reason, Z range, wall time,
+   and mean s/target; no raw dict dumps as primary output.
+6. **Determinism exception documented:** the accepted field depends on
+   planner outcomes, so the frozen bundle (marked
+   `target_population: incremental`) is the replay authority; a seed
+   reproduces the candidate stream, not necessarily the accepted field.
+7. **Playback order pinned (2026-08-02 follow-up):** playback replays the
+   frozen bundle's legs in acceptance order with the recorded
+   trajectories; legs are kinematically chained, so reordering is
+   structurally impossible.
+8. **Timing/statistics output pinned (2026-08-02 follow-up):** population
+   and replay output must state the Z-distribution (type, band width,
+   bounds) per episode, the total accepted target count, the per-target
+   planning time (recorded per leg in the bundle), and the mean + sample
+   standard deviation of accepted-target planning times per episode and
+   suite-wide (`σ = n/a` below two targets); replay restates recorded
+   values only and never re-plans. New `phase7_5_replay:` tag.
+
+### Review recommended
+
+- Default `max_consecutive_target_failures = 5` and acceptance floor
+  `min_targets_per_episode = 1` (stress suites should set explicit
+  floors).
+- One-attempt-per-candidate policy (no per-candidate retry) — fresh draws
+  replace retries by design.
+- Phase 7.5 measures greedy packing capacity, not adversarial fixed-field
+  solvability; Phase 7.4 fixed-count suites remain the instrument for the
+  latter.
+
+### Verification
+
+- Docs-only change set: `spec.md`, `docs/phase7_5_variable_target_stress.md`
+  (new), `docs/implementation_phases.md`, `README.md`, `STATUS.md`,
+  `CHANGES.md`, `docs/last_prompt.md`. No code, config, or test changes.
+
+---
+
+## 2026-08-02 — z_desc numeric-id fail-closed rule pinned (docs only)
+
+`spec.md` §8 Phase 7.4 and `docs/phase7_4_z_variability.md`: under
+`order: z_desc`, target ids must parse as integers for the tiebreak; a
+non-numeric id (possible only in manual lists) is a `ConfigurationError`,
+never a silent fallback to string ordering. Added to the amendment's
+planned unit tests.
+
+---
+
+## 2026-08-01 — Phase 7.4 goal-feasibility amendment implemented
+
+1. World-aware tip-IK screen (`CuroboTipIkScreen(center, accepted_centers)`).
+2. After packing, full-field **omit-self** tip-IK revalidation (matches
+   planner omit-active); failed fields redraw under `max_ik_rejections`.
+3. `OrderPolicy.Z_DESC` / `order: z_desc` (tallest-first, id tiebreak).
+4. Densest `delta_z_m: 0.30` YAMLs use 8-roll goal sets + `z_desc`.
+5. Field regen also triggers on `targets_unplanned`.
+6. `max_consecutive_unplanned_targets` default
+   `max(3, ceil(target_count/3))` (`0` still disables tracking).
+7. Placement logs `tip_ik_wall_s` and `place_wall_s` per accepted target.
+
+### Verification
+
+- Unit: world-aware accepted-centres arg, omit-self redraw, z_desc order,
+  regen on `targets_unplanned`, scaled consecutive default, stress YAML rolls.
+- Host headless 3×15 densest: **suite_accepted** (2/3, tip=43, body=0,
+  `field_regenerations: 5`); `place_wall_s` median ≈ 3.9 s / mean ≈ 6.7 s
+  (core <60 s). Densest YAMLs set `max_consecutive_unplanned_targets: 10`
+  and `max_field_regenerations: 5`.
+- Host GUI: play of the accepted headless bundle exited 0
+  (`lighting_ready`, `joint_playback_completed`). Full `--gui` plan+play
+  was SIGKILL'd mid tip-IK in this environment.
+
+---
+
+## 2026-08-01 — Phase 7.4 goal-feasibility amendment specified (docs only)
+
+Root-cause analysis of the failing `delta_z_m: 0.30` smokes (3×15 headless,
+root seed 72152210): episodes 2 and 3 failed with cuRobo "Start or End
+state in collision" on every failed attempt — **goal states** colliding
+with neighbor cubes (episode 2 planned one target from the same home start
+that others failed from; zero-config FK clears the nearest cube by ≈63 mm).
+Episode 1's failures were genuine high-Z optimization difficulty
+(z ≥ 0.22 m, at/above the measured success ceiling). The empty-world tip-IK
+screen cannot catch goal-vs-neighbor collisions, and the field-regen path
+was unreachable with `max_consecutive_unplanned_targets = 0`
+(`field_regenerations: 0`).
+
+Amendment specified in `spec.md` §8 Phase 7.4 ("Goal-feasibility
+amendment") and `docs/phase7_4_z_variability.md`; **implementation
+pending**:
+
+1. World-aware tip-IK pre-screen (accepted cubes as obstacles;
+   `TipIkScreen.__call__(center_m, accepted_centers_m)`).
+2. New `OrderPolicy` value `z_desc` (tallest-first contact order, id
+   tiebreak) for wide-band suites.
+3. Wide-band suites must use goal-set rolls
+   (`roll_candidates_deg: [0, 45, …, 315]`, existing key) instead of
+   `fixed_roll_rad: 0.0`.
+4. Field regeneration also triggers on `targets_unplanned` (same
+   `max_field_regenerations` budget).
+
+Deferred, documented in the phase report: Z-aware floor clamp revision
+(additive term caps at `pre_approach_distance_m` = 1 cm) and
+`R_wrist_max_m` recalibration against the measured success surface.
+
+Also fixed a stale README bullet that still described the superseded
+arm-reach substitute retries as current and the first (dexterous-reach)
+amendment as unimplemented.
+
+### Review recommended
+
+- Confirm the `z_desc` determinism rule (ascending numeric id tiebreak;
+  `order_seed` recorded but unused) before implementation.
+- Confirm 8 rolls is the intended goal-set size for the `delta_z_m: 0.30`
+  YAMLs (IK/goal-bank cost grows with the set).
+
+### Verification
+
+- Docs-only change set: `spec.md`, `docs/phase7_4_z_variability.md`,
+  `README.md`, `STATUS.md`, `CHANGES.md`, `docs/last_prompt.md`. No code,
+  config, or test changes; smokes unchanged.
+
+---
+
+## 2026-08-01 — Consecutive-unplanned default 0; densest 3×15 suite
+
+1. `max_consecutive_unplanned_targets` default is **`0`** (no maximum /
+   tracking off). Negative values are rejected; positive values keep abort +
+   optional field regen.
+2. New densest suite `phase7_4_multi_target_standard_3x15_delta_z_0_30.yml`
+   (3 episodes × 15 targets) with `max_failed_episodes: 1`.
+
+### Verification
+
+- Unit: default loads as 0; disabled path uses `targets_unplanned`.
+- Host headless 3×15 densest: **0/3** (`targets_unplanned` each);
+  `suite_accepted=false` (3 failures > `max_failed_episodes=1`). GUI skipped.
+
+---
+
+## 2026-08-01 — Densest suites use planning_high_effort (solution 3)
+
+1. `phase7_4_multi_target_standard_2x15_delta_z_0_30.yml` and
+   `…_2x20_delta_z_0_30.yml` switch `planner_profile` from
+   `benchmark_reproducible` to `planning_high_effort`.
+
+### Verification
+
+- Host headless 2×15 densest + `planning_high_effort`: placement OK; all 3
+  field regens used; still **0/2**
+  (`max_consecutive_unplanned_targets_exceeded`). Slightly more tip contacts
+  than benchmark (4 vs 2 on final attempt) but not suite-passing.
+
+---
+
+## 2026-08-01 — Tip-IK placement screen + field regen on consecutive-unplanned
+
+1. **Tip-IK pre-screen** (`tip_ik_screen.CuroboTipIkScreen`): empty-world
+   flange-normal tip IK via cuRobo `ik_solver.solve_pose`. Suite keys
+   `require_tip_ik` (default false) and `max_ik_rejections` (default
+   **`target_count` per episode**). Host `plan_multi_target_suite` enables
+   the screen when `require_tip_ik` is true; CPU placement-only generation
+   skips it with a log line.
+2. **Field regeneration** after `max_consecutive_unplanned_targets`:
+   suite-wide `max_field_regenerations` (default **3**) rebuilds the failed
+   episode field with fresh seeds and retries before aborting remaining
+   suite planning.
+3. Densest 2×20 `delta_z_m=0.30` YAML sets `require_tip_ik: true`,
+   `max_ik_rejections: 20000` (match reach-budget pressure; library default
+   remains `target_count`), and `max_field_regenerations: 3`.
+
+### Review recommended
+
+- 2×20 placement remained stuck near 19/20 under tip-IK; retest path is the
+  new 2×15 densest suite (`delta_z_m=0.30`, `max_ik_rejections: 20000`).
+  Geometry easing (`delta_z_m`) still held.
+
+### Verification
+
+- Unit: IK budget default, require_tip_ik fail-closed, field regen retry.
+- Host 2×15 headless (`delta_z_m=0.30`, tip-IK on): placement OK (~47s,
+  110 IK rejects); field regen used all 3 attempts; suite still failed
+  (`max_consecutive_unplanned_targets_exceeded`, 0/2).
+
+---
+
 ## 2026-08-01 — Consecutive unplanned-target suite abort
 
 1. Added `max_consecutive_unplanned_targets` (default **3**): after that many

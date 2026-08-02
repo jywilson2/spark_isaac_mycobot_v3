@@ -1,10 +1,217 @@
+## BEGIN: 2026-08-02 05:06 -0700
+
+Abort the testing. I would prefer work to continue on a different phase.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-02 05:05 -0700
+
+Can you verify that no agent testing activity is currently running?
+
+## END
+
+
+## BEGIN: 2026-08-02 04:55 -0700
+
+Can you kill all remaining testing an iteration tasks?
+
+## END
+
+## BEGIN: 2026-08-02 04:54 -0700
+
+Can you kill the execution of the smoke test.
+
+## END
+
+## BEGIN: 2026-08-02 04:50 -0700
+
+Delete all running tests.
+
+## END
+
+## BEGIN: 2026-08-02 05:07 -0700
+
+Push these documentation changes in the newly defined branch and rebase on main.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-02 05:03 -0700
+
+Can you add the "accuracy point" to the documentation (@STATUS.md ?)?
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-02 04:56 -0700
+
+I think we should leave Phase 7.4 in its current state, as only partially functional. Indicate so in the documentation.
+
+All other review items are approved.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-02 04:45 -0700
+
+Can you indicate in the debug output and when the bundle is replayed:
+
+The Z-distribution, the total number of targets, the planning time for each target, and the average and standard deviation of the duration of planning time for each target.
+
+Are all documentation changes completed and ready? Anything that is pending my review?
+
+## END
+
+## BEGIN: 2026-08-02 04:37 -0700
+
+Can you confirm that when the field of targets has been fully populated, up to the max number of failures specified, that the same targets will be contacted by the EE using the same order.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-02 04:23 -0700
+
+Produce documentation changes that describe the design change that supports a variable number of targets. The goal will be to stress test the number of targets that can be contacted within a given Z-density, as described above. Populating the dexterous field with targets using a given Z-density, will stop when a certain number of failures have been achieved. This failure threshold should be configurable. You can decide on the default value.
+
+The name of the test suite generated should reflect the number of targets generated and the Z-density.
+
+Also describe required debug output to be more human readable. The goal should be to identify the current status relative to the overall goal, and proximity to a failure condition.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-02 03:53 -0700
+
+Yes, please make recommended spec changes.
+
+A test is now running, but is not converging to completion. Can you speculate why?
+
+So much code has been developed to assure that the targets are positioned to assure successful planning. Is there a simpler approach? Would it make more sense to create test suites with designated distribution in Z but with a variable target count. In other words, new targets would be created, verified, and planned, one-by-one, until no additional targets can be created (as defined by a certain number of failures).
+
+Do not make any code changes, just analysis.
+
+## END
+
+
+## BEGIN: 2026-08-02 03:39 -0700
+
+Elaborate:
+
+z_desc determinism — descending top-face Z with ascending numeric target-id tiebreak, order_seed recorded but not consumed by that policy.
+
+## END
+
+
+## BEGIN: 2026-08-01 23:38 -0700
+
+Various changes have been documented for Phase 7.4.  Implement these changes.
+
+For max_consecutive_unplanned_targets change the default value to something reasonable (other than 0), perhaps something which varies the number of targets specified for the suite.
+
+Rerun the smoke test, including the graphical smoke test. Indicate the wall clock time required for targets to complete the positioning of a new target.
+
+Run the tests in an independnent console window for viewability.
+
+## END
+
+
+## BEGIN: 2026-08-01 23:26 -0700
+
+Can you generate a change to the project documentation for the following Suggestions:
+
+1. Make the tip...
+
+3. Contact order:
+
+4. Give the planner...
+
+6. Let targets_unplanned...
+
+I will read it over and begin implementation if everything checks out.
+
+## END
+
+
+## BEGIN: 2026-08-01 23:06 -0700
+
+After the addition of greater delta Z in Phase 7.4, I have been unable to pass smoke tests due to failed tip contacts. Do you have any suggestions on how this might be resolved?
+
+Is there no other way for the planner to produce a successful path around the target obstacles, then by trial and error?
+
+## END
+
+
+## BEGIN: 2026-08-01 19:05 -0700
+
+Make the default of "consecutive unplanned not tracked" 0, to indicate that there is no maximum, not -1.
+
+Add another episode to the suite and change the value of max_failed_episodes to 1.
+
+Retest with the full smoke test. If the headless passes than run the GUI smoke test.
+
+Stream the real-time log file output to a console window.
+
+## END
+
+
+## BEGIN: 2026-08-01 18:28 -0700
+
+Set the default max_consecutive_unplanned_targets to "-1" to indicate that consecutive unplanned targets need not be tracked.
+
+Retest and report results.
+
+## END
+
+
+## BEGIN: 2026-08-01 17:34 -0700
+
+Implement solution 3 and retest. Open a console window to display the test results in real-time.
+
+## END
+
+
+## BEGIN: 2026-08-01 17:29 -0700
+
+Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that.
+
+## END
+
+
+## BEGIN: 2026-08-01 17:14 -0700
+
+Retest with a 2x15 suite. Stream the debug output to a console window, internal to the Cursor IDE.
+
+## END
+
+
+## BEGIN: 2026-08-01 16:37 -0700
+
+Apply item 3 and retest. Let's hold off on item 1.
+
+## END
+
+
+## BEGIN: 2026-08-01 16:08 -0700
+
+Implement changes for solution 1 and 4. Set the max_ik_rejections default to the number of targets in the episode.
+
+Rerun full smoke test, and if there is a failure propose an additional solution.
+
+## END
+
+
 ## BEGIN: 2026-08-01 16:04 -0700
 
 Can you elaborate on item 4?
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-08-01 15:22 -0700
 

@@ -28,15 +28,43 @@ EE-clearance separation floor; CI bootstrap; labels / grid Z. See
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
 
 **Phase 7.4 — Extended Z variability & Z-aware EE-clearance spacing:
-COMPLETE (`wip_phase7_4`)**
+PARTIALLY FUNCTIONAL — closed in this state by decision 2026-08-02
+(`wip_phase7_4`)**
+Implemented machinery works and default/mid-width band suites pass.
+Wide-band evidence is partial: one 3×15 `delta_z_m: 0.30` headless pass
+(2/3, `max_failed_episodes: 1`, 5 field regens); GUI play of that bundle
+exited 0; 2×15 / 2×20 remain unproven. That acceptance criterion is waived
+and the wide-band stress goal moves to Phase 7.5. No further 7.4
+remediation planned.
+"Partially functional" refers to this **evidence gap**, not to broken
+machinery — see the 2026-08-02 accuracy note below.
 Default testing Z band ≈ 50% of `arm_z_motion_range_m`
 (`z_band_fraction: 0.5`); optional unclamped `delta_z_m`; Z-aware EE floor
 (`z_separation_gain` default 1.0); dexterous-reach wrist-sphere screening
 with suite-wide reject-and-regenerate (`max_reach_rejections`, default
-`target_count × episode_count`); bands may exceed the dexterous space by
-design. PhysX prohibited body–target contact fails the episode/suite
-(Phase 7.2 policy, documented for 7.4). See [`spec.md`](spec.md) §8 Phase
-7.4 and [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
+`target_count × episode_count`); optional tip-IK placement screen
+(`require_tip_ik`, `max_ik_rejections` default `target_count`/episode);
+field regen after consecutive-unplanned (`max_field_regenerations`,
+default 3). Bands may exceed the dexterous space by design. PhysX
+prohibited body–target contact fails the episode/suite (Phase 7.2 policy,
+documented for 7.4). See [`spec.md`](spec.md) §8 Phase 7.4 and
+[`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
+**Goal-feasibility amendment implemented 2026-08-01:** world-aware tip-IK
+screen, `order: z_desc`, goal-set rolls for wide-band suites, regen on
+`targets_unplanned`, and
+`max_consecutive_unplanned_targets` default
+`max(3, ceil(target_count/3))`.
+
+**Phase 7.5 — Variable-target-count Z-density stress suite: SPECIFIED
+(2026-08-02), implementation pending (`wip_phase7_5`)**
+`target_population: incremental` — targets created/verified/planned
+one-by-one against retained accepted cubes; one `plan_grasp` attempt per
+candidate is the feasibility oracle; population stops after
+`max_consecutive_target_failures` (default 5). Achieved counts become the
+metric and appear in artifact names (`…_dz0_30_n14-11-16_seed…`); normative
+human-readable console format (progress + streak proximity). See
+[`spec.md`](spec.md) §8 Phase 7.5 and
+[`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
 
 **Phase 1.1 — Target-scale collision-sphere coverage: COMPLETE / OPTION B
 ARMED (`wip_phase1_1b`)**
@@ -69,7 +97,8 @@ planning-success claims, or hardware-readiness claims carry forward.
 | 7.1 | Unknown-start cube approach visualization | **Complete** |
 | 7.2 | Multi-target tip-contact clearance suite | **Complete** |
 | 7.3 | Controllable target-block placement (+ CI fixes) | **Complete** |
-| 7.4 | Extended Z variability + Z-aware EE-clearance spacing | **Complete** |
+| 7.4 | Extended Z variability + Z-aware EE-clearance spacing | **Partially functional (closed 2026-08-02)** |
+| 7.5 | Variable-target-count Z-density stress suite | Specified — approved for implementation |
 | 8 | Bounded residual RL (sim only) | Planned |
 | 9 | Fabricated contact test tool | Requirements finalized |
 | 9.1 | Contact test tool evaluation | Requirements finalized |
@@ -93,7 +122,8 @@ planning-success claims, or hardware-readiness claims carry forward.
 - Phase 7.2 multi-target tip-contact suite: `TargetField`,
   `MultiTargetEpisodeRunner`, failure budgets
   (`max_planning_failure_per_target` default 3,
-  `max_consecutive_unplanned_targets` default 3 — aborts suite planning,
+  `max_consecutive_unplanned_targets` default
+  `max(3, ceil(target_count/3))`; `0` disables tracking,
   `max_failed_episodes` default 0), tip contact required only for
   successfully planned targets, plan/play split, host smoke with
   `--targets` / `--episodes`, and `--no-auto-exit` continuous episode replay.
@@ -124,22 +154,44 @@ planning-success claims, or hardware-readiness claims carry forward.
       `--no-auto-exit`.
 - [x] No physical command, alternate planner, or physical-accuracy claim.
 
-## Next step / resume (2026-08-01)
+## Next step / resume (2026-08-02)
 
-**Where we left off:** Phase 7.4 dexterous-reach screening is implemented on
-`wip_phase7_4` (wrist-sphere model, suite-wide `max_reach_rejections`,
-placement timing/stream logs). New stress suite
-`config/phase7_4_multi_target_standard_2x20_delta_z_0_30.yml`
-(`delta_z_m: 0.30`).
+**Where we left off:** Phase 7.4 goal-feasibility amendment implemented;
+3×15 densest headless smoke accepted (2/3, tip=43, body=0,
+`field_regenerations: 5`; `place_wall_s` median ≈ 3.9 s). GUI play of that
+accepted bundle exited 0 (`lighting_ready`, `joint_playback_completed`);
+full `--gui` plan+play was SIGKILL'd mid tip-IK on this host.
+**Decision 2026-08-02: Phase 7.4 closed as partially functional** — fixed-count
+wide-band stress moves to Phase 7.5. Phase 7.5 spec review items all
+approved 2026-08-02.
 
 **Next steps:**
 
-1. Host GUI loop for the `delta_z_m: 0.30` 2×20 suite after CI gates.
-2. Phase 8 (bounded residual RL, sim only) on a new `wip_phase8` branch.
-   Entry criteria verified 2026-07-31. **Note:** residual policies trained
-   under scaffolding-only spheres may need retraining under the denser
+1. Implement Phase 7.5 (variable-target-count Z-density stress suite) on
+   `wip_phase7_5` per `spec.md` §8 Phase 7.5; headless then GUI smoke.
+2. Phase 8 (bounded residual RL, sim only) on `wip_phase8`. Entry criteria
+   verified 2026-07-31. **Note:** residual policies trained under
+   scaffolding-only spheres may need retraining under the denser
    world-cover set now armed by default.
 
+
+## 2026-08-02 accuracy note (Phase 7.4 closure)
+
+The Phase 7.4 "partially functional" label is a statement about **evidence,
+not machinery**. All specified Phase 7.4 behavior — Z band configuration,
+Z-aware EE-clearance floor, dexterous-reach screening, and the full
+goal-feasibility amendment (world-aware tip-IK screen, `order: z_desc`,
+goal-set rolls, regen on `targets_unplanned`) — is implemented and
+unit-tested, and default/mid-width band suites pass. The post-amendment
+3×15 `delta_z_m: 0.30` headless smoke **did** reach its configured
+acceptance once (2/3 episodes with `max_failed_episodes: 1`, 43 tip
+contacts, 5 field regenerations). What was never produced is the full
+wide-band evidence set: the GUI smoke for that suite and any passing
+2×15 / 2×20 run, with per-episode results remaining lottery-like across
+seeds. The 2026-08-02 decision accepts that gap as-is (the corresponding
+acceptance criterion is waived in `spec.md` §8 Phase 7.4) rather than
+claiming either completion or malfunction; the wide-band stress goal
+continues in Phase 7.5.
 
 ## 2026-07-20 compliance note
 
