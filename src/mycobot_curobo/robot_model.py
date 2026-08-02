@@ -506,13 +506,16 @@ def load_robot_model_spec(
         cspace = kinematics["cspace"]
     except (KeyError, TypeError) as exc:
         raise ConfigurationError("robot config must define robot_cfg.kinematics.cspace") from exc
-    detectable_edge_m = apply_collision_sphere_overlay(kinematics, path)
     if float(kinematics.get("format_version", -1.0)) != 2.0:
         raise ConfigurationError("cuRobo robot config format_version must be 2.0")
 
     names = tuple(cspace.get("joint_names", ()))
     if names != JOINT_NAMES:
         raise ConfigurationError(f"joint_names must exactly equal {JOINT_NAMES!r}")
+    # Intrinsic schema checks come first: overlay merging reads a sibling file,
+    # and config copies (e.g. pytest tmp dirs) must still get the specific
+    # schema error rather than an overlay-resolution failure.
+    detectable_edge_m = apply_collision_sphere_overlay(kinematics, path)
     if kinematics.get("grasp_contact_link_names") != []:
         raise ConfigurationError("grasp_contact_link_names must be empty in Phase 1")
     tool_frames = tuple(kinematics.get("tool_frames", ()))

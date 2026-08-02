@@ -24,9 +24,15 @@ def main() -> int:
     args.trial_robot.parent.mkdir(parents=True, exist_ok=True)
     args.trial_robot.write_text(yaml.safe_dump(payload), encoding="utf-8")
     app = yaml.safe_load((root / "config" / "app.yml").read_text(encoding="utf-8"))
-    # Store a path relative to config/ so load_app_config resolves against repo root.
-    rel_robot = args.trial_robot.resolve().relative_to(root)
-    app["robot_config_path"] = str(rel_robot)
+    # load_app_config joins robot_config_path onto the repo root, so prefer a
+    # repo-relative path; outputs outside the repo (e.g. pytest tmp dirs) keep
+    # an absolute path, which the join leaves untouched.
+    trial_robot = args.trial_robot.resolve()
+    try:
+        robot_ref: Path = trial_robot.relative_to(root)
+    except ValueError:
+        robot_ref = trial_robot
+    app["robot_config_path"] = str(robot_ref)
     args.trial_app.parent.mkdir(parents=True, exist_ok=True)
     args.trial_app.write_text(yaml.safe_dump(app), encoding="utf-8")
     print(f"option_b_trial: robot={args.trial_robot}")
