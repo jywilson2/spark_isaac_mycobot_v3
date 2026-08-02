@@ -796,9 +796,7 @@ def build_target_field(
         )
         if tip_ik_fn is not None:
             for index, target in enumerate(targets):
-                accepted = tuple(
-                    other.center_m for j, other in enumerate(targets) if j != index
-                )
+                accepted = tuple(other.center_m for j, other in enumerate(targets) if j != index)
                 if not tip_ik_fn(target.center_m, accepted):
                     raise ConfigurationError(
                         f"manual target {target.target_id} failed tip IK screen "

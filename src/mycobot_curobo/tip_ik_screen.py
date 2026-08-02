@@ -48,9 +48,7 @@ class IkRejectionBudget:
     def count(self) -> int:
         return len(self.rejections)
 
-    def reject(
-        self, center_m: Sequence[float], *, reason: str = "no_feasible_tip_ik"
-    ) -> None:
+    def reject(self, center_m: Sequence[float], *, reason: str = "no_feasible_tip_ik") -> None:
         array = np.asarray(center_m, dtype=float).reshape(3)
         if array.shape != (3,) or not np.all(np.isfinite(array)):
             raise ConfigurationError("center_m must contain three finite values")
@@ -83,8 +81,7 @@ class TipIkScreen(Protocol):
         self,
         center_m: tuple[float, float, float],
         accepted_centers_m: Sequence[tuple[float, float, float]] = (),
-    ) -> bool:
-        ...
+    ) -> bool: ...
 
 
 @dataclass
@@ -131,12 +128,8 @@ class CuroboTipIkScreen:
         )
         return cubes_to_curobo_scene_dict(geometries)
 
-    def _ensure_backend(
-        self, accepted_centers_m: Sequence[tuple[float, float, float]]
-    ) -> Any:
-        key = tuple(
-            (float(c[0]), float(c[1]), float(c[2])) for c in accepted_centers_m
-        )
+    def _ensure_backend(self, accepted_centers_m: Sequence[tuple[float, float, float]]) -> Any:
+        key = tuple((float(c[0]), float(c[1]), float(c[2])) for c in accepted_centers_m)
         if self._backend is not None and key == self._accepted_key:
             return self._backend
         self.close()

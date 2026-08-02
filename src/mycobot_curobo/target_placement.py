@@ -42,8 +42,7 @@ class TipIkFn(Protocol):
         self,
         center_m: tuple[float, float, float],
         accepted_centers_m: Sequence[tuple[float, float, float]] = (),
-    ) -> bool:
-        ...
+    ) -> bool: ...
 
 
 def _tip_ik_accepts(

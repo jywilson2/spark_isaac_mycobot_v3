@@ -404,9 +404,7 @@ def test_tip_ik_rejection_budget_defaults_to_target_count() -> None:
         return False
 
     with pytest.raises(ConfigurationError, match="max_ik_rejections"):
-        sample_multi_target_episodes(
-            config, root_seed=99, episode_count=1, tip_ik_fn=tip_ik
-        )
+        sample_multi_target_episodes(config, root_seed=99, episode_count=1, tip_ik_fn=tip_ik)
     # Budget allows target_count rejects, then fails on the next.
     assert calls["n"] == config.target_count + 1
 
@@ -515,12 +513,7 @@ def test_full_field_omit_self_tip_ik_rejects_when_neighbor_blocks() -> None:
         return len(accepted) < 2
 
     budget = IkRejectionBudget(max_rejections=5, episode_index=0)
-    assert (
-        _full_field_omit_self_tip_ik_ok(
-            centers, tip_ik_fn=tip_ik, ik_budget=budget
-        )
-        is False
-    )
+    assert _full_field_omit_self_tip_ik_ok(centers, tip_ik_fn=tip_ik, ik_budget=budget) is False
     assert seen == [2]  # fails on first centre vs the other two
     assert budget.count == 1
 

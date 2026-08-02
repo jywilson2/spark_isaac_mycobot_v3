@@ -351,8 +351,7 @@ def main(argv: list[str] | None = None) -> int:
             else int(config.target_count)
         )
         print(
-            "phase7_2_plan: tip IK pre-screen enabled "
-            f"(max_ik_rejections_per_episode={max_ik})",
+            f"phase7_2_plan: tip IK pre-screen enabled (max_ik_rejections_per_episode={max_ik})",
             flush=True,
         )
     field_regens_used = 0
