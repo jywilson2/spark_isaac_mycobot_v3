@@ -59,6 +59,9 @@ orchestration over successive validated plans with an explicit world revision.
 | `max_planning_failure_per_target` | Per-target planning-failure ceiling before deferral (default **`3`**) |
 | `max_reconsider_passes` | Reconsider passes over deferred targets (default **`target_count`**) |
 | `max_failed_episodes` | Suite acceptance budget on failed episodes (default **`0`**) |
+| `max_consecutive_unplanned_targets` | Consecutive deferred targets without tip progress; default **`max(3, ceil(target_count/3))`**. **`0`** = no maximum. Positive values may regenerate the field (also on `targets_unplanned`) up to `max_field_regenerations` |
+| `max_field_regenerations` | Suite-wide field regenerations after consecutive-unplanned (default **`3`**) |
+| `require_tip_ik` / `max_ik_rejections` | Optional tip-IK placement screen; default IK budget is **`target_count` per episode** |
 | `max_target_failures` | Deprecated; must not allow PASS with unplanned targets |
 
 ### Placement

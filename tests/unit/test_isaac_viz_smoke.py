@@ -101,6 +101,12 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "phase7_2_multi_target_standard_2x20.yml" in smoke72_std20
     assert "--targets 20" in smoke72_std20
     assert "--episodes 2" in smoke72_std20
+    smoke74_dz = (ROOT / "scripts/host/smoke_phase7_4_standard_2x20_delta_z.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "phase7_4_multi_target_standard_2x20_delta_z.yml" in smoke74_dz
+    assert "--targets 20" in smoke74_dz
+    assert "--episodes 2" in smoke74_dz
     planner72 = (ROOT / "isaac_sim" / "plan_multi_target_suite.py").read_text(encoding="utf-8")
     assert "--root-seed" in planner72
     assert "--app-config" in planner72

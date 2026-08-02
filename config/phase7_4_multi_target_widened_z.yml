@@ -1,7 +1,7 @@
 # Phase 7.4 example: generated field with explicit unclamped delta_z_m.
 # Default testing uses z_band_fraction=0.5 (~50% of arm_z_motion_range_m);
 # this suite sets delta_z_m to the same full-band width (0.14 m) explicitly.
-# Out-of-reach centres are discarded and substituted (max 3 retries / target).
+# Out-of-reach centres are rejected and regenerated under max_reach_rejections.
 episode_count: 2
 target_count: 4
 root_seed: 7401
@@ -9,10 +9,12 @@ frame: g_base
 placement: random
 order: shuffle
 retain_targets_after_contact: false
-max_placement_attempts: 2000
+max_placement_attempts: 20000
 z_band_fraction: 0.5
 delta_z_m: 0.14
 z_separation_gain: 1.0
+max_reach_rejections: 80
+max_target_radial_m: 0.28
 keep_outs:
   - minimum_m: [0.18, -0.12, 0.10]
     maximum_m: [0.22, -0.08, 0.22]

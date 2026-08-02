@@ -20,15 +20,18 @@ from mycobot_curobo.multi_target import (
     PlacementPolicy,
     build_grid_centers,
     build_target_field,
+    default_max_consecutive_unplanned_targets,
     deserialize_episode,
     load_multi_target_suite_config,
     override_suite_target_count,
+    regenerate_episode_field,
     resolve_invocation_root_seed,
     sample_multi_target_episodes,
     serialize_episode,
 )
 from mycobot_curobo.planner import NominalPlan, PlanningFailure, PlanningOutcome
 from mycobot_curobo.target_placement import GRID_Z_VARIABILITY_FRACTION
+from mycobot_curobo.tip_ik_screen import IkRejectionBudget
 from mycobot_curobo.trajectory import JointTrajectory
 from mycobot_curobo.validation import ValidatedPlan, ValidationMetrics, ValidationReport
 
@@ -126,6 +129,7 @@ def test_default_config_loads_and_shuffle_is_deterministic() -> None:
     assert config.max_target_failures == 3  # deprecated; retained for YAML compat
     assert config.max_reconsider_passes == config.target_count
     assert config.max_failed_episodes == 0
+    assert config.max_consecutive_unplanned_targets == 3  # max(3, ceil(2/3))
     assert config.tip_allow_link_names == ("joint6_flange",)
     field_a = build_target_field(config, order_seed=123)
     field_b = build_target_field(config, order_seed=123)
@@ -288,6 +292,312 @@ def test_episodes_replay_exactly() -> None:
     surface = target.to_surface_target()
     assert surface.target_id == target.target_id
     assert surface.position_base_m.shape == (3,)
+
+
+def test_consecutive_unplanned_targets_aborts_suite_planning() -> None:
+    """Three consecutive deferred targets abort the episode and remaining suite."""
+
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_grid.yml")
+    episodes = sample_multi_target_episodes(config, root_seed=11, episode_count=2)
+    episodes = tuple(
+        replace(
+            episode,
+            max_planning_failure_per_target=1,
+            max_consecutive_unplanned_targets=3,
+            max_reconsider_passes=4,
+        )
+        for episode in episodes
+    )
+    fail = PlanningOutcome(
+        plan=None,
+        failure=PlanningFailure("planning_infeasible", "no path", "failed"),
+    )
+    # Every target attempt fails once → defer; three consecutive deferrals abort.
+    planner = _FakePlanner([fail] * 20)
+
+    def planner_factory(seed: int, scene_model: dict, links: tuple[str, ...]) -> _FakePlanner:
+        del seed, scene_model, links
+        return planner
+
+    runner = MultiTargetEpisodeRunner(
+        planner_factory=planner_factory,
+        validator=lambda plan, request, clearance, contact_cube=None: _validated(plan),
+        contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lambda _line: None,
+    )
+    results = runner.run(episodes)
+    assert len(results) == 2
+    assert results[0].succeeded is False
+    assert results[0].failure_category is (
+        MultiTargetFailureCategory.MAX_CONSECUTIVE_UNPLANNED_TARGETS_EXCEEDED
+    )
+    assert results[0].target_failure_count == 3
+    # Remaining episode is skipped with the suite-abort category.
+    assert results[1].succeeded is False
+    assert results[1].failure_category is (
+        MultiTargetFailureCategory.MAX_CONSECUTIVE_UNPLANNED_TARGETS_EXCEEDED
+    )
+    assert results[1].legs == ()
+
+
+def test_max_consecutive_unplanned_disabled_does_not_abort() -> None:
+    """Explicit 0 (no maximum) skips consecutive tracking; reconsider path applies."""
+
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_grid.yml")
+    assert config.max_consecutive_unplanned_targets == 3  # max(3, ceil(4/3))
+    episodes = sample_multi_target_episodes(config, root_seed=11, episode_count=1)
+    episode = replace(
+        episodes[0],
+        max_planning_failure_per_target=1,
+        max_consecutive_unplanned_targets=0,
+        max_reconsider_passes=1,
+    )
+    fail = PlanningOutcome(
+        plan=None,
+        failure=PlanningFailure("planning_infeasible", "no path", "failed"),
+    )
+    # Four targets each fail once → all deferred; no tip progress → targets_unplanned.
+    planner = _FakePlanner([fail] * 8)
+
+    def planner_factory(seed: int, scene_model: dict, links: tuple[str, ...]) -> _FakePlanner:
+        del seed, scene_model, links
+        return planner
+
+    runner = MultiTargetEpisodeRunner(
+        planner_factory=planner_factory,
+        validator=lambda plan, request, clearance, contact_cube=None: _validated(plan),
+        contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lambda _line: None,
+    )
+    results = runner.run((episode,))
+    assert len(results) == 1
+    assert results[0].succeeded is False
+    assert results[0].failure_category is not (
+        MultiTargetFailureCategory.MAX_CONSECUTIVE_UNPLANNED_TARGETS_EXCEEDED
+    )
+    assert results[0].failure_category is MultiTargetFailureCategory.TARGETS_UNPLANNED
+
+
+def test_tip_ik_rejection_budget_defaults_to_target_count() -> None:
+    """Per-episode max_ik_rejections defaults to target_count; mock IK rejects."""
+
+    config = load_multi_target_suite_config(
+        ROOT / "config/phase7_4_multi_target_standard_2x20_delta_z_0_30.yml"
+    )
+    config = replace(
+        config,
+        episode_count=1,
+        target_count=3,
+        require_tip_ik=True,
+        max_ik_rejections=None,
+        max_reach_rejections=500,
+        max_placement_attempts=2000,
+    )
+    calls = {"n": 0}
+
+    def tip_ik(
+        _center: tuple[float, float, float],
+        _accepted: tuple[tuple[float, float, float], ...] = (),
+    ) -> bool:
+        calls["n"] += 1
+        # Reject every candidate so the budget trips at target_count + 1.
+        return False
+
+    with pytest.raises(ConfigurationError, match="max_ik_rejections"):
+        sample_multi_target_episodes(
+            config, root_seed=99, episode_count=1, tip_ik_fn=tip_ik
+        )
+    # Budget allows target_count rejects, then fails on the next.
+    assert calls["n"] == config.target_count + 1
+
+
+def test_require_tip_ik_fails_closed_without_fn() -> None:
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target.yml")
+    config = replace(config, require_tip_ik=True)
+    with pytest.raises(ConfigurationError, match="tip_ik_fn"):
+        sample_multi_target_episodes(config, root_seed=1, episode_count=1)
+
+
+def test_field_regen_retries_after_consecutive_unplanned() -> None:
+    """Suite regenerates the failed episode field once, then can succeed."""
+
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_grid.yml")
+    episodes = sample_multi_target_episodes(config, root_seed=11, episode_count=1)
+    episode = replace(
+        episodes[0],
+        max_planning_failure_per_target=1,
+        max_consecutive_unplanned_targets=3,
+        max_reconsider_passes=4,
+    )
+    fail = PlanningOutcome(
+        plan=None,
+        failure=PlanningFailure("planning_infeasible", "no path", "failed"),
+    )
+    # First attempt: three consecutive defers → abort. After regen, succeed all.
+    plan = _plan("ok", 1)
+    n_targets = len(episode.field.contact_order_ids)
+    outcomes = [fail, fail, fail] + [
+        PlanningOutcome(plan=plan, failure=None) for _ in range(n_targets)
+    ]
+    planner = _FakePlanner(outcomes)
+    regen_calls = {"n": 0}
+
+    def planner_factory(seed: int, scene_model: dict, links: tuple[str, ...]) -> _FakePlanner:
+        del seed, scene_model, links
+        return planner
+
+    def regenerate_field(ep: Any, regen_index: int) -> Any:
+        regen_calls["n"] += 1
+        # Rebuild via the public helper (grid may re-roll); runner only needs
+        # a replacement episode to retry planning.
+        return regenerate_episode_field(config, ep, regen_index=regen_index)
+
+    runner = MultiTargetEpisodeRunner(
+        planner_factory=planner_factory,
+        validator=lambda plan, request, clearance, contact_cube=None: _validated(plan),
+        contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lambda _line: None,
+    )
+    results = runner.run(
+        (episode,),
+        regenerate_field=regenerate_field,
+        max_field_regenerations=3,
+    )
+    assert regen_calls["n"] == 1
+    assert len(results) == 1
+    assert results[0].succeeded is True
+    assert results[0].episode.episode_seed != episode.episode_seed
+
+
+def test_ik_rejection_budget_raises_past_max() -> None:
+    budget = IkRejectionBudget(max_rejections=2, episode_index=0)
+    budget.reject((0.1, 0.0, 0.2))
+    budget.reject((0.11, 0.0, 0.2))
+    with pytest.raises(ConfigurationError, match="max_ik_rejections"):
+        budget.reject((0.12, 0.0, 0.2))
+
+
+def test_default_max_consecutive_unplanned_scales_with_target_count() -> None:
+    assert default_max_consecutive_unplanned_targets(2) == 3
+    assert default_max_consecutive_unplanned_targets(15) == 5
+    assert default_max_consecutive_unplanned_targets(20) == 7
+
+
+def test_order_z_desc_tallest_first_with_id_tiebreak() -> None:
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_manual.yml")
+    config = replace(config, order=OrderPolicy.Z_DESC)
+    # Manual centres at different Z; higher top-face first.
+    field = build_target_field(config, order_seed=99)
+    tops = []
+    for target_id in field.contact_order_ids:
+        target = next(t for t in field.targets if t.target_id == target_id)
+        tops.append(target.center_m[2] + 0.5 * target.edge_m)
+    assert tops == sorted(tops, reverse=True)
+    rebuilt = deserialize_episode(serialize_episode(sample_multi_target_episodes(config)[0]))
+    assert rebuilt.field.order is OrderPolicy.Z_DESC
+
+
+def test_full_field_omit_self_tip_ik_rejects_when_neighbor_blocks() -> None:
+    from mycobot_curobo.target_placement import _full_field_omit_self_tip_ik_ok
+
+    centers = (
+        (0.10, 0.00, 0.20),
+        (0.00, 0.10, 0.20),
+        (-0.10, 0.00, 0.20),
+    )
+    seen: list[int] = []
+
+    def tip_ik(
+        _center: tuple[float, float, float],
+        accepted: tuple[tuple[float, float, float], ...] = (),
+    ) -> bool:
+        seen.append(len(accepted))
+        return len(accepted) < 2
+
+    budget = IkRejectionBudget(max_rejections=5, episode_index=0)
+    assert (
+        _full_field_omit_self_tip_ik_ok(
+            centers, tip_ik_fn=tip_ik, ik_budget=budget
+        )
+        is False
+    )
+    assert seen == [2]  # fails on first centre vs the other two
+    assert budget.count == 1
+
+
+def test_world_aware_tip_ik_receives_accepted_centers() -> None:
+    config = load_multi_target_suite_config(
+        ROOT / "config/phase7_4_multi_target_standard_2x15_delta_z_0_30.yml"
+    )
+    config = replace(
+        config,
+        episode_count=1,
+        target_count=3,
+        require_tip_ik=True,
+        max_ik_rejections=50,
+        max_reach_rejections=500,
+        max_placement_attempts=5000,
+    )
+    seen: list[int] = []
+
+    def tip_ik(
+        _center: tuple[float, float, float],
+        accepted: tuple[tuple[float, float, float], ...] = (),
+    ) -> bool:
+        seen.append(len(accepted))
+        return True
+
+    episodes = sample_multi_target_episodes(
+        config, root_seed=42, episode_count=1, tip_ik_fn=tip_ik
+    )
+    assert len(episodes[0].field.targets) == 3
+    assert 0 in seen
+    assert max(seen) >= 1
+
+
+def test_field_regen_on_targets_unplanned() -> None:
+    config = load_multi_target_suite_config(ROOT / "config/phase7_2_multi_target_manual.yml")
+    episodes = sample_multi_target_episodes(config, root_seed=11, episode_count=1)
+    episode = replace(
+        episodes[0],
+        max_planning_failure_per_target=1,
+        max_consecutive_unplanned_targets=0,
+        max_reconsider_passes=1,
+    )
+    fail = PlanningOutcome(
+        plan=None,
+        failure=PlanningFailure("planning_infeasible", "no path", "failed"),
+    )
+    plan = _plan("ok", 1)
+    n_targets = len(episode.field.contact_order_ids)
+    # First pass: defer everyone → targets_unplanned. After regen, all succeed.
+    outcomes = [fail] * n_targets + [
+        PlanningOutcome(plan=plan, failure=None) for _ in range(n_targets)
+    ]
+    planner = _FakePlanner(outcomes)
+    regen_calls = {"n": 0}
+
+    def planner_factory(seed: int, scene_model: dict, links: tuple[str, ...]) -> _FakePlanner:
+        del seed, scene_model, links
+        return planner
+
+    def regenerate_field(ep: Any, regen_index: int) -> Any:
+        regen_calls["n"] += 1
+        return replace(ep, episode_seed=ep.episode_seed + 1 + regen_index)
+
+    runner = MultiTargetEpisodeRunner(
+        planner_factory=planner_factory,
+        validator=lambda plan, request, clearance, contact_cube=None: _validated(plan),
+        contact_detector_factory=lambda ep, to_id: OptimisticTipContactDetector(to_id),
+        console_log=lambda _line: None,
+    )
+    results = runner.run(
+        (episode,),
+        regenerate_field=regenerate_field,
+        max_field_regenerations=3,
+    )
+    assert regen_calls["n"] == 1
+    assert results[0].succeeded is True
 
 
 def test_planning_budget_defers_on_exactly_max_failures() -> None:

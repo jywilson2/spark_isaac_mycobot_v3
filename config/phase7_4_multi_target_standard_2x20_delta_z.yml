@@ -1,0 +1,45 @@
+# Phase 7.4 densest-style suite: 2 episodes × 20 regenerated targets with
+# absolute Z band width delta_z_m ≈ 0.40 m (unclamped). Random placement
+# redraws centres per episode; arm_z_motion_range_m matches the requested
+# band so the full ~0.40 m vertical span is addressable for this test.
+# Invoked via scripts/host/smoke_phase7_4_standard_2x20_delta_z.sh.
+episode_count: 2
+target_count: 20
+root_seed: 4242
+frame: g_base
+placement: random
+order: shuffle
+retain_targets_after_contact: false
+max_placement_attempts: 50000
+delta_z_m: 0.40
+z_band_fraction: 0.5
+z_separation_gain: 1.0
+tip_allow_link_names:
+  - joint6_flange
+field_aabb:
+  minimum_m: [-0.26, -0.26, 0.08]
+  maximum_m: [0.26, 0.26, 0.48]
+keep_outs:
+  - minimum_m: [-0.10, -0.10, 0.08]
+    maximum_m: [0.10, 0.10, 0.48]
+arm_z_motion_range_m: 0.40
+target_edge_m: 0.014
+outward_normal_base: [0.0, 0.0, 1.0]
+flange_diameter_assumption_m: 0.031
+require_flange_face_containment: false
+max_target_radial_m: 0.36
+start_joint_position_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+planner_profile: benchmark_reproducible
+validation_profile: simulation_initial
+scene_revision_prefix: phase7_4-standard-2x20-delta-z
+artifact_path: artifacts/phase7_4
+minimum_self_collision_clearance_m: 0.0
+minimum_world_collision_clearance_m: 0.006
+lighting:
+  dome_intensity: 400.0
+  distant_intensity: 1000.0
+  distant_angle_deg: [45.0, -30.0, 0.0]
+  color: [1.0, 0.95, 0.9]
+pre_approach_distance_m: 0.01
+fixed_roll_rad: 0.0
+warn_planning_duration_s: 30.0

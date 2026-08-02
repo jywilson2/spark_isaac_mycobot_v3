@@ -27,6 +27,7 @@ from mycobot_curobo.cube_scene import (  # noqa: E402
 )
 from mycobot_curobo.errors import ConfigurationError  # noqa: E402
 from mycobot_curobo.multi_target import (  # noqa: E402
+    MultiTargetEpisode,
     MultiTargetEpisodeRunner,
     OptimisticTipContactDetector,
     aggregate_multi_target_results,
@@ -34,6 +35,7 @@ from mycobot_curobo.multi_target import (  # noqa: E402
     format_suite_summary,
     load_multi_target_suite_config,
     override_suite_target_count,
+    regenerate_episode_field,
     resolve_invocation_root_seed,
     sample_multi_target_episodes,
     serialize_episode,
@@ -47,6 +49,7 @@ from mycobot_curobo.planner import (  # noqa: E402
     load_planner_profile,
 )
 from mycobot_curobo.robot_model import load_robot_model_spec  # noqa: E402
+from mycobot_curobo.tip_ik_screen import CuroboTipIkScreen  # noqa: E402
 from mycobot_curobo.validation import (  # noqa: E402
     CuroboTrajectoryEvaluator,
     ValidatedPlan,
@@ -135,6 +138,8 @@ def plan_and_validate(
     require_flange_face_containment: bool = False,
     flange_face_overhang_tolerance_m: float = 0.005,
     app_config_path: Path | None = None,
+    regenerate_field: Any | None = None,
+    max_field_regenerations: int = 0,
 ) -> tuple[tuple[Any, ...], dict[str, Any]]:
     """Run the multi-target runner with optimistic tip contact (planning process)."""
 
@@ -288,7 +293,11 @@ def plan_and_validate(
         plan_sink=plan_sink,
         warn_planning_duration_s=warn_planning_duration_s,
     )
-    results = runner.run(episodes)
+    results = runner.run(
+        episodes,
+        regenerate_field=regenerate_field,
+        max_field_regenerations=max_field_regenerations,
+    )
     return results, trajectories
 
 
@@ -319,44 +328,146 @@ def main(argv: list[str] | None = None) -> int:
                 f"({len(before.manual_targets)}); using grid placement",
                 flush=True,
             )
-    episodes = sample_multi_target_episodes(
-        config,
-        root_seed=root_seed,
-        episode_count=args.episodes,
-        independent_random_episode_seeds=independent_episode_seeds,
-    )
-    for episode in episodes:
+    placement_stats: list = []
+    app = load_app_config() if args.app_config is None else load_app_config(args.app_config)
+    tip_ik_screen: CuroboTipIkScreen | None = None
+    tip_ik_fn = None
+    if config.require_tip_ik:
+        tip_ik_screen = CuroboTipIkScreen(
+            profile=load_planner_profile(config.planner_profile),
+            task_frame_config=app.task_frame,
+            start_position_rad=config.start_joint_position_rad,
+            edge_m=config.target_edge_m,
+            outward_normal_base=config.outward_normal_base,
+            fixed_roll_rad=config.fixed_roll_rad,
+            roll_candidates_rad=config.roll_candidates_rad,
+            pre_approach_distance_m=config.pre_approach_distance_m,
+            robot_config_path=app.robot_config_path,
+        )
+        tip_ik_fn = tip_ik_screen
+        max_ik = (
+            int(config.max_ik_rejections)
+            if config.max_ik_rejections is not None
+            else int(config.target_count)
+        )
         print(
-            f"phase7_2_plan: episode={episode.episode_index} "
-            f"episode_seed={episode.episode_seed} order_seed={episode.order_seed}",
+            "phase7_2_plan: tip IK pre-screen enabled "
+            f"(max_ik_rejections_per_episode={max_ik})",
             flush=True,
         )
-    results, trajectories = plan_and_validate(
-        episodes,
-        validation_profile_name=config.validation_profile,
-        warn_planning_duration_s=config.warn_planning_duration_s,
-        minimum_self_collision_clearance_m=config.minimum_self_collision_clearance_m,
-        minimum_world_collision_clearance_m=config.minimum_world_collision_clearance_m,
-        flange_diameter_assumption_m=config.flange_diameter_assumption_m,
-        require_flange_face_containment=config.require_flange_face_containment,
-        flange_face_overhang_tolerance_m=config.flange_face_overhang_tolerance_m,
-        app_config_path=args.app_config,
+    field_regens_used = 0
+    try:
+        episodes = sample_multi_target_episodes(
+            config,
+            root_seed=root_seed,
+            episode_count=args.episodes,
+            independent_random_episode_seeds=independent_episode_seeds,
+            tip_ik_fn=tip_ik_fn,
+            log=lambda message: print(message, flush=True),
+            placement_stats_out=placement_stats,
+        )
+        for episode in episodes:
+            print(
+                f"phase7_2_plan: episode={episode.episode_index} "
+                f"episode_seed={episode.episode_seed} order_seed={episode.order_seed}",
+                flush=True,
+            )
+            for target in episode.field.targets:
+                c = target.center_m
+                print(
+                    f"phase7_4_placement: episode={episode.episode_index} "
+                    f"target={target.target_id} "
+                    f"centre=({c[0]:.4f},{c[1]:.4f},{c[2]:.4f})",
+                    flush=True,
+                )
+
+        def regenerate_field(
+            episode: MultiTargetEpisode, regen_index: int
+        ) -> MultiTargetEpisode | None:
+            nonlocal field_regens_used
+            try:
+                replacement = regenerate_episode_field(
+                    config,
+                    episode,
+                    tip_ik_fn=tip_ik_fn,
+                    log=lambda message: print(message, flush=True),
+                    regen_index=regen_index,
+                )
+            except ConfigurationError as exc:
+                print(
+                    f"phase7_2_plan: field regeneration failed: {exc}",
+                    flush=True,
+                )
+                return None
+            field_regens_used += 1
+            for target in replacement.field.targets:
+                c = target.center_m
+                print(
+                    f"phase7_4_placement: episode={replacement.episode_index} "
+                    f"regen={regen_index + 1} target={target.target_id} "
+                    f"centre=({c[0]:.4f},{c[1]:.4f},{c[2]:.4f})",
+                    flush=True,
+                )
+            return replacement
+
+        results, trajectories = plan_and_validate(
+            episodes,
+            validation_profile_name=config.validation_profile,
+            warn_planning_duration_s=config.warn_planning_duration_s,
+            minimum_self_collision_clearance_m=config.minimum_self_collision_clearance_m,
+            minimum_world_collision_clearance_m=config.minimum_world_collision_clearance_m,
+            flange_diameter_assumption_m=config.flange_diameter_assumption_m,
+            require_flange_face_containment=config.require_flange_face_containment,
+            flange_face_overhang_tolerance_m=config.flange_face_overhang_tolerance_m,
+            app_config_path=args.app_config,
+            regenerate_field=regenerate_field,
+            max_field_regenerations=config.max_field_regenerations,
+        )
+    finally:
+        if tip_ik_screen is not None:
+            tip_ik_screen.close()
+
+    # Prefer frozen episode seeds from results (may differ after field regen).
+    result_episodes = tuple(result.episode for result in results)
+    summary_seed = (
+        root_seed
+        if root_seed is not None
+        else int(result_episodes[0].episode_seed if result_episodes else 0)
     )
-    summary_seed = root_seed if root_seed is not None else int(episodes[0].episode_seed)
     summary = aggregate_multi_target_results(results, root_seed=summary_seed)
     for result in results:
         print(format_episode_console_row(result, count=len(results)), flush=True)
     print(format_suite_summary(summary), flush=True)
+    placement = placement_stats[0] if placement_stats else None
+    accepted = suite_acceptance_passed(summary, max_failed_episodes=config.max_failed_episodes)
+    fully_succeeded = summary.successes == summary.total_episodes
     payload = {
         "schema_version": 1,
         "root_seed": root_seed,
         "seed_mode": (
             "independent_random_per_episode" if independent_episode_seeds else "cli_root"
         ),
-        "episode_seeds": [int(episode.episode_seed) for episode in episodes],
+        "episode_seeds": [int(episode.episode_seed) for episode in result_episodes],
+        "max_failed_episodes": int(config.max_failed_episodes),
+        "suite_accepted": bool(accepted),
+        "fully_succeeded": bool(fully_succeeded),
         "tip_allow_link_names": list(config.tip_allow_link_names),
         "retain_targets_after_contact": config.retain_targets_after_contact,
         "lighting": config.lighting,
+        "placement_generation": (
+            None
+            if placement is None
+            else {
+                "generation_duration_s": placement.generation_duration_s,
+                "max_reach_rejections": placement.max_reach_rejections,
+                "reach_rejections": [asdict(item) for item in placement.reach_rejections],
+                "max_ik_rejections_per_episode": placement.max_ik_rejections_per_episode,
+                "ik_rejections": [asdict(item) for item in placement.ik_rejections],
+                "max_field_regenerations": config.max_field_regenerations,
+                "field_regenerations": field_regens_used,
+                "require_tip_ik": config.require_tip_ik,
+            }
+        ),
         "summary": asdict(summary),
         "results": [asdict(result) for result in results],
         "frozen_requests": [serialize_episode(result.episode) for result in results],
@@ -376,8 +487,6 @@ def main(argv: list[str] | None = None) -> int:
         + "\n",
         encoding="utf-8",
     )
-    accepted = suite_acceptance_passed(summary, max_failed_episodes=config.max_failed_episodes)
-    fully_succeeded = summary.successes == summary.total_episodes
     print(
         json.dumps(
             {
@@ -389,13 +498,14 @@ def main(argv: list[str] | None = None) -> int:
                 "max_failed_episodes": config.max_failed_episodes,
                 "total_planning_failures": summary.total_planning_failures,
                 "total_target_failures": summary.total_target_failures,
+                "field_regenerations": field_regens_used,
             }
         ),
         flush=True,
     )
-    # Playback bundles require every episode to succeed so trajectories exist.
-    # Suite acceptance (failed-episode budget) is reported separately.
-    return 0 if fully_succeeded else 1
+    # Exit 0 when within max_failed_episodes. Incomplete trajectories may still
+    # exist for failed episodes; playback skips those legs.
+    return 0 if accepted else 1
 
 
 if __name__ == "__main__":

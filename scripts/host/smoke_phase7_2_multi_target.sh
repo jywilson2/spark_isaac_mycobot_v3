@@ -350,8 +350,28 @@ if expected_episodes is not None:
         )
 # With --no-auto-exit the operator reviews the held GUI; do not hard-fail the
 # smoke wrapper solely on incomplete tip clearance (play/plan exit codes remain).
-if auto_exit and int(summary.get("successes", 0)) != int(summary.get("total_episodes", -1)):
-    raise SystemExit(f"Phase 7.2 suite did not fully succeed: {summary}")
+# When auto-exit: honor plan-bundle max_failed_episodes (suite acceptance), not
+# only full success.
+max_failed = 0
+suite_accepted = None
+if len(sys.argv) > 7 and sys.argv[7]:
+    import pathlib
+    bundle_path = pathlib.Path(sys.argv[7])
+    if bundle_path.is_file():
+        bundle = json.load(open(bundle_path, encoding="utf-8"))
+        max_failed = int(bundle.get("max_failed_episodes", 0))
+        if "suite_accepted" in bundle:
+            suite_accepted = bool(bundle["suite_accepted"])
+failed_episodes = int(summary.get("failed_episodes",
+    int(summary.get("total_episodes", 0)) - int(summary.get("successes", 0))))
+if auto_exit:
+    if suite_accepted is not None:
+        if not suite_accepted:
+            raise SystemExit(f"Phase 7.2 suite not accepted: {summary}")
+    elif failed_episodes > max_failed:
+        raise SystemExit(
+            f"Phase 7.2 suite exceeded max_failed_episodes={max_failed}: {summary}"
+        )
 print(
     json.dumps(
         {
@@ -360,12 +380,14 @@ print(
             "plan_status": int(sys.argv[6]),
             "targets": expected_targets,
             "episodes": expected_episodes,
+            "max_failed_episodes": max_failed,
+            "suite_accepted": suite_accepted,
             "summary": summary,
         },
         sort_keys=True,
     )
 )
-' "${report}" "${suite_status}" "${targets:-}" "${episodes:-}" "${auto_exit}" "${plan_status}"
+' "${report}" "${suite_status}" "${targets:-}" "${episodes:-}" "${auto_exit}" "${plan_status}" "${bundle}"
   if [[ "${plan_status}" -ne 0 && "${suite_status}" -eq 0 ]]; then
     return "${plan_status}"
   fi

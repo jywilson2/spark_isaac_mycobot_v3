@@ -18,10 +18,14 @@ tip_allow_link_names:
 # ignore this AABB.
 field_aabb:
   minimum_m: [0.08, -0.24, 0.12]
-  maximum_m: [0.44, 0.08, 0.22]
+  maximum_m: [0.40, 0.08, 0.22]
 # Declared arm vertical envelope (vendor working_radius_m). Grid Z band width
 # is 50% of this value centered on field AABB mid-Z (manual placement ignores it).
 arm_z_motion_range_m: 0.28
+max_target_radial_m: 0.36
+# Grid --targets fallback can reject far-XY lattice points under the
+# Phase 7.4 dexterous-reach screen; keep a generous suite-wide budget.
+max_reach_rejections: 50000
 target_edge_m: 0.014
 outward_normal_base: [0.0, 0.0, 1.0]
 flange_diameter_assumption_m: 0.031

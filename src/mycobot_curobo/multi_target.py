@@ -32,12 +32,19 @@ from mycobot_curobo.planner import (
 from mycobot_curobo.planning_world import leg_world_geometries
 from mycobot_curobo.robot_model import TCP_LINK
 from mycobot_curobo.target_placement import (
+    DEFAULT_DEXTEROUS_REACH,
     DEFAULT_Z_BAND_FRACTION,
+    DexterousReachModel,
     KeepOutAabb,
     LayoutSpec,
+    LogFn,
+    ReachRejectionBudget,
+    ReachRejectionRecord,
+    TipIkFn,
     build_layout_centers,
     build_random_centers,
     ee_clearance_min_center_separation_m,
+    parse_dexterous_reach,
     parse_keep_outs,
     parse_layout_spec,
     replace_out_of_reach_centers,
@@ -46,6 +53,7 @@ from mycobot_curobo.target_placement import (
     z_band_bounds,
 )
 from mycobot_curobo.targets import SurfaceTarget
+from mycobot_curobo.tip_ik_screen import IkRejectionBudget, IkRejectionRecord
 from mycobot_curobo.validation import ValidatedPlan, ValidationMetrics
 
 
@@ -59,6 +67,7 @@ class PlacementPolicy(str, Enum):
 class OrderPolicy(str, Enum):
     SHUFFLE = "shuffle"
     LISTED = "listed"
+    Z_DESC = "z_desc"
 
 
 class ContactKind(str, Enum):
@@ -77,6 +86,7 @@ class MultiTargetFailureCategory(str, Enum):
     TARGETS_INCOMPLETE = "targets_incomplete"
     TARGETS_UNPLANNED = "targets_unplanned"
     MAX_RECONSIDER_PASSES_EXCEEDED = "max_reconsider_passes_exceeded"
+    MAX_CONSECUTIVE_UNPLANNED_TARGETS_EXCEEDED = "max_consecutive_unplanned_targets_exceeded"
     CONFIGURATION_MODEL_FAILURE = "configuration_model_failure"
 
 
@@ -218,6 +228,12 @@ class MultiTargetSuiteConfig:
     max_target_failures: int  # deprecated; must not allow PASS with unplanned targets
     max_reconsider_passes: int
     max_failed_episodes: int
+    # Consecutive deferred (unplanned) targets without an intervening tip
+    # success. Reaching this limit fails the episode; the runner may regenerate
+    # the field up to max_field_regenerations times, otherwise remaining suite
+    # planning is aborted. Default is max(3, ceil(target_count/3)).
+    # Value 0 means no maximum (tracking/abort disabled).
+    max_consecutive_unplanned_targets: int
     tip_allow_link_names: tuple[str, ...]
     field_minimum_m: tuple[float, float, float]
     field_maximum_m: tuple[float, float, float]
@@ -258,6 +274,15 @@ class MultiTargetSuiteConfig:
     z_band_fraction: float = DEFAULT_Z_BAND_FRACTION
     delta_z_m: float | None = None
     z_separation_gain: float = 1.0
+    dexterous_reach: DexterousReachModel = DEFAULT_DEXTEROUS_REACH
+    # None → default target_count × episode_count at generation time.
+    max_reach_rejections: int | None = None
+    # None → default target_count per episode for tip-IK screening.
+    max_ik_rejections: int | None = None
+    # When true, host planning must supply a tip_ik_fn (fail closed otherwise).
+    require_tip_ik: bool = False
+    # Suite-wide field regenerations after consecutive-unplanned abort (default 3).
+    max_field_regenerations: int = 3
 
 
 def _tuple3(value: Any, label: str) -> tuple[float, float, float]:
@@ -284,6 +309,29 @@ def _non_negative_int(value: Any, label: str) -> int:
         raise ConfigurationError(f"{label} must be a non-negative integer") from exc
     if number < 0:
         raise ConfigurationError(f"{label} must be a non-negative integer")
+    return number
+
+
+def default_max_consecutive_unplanned_targets(target_count: int) -> int:
+    """Scale consecutive-unplanned abort with suite size (min 3)."""
+
+    count = _positive_int(target_count, "target_count")
+    return max(3, (count + 2) // 3)
+
+
+def _max_consecutive_unplanned_targets(value: Any) -> int:
+    """Parse max_consecutive_unplanned_targets: 0 = no max; else positive."""
+
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ConfigurationError(
+            "max_consecutive_unplanned_targets must be 0 or a positive integer"
+        ) from exc
+    if number < 0:
+        raise ConfigurationError(
+            "max_consecutive_unplanned_targets must be 0 or a positive integer"
+        )
     return number
 
 
@@ -317,6 +365,12 @@ def load_multi_target_suite_config(
     )
     max_failed_episodes = _non_negative_int(
         payload.get("max_failed_episodes", 0), "max_failed_episodes"
+    )
+    max_consecutive_raw = payload.get("max_consecutive_unplanned_targets")
+    max_consecutive_unplanned_targets = (
+        default_max_consecutive_unplanned_targets(target_count)
+        if max_consecutive_raw is None
+        else _max_consecutive_unplanned_targets(max_consecutive_raw)
     )
     reconsider_raw = payload.get("max_reconsider_passes")
     max_reconsider_passes = (
@@ -357,7 +411,10 @@ def load_multi_target_suite_config(
     if len(start) != len(JOINT_NAMES) or not all(math.isfinite(item) for item in start):
         raise ConfigurationError("start_joint_position_rad must contain six finite values")
     rolls_deg = payload.get("roll_candidates_deg")
-    fixed_roll = payload.get("fixed_roll_rad", 0.0)
+    if "fixed_roll_rad" in payload:
+        fixed_roll = payload.get("fixed_roll_rad")
+    else:
+        fixed_roll = None if rolls_deg is not None else 0.0
     if rolls_deg is not None and fixed_roll is not None:
         raise ConfigurationError("fixed_roll_rad and roll_candidates_deg are mutually exclusive")
     if rolls_deg is None:
@@ -471,6 +528,19 @@ def load_multi_target_suite_config(
     z_separation_gain = float(gain_raw)
     if not math.isfinite(z_separation_gain) or z_separation_gain < 1.0:
         raise ConfigurationError("z_separation_gain must be finite and >= 1.0")
+    dexterous_reach = parse_dexterous_reach(payload.get("dexterous_reach"))
+    max_reach_raw = payload.get("max_reach_rejections")
+    max_reach_rejections = (
+        None if max_reach_raw is None else _non_negative_int(max_reach_raw, "max_reach_rejections")
+    )
+    max_ik_raw = payload.get("max_ik_rejections")
+    max_ik_rejections = (
+        None if max_ik_raw is None else _non_negative_int(max_ik_raw, "max_ik_rejections")
+    )
+    require_tip_ik = bool(payload.get("require_tip_ik", False))
+    max_field_regenerations = _non_negative_int(
+        payload.get("max_field_regenerations", 3), "max_field_regenerations"
+    )
     warn = payload.get("warn_planning_duration_s")
     warn_s = None if warn is None else float(warn)
     if warn_s is not None and (not math.isfinite(warn_s) or warn_s <= 0.0):
@@ -488,6 +558,7 @@ def load_multi_target_suite_config(
         max_target_failures=max_target_failures,
         max_reconsider_passes=max_reconsider_passes,
         max_failed_episodes=max_failed_episodes,
+        max_consecutive_unplanned_targets=max_consecutive_unplanned_targets,
         tip_allow_link_names=tip_links,
         field_minimum_m=minimum_m,
         field_maximum_m=maximum_m,
@@ -521,6 +592,11 @@ def load_multi_target_suite_config(
         z_band_fraction=z_band_fraction,
         delta_z_m=delta_z_m,
         z_separation_gain=z_separation_gain,
+        dexterous_reach=dexterous_reach,
+        max_reach_rejections=max_reach_rejections,
+        max_ik_rejections=max_ik_rejections,
+        require_tip_ik=require_tip_ik,
+        max_field_regenerations=max_field_regenerations,
     )
 
 
@@ -557,13 +633,23 @@ def override_suite_target_count(
         if config.max_reconsider_passes == config.target_count
         else config.max_reconsider_passes
     )
+    consecutive = (
+        default_max_consecutive_unplanned_targets(count)
+        if config.max_consecutive_unplanned_targets
+        == default_max_consecutive_unplanned_targets(config.target_count)
+        else config.max_consecutive_unplanned_targets
+    )
     if config.placement in {
         PlacementPolicy.GRID,
         PlacementPolicy.RANDOM,
         PlacementPolicy.LAYOUT,
     }:
         return replace(
-            config, target_count=count, manual_targets=(), max_reconsider_passes=reconsider
+            config,
+            target_count=count,
+            manual_targets=(),
+            max_reconsider_passes=reconsider,
+            max_consecutive_unplanned_targets=consecutive,
         )
     if len(config.manual_targets) >= count:
         return replace(
@@ -571,6 +657,7 @@ def override_suite_target_count(
             target_count=count,
             manual_targets=config.manual_targets[:count],
             max_reconsider_passes=reconsider,
+            max_consecutive_unplanned_targets=consecutive,
         )
     # Not enough explicit poses: fall back to a deterministic grid.
     return replace(
@@ -580,6 +667,7 @@ def override_suite_target_count(
         manual_targets=(),
         layout=None,
         max_reconsider_passes=reconsider,
+        max_consecutive_unplanned_targets=consecutive,
     )
 
 
@@ -674,8 +762,17 @@ def build_target_field(
     *,
     order_seed: int,
     placement_seed: int | None = None,
+    reach_budget: ReachRejectionBudget | None = None,
+    tip_ik_fn: TipIkFn | None = None,
+    ik_budget: IkRejectionBudget | None = None,
+    log: LogFn | None = None,
 ) -> TargetField:
     """Build a numbered field and apply shuffle or listed contact order."""
+
+    if config.require_tip_ik and tip_ik_fn is None:
+        raise ConfigurationError(
+            "require_tip_ik is true but no tip_ik_fn was provided for placement"
+        )
 
     if config.placement is PlacementPolicy.MANUAL:
         targets = config.manual_targets
@@ -693,8 +790,20 @@ def build_target_field(
             field_minimum_m=config.field_minimum_m,
             field_maximum_m=config.field_maximum_m,
             arm_z_motion_range_m=config.arm_z_motion_range_m,
-            require_arm_reach=True,
+            require_arm_reach=False,
+            require_dexterous_reach=True,
+            dexterous_reach=config.dexterous_reach,
         )
+        if tip_ik_fn is not None:
+            for index, target in enumerate(targets):
+                accepted = tuple(
+                    other.center_m for j, other in enumerate(targets) if j != index
+                )
+                if not tip_ik_fn(target.center_m, accepted):
+                    raise ConfigurationError(
+                        f"manual target {target.target_id} failed tip IK screen "
+                        f"at centre={target.center_m}"
+                    )
     elif config.placement is PlacementPolicy.RANDOM:
         if placement_seed is None:
             raise ConfigurationError("random placement requires placement_seed")
@@ -714,6 +823,11 @@ def build_target_field(
             delta_z_m=config.delta_z_m,
             z_separation_gain=config.z_separation_gain,
             pre_approach_distance_m=config.pre_approach_distance_m,
+            dexterous_reach=config.dexterous_reach,
+            reach_budget=reach_budget,
+            tip_ik_fn=tip_ik_fn,
+            ik_budget=ik_budget,
+            log=log,
         )
         targets = _targets_from_centers(config, centers)
     elif config.placement is PlacementPolicy.LAYOUT:
@@ -735,6 +849,11 @@ def build_target_field(
             delta_z_m=config.delta_z_m,
             z_separation_gain=config.z_separation_gain,
             pre_approach_distance_m=config.pre_approach_distance_m,
+            dexterous_reach=config.dexterous_reach,
+            reach_budget=reach_budget,
+            tip_ik_fn=tip_ik_fn,
+            ik_budget=ik_budget,
+            log=log,
         )
         targets = _targets_from_centers(config, centers)
     else:
@@ -753,6 +872,10 @@ def build_target_field(
         )
         for offset in range(max_grid_seed_offsets):
             seed = None if placement_seed is None else int(placement_seed) + offset
+            # Snapshot budget so a failed offset does not permanently consume
+            # suite-wide rejections from an abandoned lattice phase.
+            budget_snapshot = None if reach_budget is None else len(reach_budget.rejections)
+            ik_snapshot = None if ik_budget is None else len(ik_budget.rejections)
             candidate = build_grid_centers(
                 config.target_count,
                 config.field_minimum_m,
@@ -778,6 +901,11 @@ def build_target_field(
                     z_separation_gain=config.z_separation_gain,
                     pre_approach_distance_m=config.pre_approach_distance_m,
                     placement_seed=seed,
+                    dexterous_reach=config.dexterous_reach,
+                    reach_budget=reach_budget,
+                    tip_ik_fn=tip_ik_fn,
+                    ik_budget=ik_budget,
+                    log=log,
                 )
                 validate_centers_separation(
                     candidate,
@@ -791,23 +919,74 @@ def build_target_field(
                     field_minimum_m=config.field_minimum_m,
                     field_maximum_m=config.field_maximum_m,
                     arm_z_motion_range_m=config.arm_z_motion_range_m,
-                    require_arm_reach=True,
+                    require_arm_reach=False,
+                    require_dexterous_reach=True,
+                    dexterous_reach=config.dexterous_reach,
                 )
             except ConfigurationError as exc:
+                if "max_reach_rejections" in str(exc) or "max_ik_rejections" in str(exc):
+                    raise
                 last_error = exc
+                if reach_budget is not None and budget_snapshot is not None:
+                    del reach_budget.rejections[budget_snapshot:]
+                if ik_budget is not None and ik_snapshot is not None:
+                    del ik_budget.rejections[ik_snapshot:]
                 continue
             centers = candidate
             break
         if centers is None:
-            raise ConfigurationError(
-                "grid placement could not satisfy keep_outs / separation / rim / reach "
-                f"after {max_grid_seed_offsets} seed offsets"
-                + ("" if last_error is None else f" (last: {last_error})")
+            # Lattice + dexterous screen can leave no feasible phase for dense
+            # --targets fallbacks; regenerate with random placement instead.
+            if log is not None:
+                log(
+                    "phase7_4_placement: grid lattice infeasible under dexterous "
+                    "reach / packing; falling back to random regeneration"
+                    + ("" if last_error is None else f" (last: {last_error})")
+                )
+            fallback_seed = 0 if placement_seed is None else int(placement_seed)
+            centers = build_random_centers(
+                config.target_count,
+                config.field_minimum_m,
+                config.field_maximum_m,
+                arm_z_motion_range_m=config.arm_z_motion_range_m,
+                edge_m=config.target_edge_m,
+                min_center_separation_m=config.min_center_separation_m,
+                keep_outs=config.keep_outs,
+                placement_seed=fallback_seed,
+                max_placement_attempts=max(config.max_placement_attempts, 20000),
+                outward_normal_base=config.outward_normal_base,
+                max_target_radial_m=config.max_target_radial_m,
+                z_band_fraction=config.z_band_fraction,
+                delta_z_m=config.delta_z_m,
+                z_separation_gain=config.z_separation_gain,
+                pre_approach_distance_m=config.pre_approach_distance_m,
+                dexterous_reach=config.dexterous_reach,
+                reach_budget=reach_budget,
+                tip_ik_fn=tip_ik_fn,
+                ik_budget=ik_budget,
+                log=log,
             )
         targets = _targets_from_centers(config, centers)
     listed_ids = tuple(target.target_id for target in targets)
     if config.order is OrderPolicy.LISTED:
         order_ids = listed_ids
+    elif config.order is OrderPolicy.Z_DESC:
+        normal = np.asarray(config.outward_normal_base, dtype=float)
+        magnitude = float(np.linalg.norm(normal))
+        if magnitude <= 1.0e-12:
+            raise ConfigurationError("outward_normal_base must have non-zero magnitude")
+        unit = normal / magnitude
+
+        def _top_face_along_normal(target: NumberedTarget) -> float:
+            center = np.asarray(target.center_m, dtype=float)
+            return float(np.dot(center, unit) + 0.5 * float(target.edge_m))
+
+        ordered = sorted(
+            targets,
+            key=lambda target: (-_top_face_along_normal(target), int(target.target_id)),
+        )
+        order_ids = tuple(target.target_id for target in ordered)
+        _ = order_seed  # recorded on the episode; unused by z_desc
     else:
         rng = np.random.default_rng(order_seed)
         permutation = rng.permutation(len(listed_ids))
@@ -835,8 +1014,22 @@ class MultiTargetEpisode:
     max_target_failures: int
     max_reconsider_passes: int
     max_failed_episodes: int
+    max_consecutive_unplanned_targets: int
     scene_revision_prefix: str
     retain_targets_after_contact: bool
+    reach_rejections: tuple[ReachRejectionRecord, ...] = ()
+
+
+@dataclass(frozen=True)
+class SuitePlacementStats:
+    """Timing and reach/IK-rejection evidence for one suite placement pass."""
+
+    generation_duration_s: float
+    reach_rejections: tuple[ReachRejectionRecord, ...]
+    max_reach_rejections: int
+    ik_rejections: tuple[IkRejectionRecord, ...] = ()
+    max_ik_rejections_per_episode: int = 0
+    field_regenerations: int = 0
 
 
 def resolve_invocation_root_seed(cli_seed: int | None = None) -> int:
@@ -880,6 +1073,9 @@ def sample_multi_target_episodes(
     root_seed: int | None = None,
     episode_count: int | None = None,
     independent_random_episode_seeds: bool = False,
+    tip_ik_fn: TipIkFn | None = None,
+    log: LogFn | None = None,
+    placement_stats_out: list[SuitePlacementStats] | None = None,
 ) -> tuple[MultiTargetEpisode, ...]:
     """Sample multi-target episodes from the suite configuration.
 
@@ -887,6 +1083,12 @@ def sample_multi_target_episodes(
     own fresh ``episode_seed`` / ``order_seed`` (and stores that episode seed as
     ``root_seed``). When false, episodes derive deterministic seeds from
     ``root_seed`` (or YAML ``config.root_seed`` when ``root_seed`` is None).
+
+    Dexterous-reach rejections accumulate suite-wide across episode fields.
+    Tip-IK rejections use a **per-episode** budget defaulting to
+    ``target_count``. When ``log`` is set, placement accept/reject lines and
+    the suite generation duration are emitted. When ``placement_stats_out`` is
+    provided, a single :class:`SuitePlacementStats` is appended.
     """
 
     count = (
@@ -903,11 +1105,51 @@ def sample_multi_target_episodes(
         seed_pairs = tuple(
             (seed + 1009 * (index + 1), seed + 9176 * (index + 1)) for index in range(count)
         )
+    max_reach = (
+        int(config.max_reach_rejections)
+        if config.max_reach_rejections is not None
+        else int(config.target_count) * int(count)
+    )
+    max_ik_per_episode = (
+        int(config.max_ik_rejections)
+        if config.max_ik_rejections is not None
+        else int(config.target_count)
+    )
+    reach_budget = ReachRejectionBudget(max_rejections=max_reach, log=log)
+    ik_rejections: list[IkRejectionRecord] = []
+    if log is not None:
+        log(
+            "phase7_4_placement: suite generation start "
+            f"episodes={count} targets_per_episode={config.target_count} "
+            f"max_reach_rejections={max_reach} "
+            f"max_ik_rejections_per_episode={max_ik_per_episode} "
+            f"require_tip_ik={config.require_tip_ik} "
+            f"delta_z_m={config.delta_z_m} z_band_fraction={config.z_band_fraction}"
+        )
+    started = time.perf_counter()
     episodes: list[MultiTargetEpisode] = []
     for index, (episode_seed, order_seed) in enumerate(seed_pairs):
+        reach_budget.episode_index = index
+        ik_budget = IkRejectionBudget(
+            max_rejections=max_ik_per_episode, episode_index=index, log=log
+        )
+        if log is not None:
+            log(
+                "phase7_4_placement: "
+                f"episode={index} begin episode_seed={episode_seed} order_seed={order_seed}"
+            )
         # Grid / random / layout suites use episode_seed so each episode gets a
         # distinct field; manual suites ignore placement_seed (fixed centres).
-        field = build_target_field(config, order_seed=order_seed, placement_seed=episode_seed)
+        field = build_target_field(
+            config,
+            order_seed=order_seed,
+            placement_seed=episode_seed,
+            reach_budget=reach_budget,
+            tip_ik_fn=tip_ik_fn,
+            ik_budget=ik_budget,
+            log=log,
+        )
+        ik_rejections.extend(ik_budget.rejections)
         episodes.append(
             MultiTargetEpisode(
                 episode_index=index,
@@ -922,11 +1164,98 @@ def sample_multi_target_episodes(
                 max_target_failures=config.max_target_failures,
                 max_reconsider_passes=config.max_reconsider_passes,
                 max_failed_episodes=config.max_failed_episodes,
+                max_consecutive_unplanned_targets=config.max_consecutive_unplanned_targets,
                 scene_revision_prefix=config.scene_revision_prefix,
                 retain_targets_after_contact=config.retain_targets_after_contact,
+                reach_rejections=tuple(reach_budget.rejections),
             )
         )
+    duration_s = float(time.perf_counter() - started)
+    stats = SuitePlacementStats(
+        generation_duration_s=duration_s,
+        reach_rejections=tuple(reach_budget.rejections),
+        max_reach_rejections=max_reach,
+        ik_rejections=tuple(ik_rejections),
+        max_ik_rejections_per_episode=max_ik_per_episode,
+        field_regenerations=0,
+    )
+    if placement_stats_out is not None:
+        placement_stats_out.append(stats)
+    if log is not None:
+        log(
+            "phase7_4_placement: suite target generation completed "
+            f"duration_s={duration_s:.3f} "
+            f"reach_rejections={len(stats.reach_rejections)}/{max_reach} "
+            f"ik_rejections={len(stats.ik_rejections)} "
+            f"(max_per_episode={max_ik_per_episode}) "
+            f"episodes={count} targets_per_episode={config.target_count}"
+        )
     return tuple(episodes)
+
+
+def regenerate_episode_field(
+    config: MultiTargetSuiteConfig,
+    episode: MultiTargetEpisode,
+    *,
+    tip_ik_fn: TipIkFn | None = None,
+    log: LogFn | None = None,
+    regen_index: int = 0,
+) -> MultiTargetEpisode:
+    """Rebuild one episode's target field with fresh seeds after planning abort.
+
+    Used when consecutive unplanned targets exhaust the per-episode defer
+    budget: discard the failed field and resample under the same suite
+    geometry / tip-IK constraints. Suite-wide ``max_field_regenerations``
+    is enforced by the episode runner, not this helper.
+    """
+
+    episode_seed = int(secrets.randbelow(2**31))
+    order_seed = int(secrets.randbelow(2**31))
+    max_reach = (
+        int(config.max_reach_rejections)
+        if config.max_reach_rejections is not None
+        else int(config.target_count)
+    )
+    max_ik = (
+        int(config.max_ik_rejections)
+        if config.max_ik_rejections is not None
+        else int(config.target_count)
+    )
+    if log is not None:
+        log(
+            "phase7_4_placement: field regeneration begin "
+            f"episode={episode.episode_index} regen_index={regen_index} "
+            f"episode_seed={episode_seed} order_seed={order_seed} "
+            f"max_reach_rejections={max_reach} max_ik_rejections={max_ik}"
+        )
+    reach_budget = ReachRejectionBudget(max_rejections=max_reach, log=log)
+    reach_budget.episode_index = int(episode.episode_index)
+    ik_budget = IkRejectionBudget(
+        max_rejections=max_ik, episode_index=int(episode.episode_index), log=log
+    )
+    field = build_target_field(
+        config,
+        order_seed=order_seed,
+        placement_seed=episode_seed,
+        reach_budget=reach_budget,
+        tip_ik_fn=tip_ik_fn,
+        ik_budget=ik_budget,
+        log=log,
+    )
+    if log is not None:
+        log(
+            "phase7_4_placement: field regeneration completed "
+            f"episode={episode.episode_index} regen_index={regen_index} "
+            f"reach_rejections={reach_budget.count}/{max_reach} "
+            f"ik_rejections={ik_budget.count}/{max_ik}"
+        )
+    return replace(
+        episode,
+        episode_seed=episode_seed,
+        order_seed=order_seed,
+        field=field,
+        reach_rejections=tuple(reach_budget.rejections),
+    )
 
 
 def serialize_episode(episode: MultiTargetEpisode) -> dict[str, Any]:
@@ -948,6 +1277,15 @@ def deserialize_episode(payload: dict[str, Any]) -> MultiTargetEpisode:
         retain_targets_after_contact=bool(field_payload["retain_targets_after_contact"]),
         contact_order_ids=tuple(field_payload["contact_order_ids"]),
     )
+    rejection_payload = data.get("reach_rejections", ())
+    reach_rejections = tuple(
+        ReachRejectionRecord(
+            episode_index=int(item["episode_index"]),
+            center_m=tuple(float(v) for v in item["center_m"]),
+            reason=str(item.get("reason", "outside_dexterous_reach")),
+        )
+        for item in rejection_payload
+    )
     return MultiTargetEpisode(
         episode_index=int(data["episode_index"]),
         root_seed=int(data["root_seed"]),
@@ -963,8 +1301,15 @@ def deserialize_episode(payload: dict[str, Any]) -> MultiTargetEpisode:
             data.get("max_reconsider_passes", len(target_field.contact_order_ids))
         ),
         max_failed_episodes=int(data.get("max_failed_episodes", 0)),
+        max_consecutive_unplanned_targets=_max_consecutive_unplanned_targets(
+            data.get(
+                "max_consecutive_unplanned_targets",
+                default_max_consecutive_unplanned_targets(len(target_field.contact_order_ids)),
+            )
+        ),
         scene_revision_prefix=str(data["scene_revision_prefix"]),
         retain_targets_after_contact=bool(data["retain_targets_after_contact"]),
+        reach_rejections=reach_rejections,
     )
 
 
@@ -1160,6 +1505,7 @@ class _EpisodeState:
     current_count_planning_failure_per_target: int = 0
     planning_failure_count: int = 0
     target_failure_count: int = 0
+    consecutive_unplanned_targets: int = 0
     reconsider_pass: int = 0
     current_joints: tuple[float, ...] = ()
     from_id: str = "start"
@@ -1209,8 +1555,89 @@ class MultiTargetEpisodeRunner:
         self._warn_planning_duration_s = warn_planning_duration_s
         self._console_log = print if console_log is None else console_log
 
-    def run(self, episodes: Sequence[MultiTargetEpisode]) -> tuple[MultiTargetEpisodeResult, ...]:
-        return tuple(self._run_episode(episode, len(episodes)) for episode in episodes)
+    def run(
+        self,
+        episodes: Sequence[MultiTargetEpisode],
+        *,
+        regenerate_field: (
+            Callable[[MultiTargetEpisode, int], MultiTargetEpisode | None] | None
+        ) = None,
+        max_field_regenerations: int = 0,
+    ) -> tuple[MultiTargetEpisodeResult, ...]:
+        """Run episodes in order.
+
+        On ``max_consecutive_unplanned_targets`` abort or ``targets_unplanned``,
+        optionally regenerate that episode's field (suite-wide budget
+        ``max_field_regenerations``) and retry. Exhausting the regen budget
+        after consecutive-unplanned aborts remaining suite planning; after
+        ``targets_unplanned`` the failed episode is recorded and the suite
+        continues.
+        """
+
+        if max_field_regenerations < 0:
+            raise ConfigurationError("max_field_regenerations must be non-negative")
+        regen_categories = (
+            MultiTargetFailureCategory.MAX_CONSECUTIVE_UNPLANNED_TARGETS_EXCEEDED,
+            MultiTargetFailureCategory.TARGETS_UNPLANNED,
+        )
+        working = list(episodes)
+        results: list[MultiTargetEpisodeResult] = []
+        abort_reason: str | None = None
+        field_regens_used = 0
+        index = 0
+        while index < len(working):
+            episode = working[index]
+            if abort_reason is not None:
+                results.append(
+                    MultiTargetEpisodeResult(
+                        episode=episode,
+                        succeeded=False,
+                        failure_category=(
+                            MultiTargetFailureCategory.MAX_CONSECUTIVE_UNPLANNED_TARGETS_EXCEEDED
+                        ),
+                        failure_reason=abort_reason,
+                        planning_failure_count=0,
+                        target_failure_count=0,
+                        failed_target_ids=(),
+                        legs=(),
+                        contacted_ids=(),
+                        removed_ids=(),
+                        episode_duration_s=0.0,
+                        deferred_target_ids=(),
+                        planned_target_ids=(),
+                    )
+                )
+                index += 1
+                continue
+            result = self._run_episode(episode, len(working))
+            if (
+                result.failure_category in regen_categories
+                and regenerate_field is not None
+                and field_regens_used < max_field_regenerations
+            ):
+                replacement = regenerate_field(episode, field_regens_used)
+                field_regens_used += 1
+                if replacement is not None:
+                    self._console_log(
+                        "phase7_2_plan: regenerating target field after "
+                        f"{result.failure_category.value} "
+                        f"(episode={episode.episode_index} "
+                        f"regen={field_regens_used}/{max_field_regenerations})"
+                    )
+                    working[index] = replacement
+                    continue
+            results.append(result)
+            if (
+                result.failure_category
+                is MultiTargetFailureCategory.MAX_CONSECUTIVE_UNPLANNED_TARGETS_EXCEEDED
+            ):
+                abort_reason = (
+                    "suite planning aborted: "
+                    f"{result.failure_reason or 'max_consecutive_unplanned_targets exceeded'}"
+                )
+                self._console_log(f"phase7_2_plan: {abort_reason}")
+            index += 1
+        return tuple(results)
 
     def _run_episode(
         self, episode: MultiTargetEpisode, episode_count: int
@@ -1289,6 +1716,29 @@ class MultiTargetEpisodeRunner:
                 state.target_failure_count = len(deferred)
                 to_do.pop(0)
                 state.current_count_planning_failure_per_target = 0
+                # 0 = no maximum: skip consecutive-unplanned tracking/abort.
+                if episode.max_consecutive_unplanned_targets > 0:
+                    state.consecutive_unplanned_targets += 1
+                    if (
+                        state.consecutive_unplanned_targets
+                        >= episode.max_consecutive_unplanned_targets
+                    ):
+                        state.failed_target_ids = list(deferred)
+                        reason = (
+                            "consecutive unplanned targets "
+                            f"{state.consecutive_unplanned_targets} reached "
+                            f"max_consecutive_unplanned_targets="
+                            f"{episode.max_consecutive_unplanned_targets}; "
+                            f"deferred={sorted(deferred)}"
+                        )
+                        return self._fail_episode(
+                            episode,
+                            legs,
+                            state,
+                            started,
+                            MultiTargetFailureCategory.MAX_CONSECUTIVE_UNPLANNED_TARGETS_EXCEEDED,
+                            reason,
+                        )
                 continue
             if not leg.planning_succeeded or not leg.validation_passed:
                 # Same-target retry: leave to_do[0] unchanged.
@@ -1304,6 +1754,7 @@ class MultiTargetEpisodeRunner:
                 state.from_id = to_id
                 to_do.pop(0)
                 state.current_count_planning_failure_per_target = 0
+                state.consecutive_unplanned_targets = 0
                 progress_in_pass = True
                 continue
             reason = f"tip contact missed on {state.from_id}->{to_id}"

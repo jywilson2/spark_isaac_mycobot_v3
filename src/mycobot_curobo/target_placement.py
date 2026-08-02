@@ -1,22 +1,120 @@
-"""Phase 7.3/7.4 target-block placement: random, layouts, Z band, ROM retries."""
+"""Phase 7.3/7.4 target-block placement: random, layouts, Z band, reach screen."""
 
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Sequence
+from typing import Any, Callable, Protocol, Sequence
 
 import numpy as np
 
 from mycobot_curobo.errors import ConfigurationError
+from mycobot_curobo.tip_ik_screen import IkRejectionBudget
 
 # Default generated-centre Z band width = this fraction of arm_z_motion_range_m.
 DEFAULT_Z_BAND_FRACTION = 0.5
 # Back-compat alias used by Phase 7.2 tests and docs.
 GRID_Z_VARIABILITY_FRACTION = DEFAULT_Z_BAND_FRACTION
-# Per-target substitute attempts when a centre falls outside arm reach.
+# Legacy alias retained for tests that still name the old substitute budget.
 MAX_ROM_SUBSTITUTE_RETRIES = 3
+
+# URDF-declared wrist-sphere model (mycobot_280_m5_kinematics.urdf).
+# shoulder_height_m: joint2_to_joint1 origin z.
+# L_wrist_to_tcp_m: joint6_to_joint5 |y| + joint6output_to_joint6 |y|
+#   = 0.07318 + 0.0456.
+# R_wrist_max_m: must be ≥ farthest measured-success ‖W−S‖ in
+#   artifacts/workspace/tip_contact_workspace_v1.json (≈ 0.311593 m).
+#   Default 0.36 m keeps Phase 7.2 densest grid / --targets packs feasible
+#   under the Z-aware EE floor while still rejecting extreme high-Z / far-XY
+#   draws that the axis-separable envelope would accept.
+DEFAULT_SHOULDER_HEIGHT_M = 0.13156
+DEFAULT_L_WRIST_TO_TCP_M = 0.07318 + 0.0456
+DEFAULT_R_WRIST_MAX_M = 0.36
+DEFAULT_REACH_MARGIN_M = 0.0
+
+LogFn = Callable[[str], None]
+
+
+class TipIkFn(Protocol):
+    def __call__(
+        self,
+        center_m: tuple[float, float, float],
+        accepted_centers_m: Sequence[tuple[float, float, float]] = (),
+    ) -> bool:
+        ...
+
+
+def _tip_ik_accepts(
+    candidate: tuple[float, float, float],
+    *,
+    tip_ik_fn: TipIkFn | None,
+    ik_budget: IkRejectionBudget | None,
+    accepted_centers_m: Sequence[tuple[float, float, float]] = (),
+    log: LogFn | None = None,
+    episode_index: int = 0,
+) -> bool:
+    """Return True when tip IK is disabled or the candidate has feasible tip IK."""
+
+    if tip_ik_fn is None:
+        return True
+    started = time.perf_counter()
+    ok = bool(tip_ik_fn(candidate, accepted_centers_m))
+    duration_s = float(time.perf_counter() - started)
+    if log is not None:
+        log(
+            "phase7_4_placement: "
+            f"episode={episode_index} tip_ik "
+            f"{'accept' if ok else 'reject'} "
+            f"centre=({candidate[0]:.4f},{candidate[1]:.4f},{candidate[2]:.4f}) "
+            f"accepted_obstacles={len(accepted_centers_m)} "
+            f"tip_ik_wall_s={duration_s:.3f}"
+        )
+    if ok:
+        return True
+    if ik_budget is not None:
+        ik_budget.reject(candidate, reason="no_feasible_tip_ik")
+    return False
+
+
+def _full_field_omit_self_tip_ik_ok(
+    centers: Sequence[tuple[float, float, float]],
+    *,
+    tip_ik_fn: TipIkFn | None,
+    ik_budget: IkRejectionBudget | None,
+    log: LogFn | None = None,
+    episode_index: int = 0,
+) -> bool:
+    """True when every centre has tip IK against all other centres (omit-self).
+
+    Matches the planner's omit-active per-leg world. Incremental draw-order
+    screening alone under-constrains early accepts that later neighbors can
+    collide with at plan time.
+    """
+
+    if tip_ik_fn is None or len(centers) <= 1:
+        return True
+    for index, center in enumerate(centers):
+        others = tuple(c for j, c in enumerate(centers) if j != index)
+        if _tip_ik_accepts(
+            center,
+            tip_ik_fn=tip_ik_fn,
+            ik_budget=ik_budget,
+            accepted_centers_m=others,
+            log=log,
+            episode_index=episode_index,
+        ):
+            continue
+        if log is not None:
+            log(
+                "phase7_4_placement: "
+                f"episode={episode_index} full_field_omit_self_fail "
+                f"centre=({center[0]:.4f},{center[1]:.4f},{center[2]:.4f}) "
+                f"index={index}/{len(centers)}"
+            )
+        return False
+    return True
 
 
 def ee_clearance_min_center_separation_m(
@@ -157,6 +255,147 @@ class KeepOutAabb:
 
 
 @dataclass(frozen=True)
+class DexterousReachModel:
+    """Wrist-sphere dexterous-reach screen (declared, never inferred)."""
+
+    shoulder_height_m: float = DEFAULT_SHOULDER_HEIGHT_M
+    L_wrist_to_tcp_m: float = DEFAULT_L_WRIST_TO_TCP_M
+    R_wrist_max_m: float = DEFAULT_R_WRIST_MAX_M
+    reach_margin_m: float = DEFAULT_REACH_MARGIN_M
+
+    def __post_init__(self) -> None:
+        for label, value in (
+            ("shoulder_height_m", self.shoulder_height_m),
+            ("L_wrist_to_tcp_m", self.L_wrist_to_tcp_m),
+            ("R_wrist_max_m", self.R_wrist_max_m),
+            ("reach_margin_m", self.reach_margin_m),
+        ):
+            if not math.isfinite(float(value)):
+                raise ConfigurationError(f"{label} must be finite")
+        if self.L_wrist_to_tcp_m <= 0.0:
+            raise ConfigurationError("L_wrist_to_tcp_m must be positive")
+        if self.R_wrist_max_m <= 0.0:
+            raise ConfigurationError("R_wrist_max_m must be positive")
+        if self.reach_margin_m < 0.0:
+            raise ConfigurationError("reach_margin_m must be >= 0")
+        if self.R_wrist_max_m - self.reach_margin_m <= 0.0:
+            raise ConfigurationError("R_wrist_max_m - reach_margin_m must be positive")
+
+
+DEFAULT_DEXTEROUS_REACH = DexterousReachModel()
+
+
+@dataclass(frozen=True)
+class ReachRejectionRecord:
+    """One suite-wide dexterous-reach rejection during target generation."""
+
+    episode_index: int
+    center_m: tuple[float, float, float]
+    reason: str = "outside_dexterous_reach"
+
+
+@dataclass
+class ReachRejectionBudget:
+    """Suite-wide reject-and-regenerate counter (mutable across episodes)."""
+
+    max_rejections: int
+    episode_index: int = 0
+    rejections: list[ReachRejectionRecord] = field(default_factory=list)
+    log: LogFn | None = None
+
+    def __post_init__(self) -> None:
+        if self.max_rejections < 0:
+            raise ConfigurationError("max_reach_rejections must be non-negative")
+
+    @property
+    def count(self) -> int:
+        return len(self.rejections)
+
+    def reject(
+        self, center_m: Sequence[float], *, reason: str = "outside_dexterous_reach"
+    ) -> None:
+        center = _tuple3(center_m, "center_m")
+        record = ReachRejectionRecord(
+            episode_index=int(self.episode_index),
+            center_m=center,
+            reason=str(reason),
+        )
+        self.rejections.append(record)
+        if self.log is not None:
+            self.log(
+                "phase7_4_placement: "
+                f"episode={record.episode_index} reject {record.reason} "
+                f"centre=({center[0]:.4f},{center[1]:.4f},{center[2]:.4f}) "
+                f"count={self.count}/{self.max_rejections}"
+            )
+        if self.count > self.max_rejections:
+            raise ConfigurationError(
+                "suite target generation exceeded max_reach_rejections="
+                f"{self.max_rejections} (episode={record.episode_index}, "
+                f"centre={center}, running_count={self.count})"
+            )
+
+
+def parse_dexterous_reach(raw: Any) -> DexterousReachModel:
+    """Parse optional ``dexterous_reach`` YAML mapping; defaults when unset."""
+
+    if raw is None:
+        return DEFAULT_DEXTEROUS_REACH
+    if not isinstance(raw, dict):
+        raise ConfigurationError("dexterous_reach must be a mapping when provided")
+    return DexterousReachModel(
+        shoulder_height_m=float(raw.get("shoulder_height_m", DEFAULT_SHOULDER_HEIGHT_M)),
+        L_wrist_to_tcp_m=float(raw.get("L_wrist_to_tcp_m", DEFAULT_L_WRIST_TO_TCP_M)),
+        R_wrist_max_m=float(raw.get("R_wrist_max_m", DEFAULT_R_WRIST_MAX_M)),
+        reach_margin_m=float(raw.get("reach_margin_m", DEFAULT_REACH_MARGIN_M)),
+    )
+
+
+def wrist_point_for_center(
+    center_m: Sequence[float],
+    *,
+    edge_m: float,
+    outward_normal_base: Sequence[float],
+    reach: DexterousReachModel,
+) -> tuple[float, float, float]:
+    """Required wrist point for a flange-normal descent onto the contact face."""
+
+    if not math.isfinite(edge_m) or edge_m <= 0.0:
+        raise ConfigurationError("edge_m must be positive finite")
+    normal = np.asarray(outward_normal_base, dtype=float).reshape(3)
+    norm = float(np.linalg.norm(normal))
+    if not math.isfinite(norm) or norm <= 1.0e-12:
+        raise ConfigurationError("outward_normal_base must be a non-zero finite vector")
+    unit = normal / norm
+    center = np.asarray(center_m, dtype=float).reshape(3)
+    if not np.all(np.isfinite(center)):
+        raise ConfigurationError("center_m must be finite")
+    p_face = center + 0.5 * float(edge_m) * unit
+    wrist = p_face + float(reach.L_wrist_to_tcp_m) * unit
+    return (float(wrist[0]), float(wrist[1]), float(wrist[2]))
+
+
+def center_outside_dexterous_reach(
+    center_m: Sequence[float],
+    *,
+    edge_m: float,
+    outward_normal_base: Sequence[float],
+    reach: DexterousReachModel = DEFAULT_DEXTEROUS_REACH,
+) -> bool:
+    """True when the wrist-sphere model classifies ``center_m`` out of reach."""
+
+    wrist = wrist_point_for_center(
+        center_m,
+        edge_m=edge_m,
+        outward_normal_base=outward_normal_base,
+        reach=reach,
+    )
+    shoulder = np.asarray((0.0, 0.0, float(reach.shoulder_height_m)), dtype=float)
+    distance = float(np.linalg.norm(np.asarray(wrist, dtype=float) - shoulder))
+    return distance > float(reach.R_wrist_max_m) - float(reach.reach_margin_m) + 1.0e-12
+
+
+@dataclass(frozen=True)
 class LayoutSpec:
     """Named parameterized layout (rows or arc)."""
 
@@ -278,7 +517,7 @@ def z_band_bounds(
     """Return ``(mid_z, z_lo, z_hi)`` for the generated vertical band.
 
     The band is **not** clipped to ``field_aabb`` Z; out-of-reach centres are
-    rejected by arm-reach validation and substitute retries instead.
+    rejected by dexterous-reach screening and suite-wide regeneration.
     """
 
     lo = _tuple3(field_minimum_m, "field_minimum_m")
@@ -372,8 +611,10 @@ def validate_centers_separation(
     field_maximum_m: Sequence[float] | None = None,
     arm_z_motion_range_m: float | None = None,
     require_arm_reach: bool = False,
+    require_dexterous_reach: bool = False,
+    dexterous_reach: DexterousReachModel = DEFAULT_DEXTEROUS_REACH,
 ) -> None:
-    """Fail closed on approach-plane spacing, keep-outs, rim, or arm reach."""
+    """Fail closed on approach-plane spacing, keep-outs, rim, or reach."""
 
     if not math.isfinite(min_center_separation_m) or min_center_separation_m <= 0.0:
         raise ConfigurationError("min_center_separation_m must be positive finite")
@@ -405,6 +646,16 @@ def validate_centers_separation(
                     "target centre is outside the arm reach envelope "
                     f"(arm_z_motion_range_m={arm_z_motion_range_m})"
                 )
+        if require_dexterous_reach and center_outside_dexterous_reach(
+            point,
+            edge_m=edge_m,
+            outward_normal_base=outward_normal_base,
+            reach=dexterous_reach,
+        ):
+            raise ConfigurationError(
+                "target centre is outside dexterous reach "
+                f"(R_wrist_max_m={dexterous_reach.R_wrist_max_m})"
+            )
     for index, first in enumerate(points):
         for second in points[index + 1 :]:
             if pre_approach_distance_m is None:
@@ -452,23 +703,6 @@ def _pair_ok(
     return True
 
 
-def _sample_z_in_reach_band(
-    rng: np.random.Generator,
-    *,
-    z_lo_band: float,
-    z_hi_band: float,
-    z_lo_reach: float,
-    z_hi_reach: float,
-) -> float | None:
-    lo = max(z_lo_band, z_lo_reach)
-    hi = min(z_hi_band, z_hi_reach)
-    if hi + 1.0e-12 < lo:
-        return None
-    if abs(hi - lo) <= 1.0e-15:
-        return float(lo)
-    return float(rng.uniform(lo, hi))
-
-
 def build_random_centers(
     count: int,
     field_minimum_m: Sequence[float],
@@ -486,8 +720,19 @@ def build_random_centers(
     delta_z_m: float | None = None,
     z_separation_gain: float = 1.0,
     pre_approach_distance_m: float = 0.05,
+    dexterous_reach: DexterousReachModel = DEFAULT_DEXTEROUS_REACH,
+    reach_budget: ReachRejectionBudget | None = None,
+    tip_ik_fn: TipIkFn | None = None,
+    ik_budget: IkRejectionBudget | None = None,
+    log: LogFn | None = None,
 ) -> tuple[tuple[float, float, float], ...]:
-    """Sample ``count`` centres with separation, keep-out, and ROM constraints."""
+    """Sample ``count`` centres with separation, keep-out, and dexterous reach.
+
+    Z is drawn from the **full** requested band. Out-of-reach draws count
+    against the suite-wide ``reach_budget`` and are regenerated until the
+    field holds ``count`` centres (or the budget is exceeded). Optional tip IK
+    screening consumes the per-episode ``ik_budget``.
+    """
 
     if count < 1:
         raise ConfigurationError("random placement count must be positive")
@@ -502,72 +747,110 @@ def build_random_centers(
         z_band_fraction=z_band_fraction,
         delta_z_m=delta_z_m,
     )
-    _, z_lo_reach, z_hi_reach = arm_reach_z_bounds(
-        lo, hi, arm_z_motion_range_m=arm_z_motion_range_m
-    )
     rng = np.random.default_rng(int(placement_seed))
-    chosen: list[tuple[float, float, float]] = []
-    attempts = 0
-    rom_retries_for_slot = 0
-    while len(chosen) < count and attempts < max_placement_attempts:
-        attempts += 1
-        candidate = (
-            float(rng.uniform(lo[0], hi[0])),
-            float(rng.uniform(lo[1], hi[1])),
-            float(rng.uniform(z_lo, z_hi)),
-        )
-        if center_outside_arm_reach(
-            candidate,
-            edge_m=edge_m,
-            field_minimum_m=lo,
-            field_maximum_m=hi,
-            arm_z_motion_range_m=arm_z_motion_range_m,
-            max_target_radial_m=max_target_radial_m,
-        ):
-            rom_retries_for_slot += 1
-            if rom_retries_for_slot > MAX_ROM_SUBSTITUTE_RETRIES:
-                raise ConfigurationError(
-                    f"random placement failed after {MAX_ROM_SUBSTITUTE_RETRIES} "
-                    "arm-reach substitute retries for one target; reduce delta_z_m "
-                    "/ z_band_fraction or widen the reach envelope"
+    episode_index = 0 if reach_budget is None else int(reach_budget.episode_index)
+    # Outer loop: redraw the whole field when omit-self tip IK fails after pack.
+    while True:
+        chosen: list[tuple[float, float, float]] = []
+        attempts = 0
+        last_accept_s = time.perf_counter()
+        while len(chosen) < count and attempts < max_placement_attempts:
+            attempts += 1
+            candidate = (
+                float(rng.uniform(lo[0], hi[0])),
+                float(rng.uniform(lo[1], hi[1])),
+                float(rng.uniform(z_lo, z_hi)),
+            )
+            # XY rim is a coarse pre-filter (does not consume the dexterous budget).
+            # Z is drawn from the full requested band; dexterous-reach is authoritative.
+            if center_violates_rim(
+                candidate, edge_m=edge_m, max_target_radial_m=max_target_radial_m
+            ):
+                continue
+            if center_outside_dexterous_reach(
+                candidate,
+                edge_m=edge_m,
+                outward_normal_base=outward_normal_base,
+                reach=dexterous_reach,
+            ):
+                if reach_budget is None:
+                    continue
+                reach_budget.reject(candidate)
+                continue
+            if not _tip_ik_accepts(
+                candidate,
+                tip_ik_fn=tip_ik_fn,
+                ik_budget=ik_budget,
+                accepted_centers_m=chosen,
+                log=log,
+                episode_index=episode_index,
+            ):
+                continue
+            if center_violates_keep_outs(candidate, edge_m, keep_outs):
+                continue
+            if not _pair_ok(
+                candidate,
+                chosen,
+                min_center_separation_m=min_center_separation_m,
+                edge_m=edge_m,
+                outward_normal_base=outward_normal_base,
+                z_separation_gain=z_separation_gain,
+                pre_approach_distance_m=pre_approach_distance_m,
+            ):
+                continue
+            now = time.perf_counter()
+            place_wall_s = float(now - last_accept_s)
+            last_accept_s = now
+            chosen.append(candidate)
+            if log is not None:
+                log(
+                    "phase7_4_placement: "
+                    f"episode={episode_index} "
+                    f"accept centre=({candidate[0]:.4f},{candidate[1]:.4f},{candidate[2]:.4f}) "
+                    f"placed={len(chosen)}/{count} "
+                    f"place_wall_s={place_wall_s:.3f}"
                 )
-            continue
-        if center_violates_keep_outs(candidate, edge_m, keep_outs):
-            continue
-        if center_violates_rim(candidate, edge_m=edge_m, max_target_radial_m=max_target_radial_m):
-            continue
-        if not _pair_ok(
-            candidate,
+        if len(chosen) < count:
+            raise ConfigurationError(
+                f"random placement failed after {max_placement_attempts} attempts "
+                f"(placed {len(chosen)}/{count}); relax keep_outs, separation, or AABB"
+            )
+        validate_centers_separation(
             chosen,
             min_center_separation_m=min_center_separation_m,
             edge_m=edge_m,
+            keep_outs=keep_outs,
             outward_normal_base=outward_normal_base,
+            max_target_radial_m=max_target_radial_m,
             z_separation_gain=z_separation_gain,
             pre_approach_distance_m=pre_approach_distance_m,
-        ):
-            continue
-        chosen.append(candidate)
-        rom_retries_for_slot = 0
-    if len(chosen) < count:
-        raise ConfigurationError(
-            f"random placement failed after {max_placement_attempts} attempts "
-            f"(placed {len(chosen)}/{count}); relax keep_outs, separation, or AABB"
+            field_minimum_m=lo,
+            field_maximum_m=hi,
+            arm_z_motion_range_m=arm_z_motion_range_m,
+            require_arm_reach=False,
+            require_dexterous_reach=True,
+            dexterous_reach=dexterous_reach,
         )
-    validate_centers_separation(
-        chosen,
-        min_center_separation_m=min_center_separation_m,
-        edge_m=edge_m,
-        keep_outs=keep_outs,
-        outward_normal_base=outward_normal_base,
-        max_target_radial_m=max_target_radial_m,
-        z_separation_gain=z_separation_gain,
-        pre_approach_distance_m=pre_approach_distance_m,
-        field_minimum_m=lo,
-        field_maximum_m=hi,
-        arm_z_motion_range_m=arm_z_motion_range_m,
-        require_arm_reach=True,
-    )
-    return tuple(chosen)
+        if _full_field_omit_self_tip_ik_ok(
+            chosen,
+            tip_ik_fn=tip_ik_fn,
+            ik_budget=ik_budget,
+            log=log,
+            episode_index=episode_index,
+        ):
+            return tuple(chosen)
+        if tip_ik_fn is None:
+            return tuple(chosen)
+        if ik_budget is None:
+            raise ConfigurationError(
+                "random placement full-field omit-self tip IK failed; "
+                "provide max_ik_rejections / ik_budget to redraw, or relax geometry"
+            )
+        if log is not None:
+            log(
+                "phase7_4_placement: "
+                f"episode={episode_index} redrawing field after full_field_omit_self_fail"
+            )
 
 
 def replace_out_of_reach_centers(
@@ -586,36 +869,50 @@ def replace_out_of_reach_centers(
     z_separation_gain: float,
     pre_approach_distance_m: float,
     placement_seed: int | None,
+    dexterous_reach: DexterousReachModel = DEFAULT_DEXTEROUS_REACH,
+    reach_budget: ReachRejectionBudget | None = None,
+    tip_ik_fn: TipIkFn | None = None,
+    ik_budget: IkRejectionBudget | None = None,
+    log: LogFn | None = None,
+    max_z_redraws: int = 64,
+    max_full_redraws: int = 256,
 ) -> tuple[tuple[float, float, float], ...]:
-    """Discard invalid centres and sample in-reach Z substitutes (≤3 each).
+    """Reject out-of-reach / packing-invalid centres and regenerate replacements.
 
-    A centre is discarded when it is outside arm reach, intersects a keep-out,
-    or fails the Z-aware approach-plane floor against already-accepted centres.
-    Substitutes keep XY and resample Z inside the intersection of the requested
-    band and the arm-reach envelope. Pairwise checks use only finalized
-    centres; callers re-validate the full set afterward.
+    Prefer Z-in-band redraws at the same XY; if that XY is unreachable for every
+    Z in the band, fall back to full XYZ redraws inside the field AABB.
+    Dexterous-reach rejections consume ``reach_budget``. Tip-IK rejections
+    consume ``ik_budget``. Keep-out / separation redraws do not. Pairwise
+    checks use only finalized centres; callers re-validate the full set afterward.
     """
 
     lo = _tuple3(field_minimum_m, "field_minimum_m")
     hi = _tuple3(field_maximum_m, "field_maximum_m")
-    _, z_lo_reach, z_hi_reach = arm_reach_z_bounds(
-        lo, hi, arm_z_motion_range_m=arm_z_motion_range_m
-    )
     rng = np.random.default_rng(0 if placement_seed is None else int(placement_seed) + 17)
     result: list[tuple[float, float, float]] = []
     for center in centers:
+        candidate = (float(center[0]), float(center[1]), float(center[2]))
         if (
-            not center_outside_arm_reach(
-                center,
-                edge_m=edge_m,
-                field_minimum_m=lo,
-                field_maximum_m=hi,
-                arm_z_motion_range_m=arm_z_motion_range_m,
-                max_target_radial_m=max_target_radial_m,
+            not center_violates_rim(
+                candidate, edge_m=edge_m, max_target_radial_m=max_target_radial_m
             )
-            and not center_violates_keep_outs(center, edge_m, keep_outs)
+            and not center_outside_dexterous_reach(
+                candidate,
+                edge_m=edge_m,
+                outward_normal_base=outward_normal_base,
+                reach=dexterous_reach,
+            )
+            and _tip_ik_accepts(
+                candidate,
+                tip_ik_fn=tip_ik_fn,
+                ik_budget=ik_budget,
+                accepted_centers_m=result,
+                log=log,
+                episode_index=0 if reach_budget is None else int(reach_budget.episode_index),
+            )
+            and not center_violates_keep_outs(candidate, edge_m, keep_outs)
             and _pair_ok(
-                center,
+                candidate,
                 result,
                 min_center_separation_m=min_center_separation_m,
                 edge_m=edge_m,
@@ -624,43 +921,48 @@ def replace_out_of_reach_centers(
                 pre_approach_distance_m=pre_approach_distance_m,
             )
         ):
-            result.append(center)
+            result.append(candidate)
+            if log is not None:
+                log(
+                    "phase7_4_placement: "
+                    f"episode={0 if reach_budget is None else reach_budget.episode_index} "
+                    f"accept centre=({candidate[0]:.4f},{candidate[1]:.4f},{candidate[2]:.4f}) "
+                    f"placed={len(result)}/{len(centers)}"
+                )
             continue
-        # Prefer Z of the nearest accepted neighbour (collapses Δz for close XY
-        # pairs), then mid-band, then random samples within reach∩band.
-        trial_zs: list[float] = []
-        if result:
-            nearest = min(
-                result,
-                key=lambda point: approach_plane_separation_m(center, point, outward_normal_base),
-            )
-            trial_zs.append(float(nearest[2]))
-        trial_zs.append(0.5 * (z_lo_band + z_hi_band))
-        while len(trial_zs) < MAX_ROM_SUBSTITUTE_RETRIES:
-            sampled = _sample_z_in_reach_band(
-                rng,
-                z_lo_band=z_lo_band,
-                z_hi_band=z_hi_band,
-                z_lo_reach=z_lo_reach,
-                z_hi_reach=z_hi_reach,
-            )
-            if sampled is None:
-                break
-            trial_zs.append(sampled)
+        # Count the original centre if it failed the dexterous screen.
+        if center_outside_dexterous_reach(
+            (float(center[0]), float(center[1]), float(center[2])),
+            edge_m=edge_m,
+            outward_normal_base=outward_normal_base,
+            reach=dexterous_reach,
+        ):
+            if reach_budget is not None:
+                reach_budget.reject(center)
         replaced = False
-        for z_sub in trial_zs[:MAX_ROM_SUBSTITUTE_RETRIES]:
-            lo_z = max(z_lo_band, z_lo_reach)
-            hi_z = min(z_hi_band, z_hi_reach)
-            if z_sub < lo_z - 1.0e-12 or z_sub > hi_z + 1.0e-12:
+        for _ in range(max_z_redraws):
+            z_sub = float(rng.uniform(z_lo_band, z_hi_band))
+            candidate = (float(center[0]), float(center[1]), z_sub)
+            if center_violates_rim(
+                candidate, edge_m=edge_m, max_target_radial_m=max_target_radial_m
+            ):
                 continue
-            candidate = (float(center[0]), float(center[1]), float(z_sub))
-            if center_outside_arm_reach(
+            if center_outside_dexterous_reach(
                 candidate,
                 edge_m=edge_m,
-                field_minimum_m=lo,
-                field_maximum_m=hi,
-                arm_z_motion_range_m=arm_z_motion_range_m,
-                max_target_radial_m=max_target_radial_m,
+                outward_normal_base=outward_normal_base,
+                reach=dexterous_reach,
+            ):
+                if reach_budget is not None:
+                    reach_budget.reject(candidate)
+                continue
+            if not _tip_ik_accepts(
+                candidate,
+                tip_ik_fn=tip_ik_fn,
+                ik_budget=ik_budget,
+                accepted_centers_m=result,
+                log=log,
+                episode_index=0 if reach_budget is None else int(reach_budget.episode_index),
             ):
                 continue
             if center_violates_keep_outs(candidate, edge_m, keep_outs):
@@ -676,14 +978,74 @@ def replace_out_of_reach_centers(
             ):
                 continue
             result.append(candidate)
+            if log is not None:
+                log(
+                    "phase7_4_placement: "
+                    f"episode={0 if reach_budget is None else reach_budget.episode_index} "
+                    f"accept centre=({candidate[0]:.4f},{candidate[1]:.4f},{candidate[2]:.4f}) "
+                    f"placed={len(result)}/{len(centers)}"
+                )
+            replaced = True
+            break
+        if replaced:
+            continue
+        # Same-XY Z redraw exhausted (often permanently unreachable XY). Fall
+        # back to full-field XYZ regeneration so fields still reach target_count.
+        for _ in range(max_full_redraws):
+            candidate = (
+                float(rng.uniform(lo[0], hi[0])),
+                float(rng.uniform(lo[1], hi[1])),
+                float(rng.uniform(z_lo_band, z_hi_band)),
+            )
+            if center_violates_rim(
+                candidate, edge_m=edge_m, max_target_radial_m=max_target_radial_m
+            ):
+                continue
+            if center_outside_dexterous_reach(
+                candidate,
+                edge_m=edge_m,
+                outward_normal_base=outward_normal_base,
+                reach=dexterous_reach,
+            ):
+                if reach_budget is not None:
+                    reach_budget.reject(candidate)
+                continue
+            if not _tip_ik_accepts(
+                candidate,
+                tip_ik_fn=tip_ik_fn,
+                ik_budget=ik_budget,
+                accepted_centers_m=result,
+                log=log,
+                episode_index=0 if reach_budget is None else int(reach_budget.episode_index),
+            ):
+                continue
+            if center_violates_keep_outs(candidate, edge_m, keep_outs):
+                continue
+            if not _pair_ok(
+                candidate,
+                result,
+                min_center_separation_m=min_center_separation_m,
+                edge_m=edge_m,
+                outward_normal_base=outward_normal_base,
+                z_separation_gain=z_separation_gain,
+                pre_approach_distance_m=pre_approach_distance_m,
+            ):
+                continue
+            result.append(candidate)
+            if log is not None:
+                log(
+                    "phase7_4_placement: "
+                    f"episode={0 if reach_budget is None else reach_budget.episode_index} "
+                    f"accept centre=({candidate[0]:.4f},{candidate[1]:.4f},{candidate[2]:.4f}) "
+                    f"placed={len(result)}/{len(centers)}"
+                )
             replaced = True
             break
         if not replaced:
             raise ConfigurationError(
-                f"target generation failed after {MAX_ROM_SUBSTITUTE_RETRIES} "
-                "substitute retries for one target (arm-reach / keep-out / "
-                "Z-aware separation); reduce delta_z_m / z_band_fraction or "
-                "relax packing constraints"
+                "target generation failed to regenerate an in-reach centre for "
+                f"XY=({center[0]:.4f},{center[1]:.4f}) within the requested Z band; "
+                "reduce delta_z_m / z_band_fraction or relax packing constraints"
             )
     return tuple(result)
 
@@ -705,6 +1067,11 @@ def build_layout_centers(
     delta_z_m: float | None = None,
     z_separation_gain: float = 1.0,
     pre_approach_distance_m: float = 0.05,
+    dexterous_reach: DexterousReachModel = DEFAULT_DEXTEROUS_REACH,
+    reach_budget: ReachRejectionBudget | None = None,
+    tip_ik_fn: TipIkFn | None = None,
+    ik_budget: IkRejectionBudget | None = None,
+    log: LogFn | None = None,
 ) -> tuple[tuple[float, float, float], ...]:
     """Build centres for a named layout; optional seed rotates/phases the set."""
 
@@ -788,6 +1155,11 @@ def build_layout_centers(
             z_separation_gain=z_separation_gain,
             pre_approach_distance_m=pre_approach_distance_m,
             placement_seed=placement_seed,
+            dexterous_reach=dexterous_reach,
+            reach_budget=reach_budget,
+            tip_ik_fn=tip_ik_fn,
+            ik_budget=ik_budget,
+            log=log,
         )
     )
     validate_centers_separation(
@@ -802,6 +1174,8 @@ def build_layout_centers(
         field_minimum_m=lo,
         field_maximum_m=hi,
         arm_z_motion_range_m=arm_z_motion_range_m,
-        require_arm_reach=True,
+        require_arm_reach=False,
+        require_dexterous_reach=True,
+        dexterous_reach=dexterous_reach,
     )
     return tuple(centers)

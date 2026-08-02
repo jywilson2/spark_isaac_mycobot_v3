@@ -795,7 +795,15 @@ def main(argv: list[str] | None = None) -> int:
         summary = payload.get("summary") or {}
         successes = int(summary.get("successes", 0))
         total = int(summary.get("total_episodes", -1))
-        exit_code = 0 if successes == total else 1
+        failed = int(summary.get("failed_episodes", max(0, total - successes)))
+        # Honor plan-bundle failed-episode budget when present.
+        bundle_meta = json.loads(args.bundle.read_text(encoding="utf-8"))
+        max_failed = int(bundle_meta.get("max_failed_episodes", 0))
+        if "suite_accepted" in bundle_meta:
+            # Recompute against playback summary with the planned budget.
+            exit_code = 0 if failed <= max_failed else 1
+        else:
+            exit_code = 0 if successes == total else 1
     except Exception as exc:
         payload["error"] = f"{type(exc).__name__}: {exc}"
         traceback.print_exc()

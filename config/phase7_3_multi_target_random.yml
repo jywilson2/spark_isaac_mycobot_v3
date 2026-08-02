@@ -7,7 +7,9 @@ placement: random
 order: shuffle
 retain_targets_after_contact: false
 # Default floor: edge + flange + ee_approach_clearance (= 0.076 m).
-max_placement_attempts: 2000
+max_placement_attempts: 20000
+max_reach_rejections: 500
+max_target_radial_m: 0.28
 keep_outs:
   - minimum_m: [0.18, -0.12, 0.10]
     maximum_m: [0.22, -0.08, 0.22]
