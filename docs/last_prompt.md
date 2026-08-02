@@ -1,10 +1,16 @@
+## BEGIN: 2026-08-02 05:25 -0700
+
+Please fix the unit test failures on their own branch.
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-08-02 05:22 -0700
 
 Yes, please finish propagation to main.
 
 ## END
-
-# Old prompts:
 
 ## BEGIN: 2026-08-02 05:20 -0700
 

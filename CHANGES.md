@@ -1,5 +1,28 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-02 — fix(phase1.1): repair two pre-existing unit test failures
+
+Branch `wip_phase1_1_test_fixes` (from `main` @ `516c93d`). Both tests
+failed identically at `origin/main` before this change; neither failure
+was introduced by the Phase 7.4 / 7.5 landings.
+
+1. `load_robot_model_spec` now validates `format_version` and
+   `joint_names` **before** merging the collision sphere overlay. Overlay
+   merging reads a sibling file, so config copies (pytest tmp dirs)
+   previously died with "collision sphere overlay not found" instead of
+   the specific schema error. Fixes
+   `test_config_rejects_silent_joint_reordering`.
+2. `scripts/host/write_option_b_trial_app.py` falls back to an absolute
+   `robot_config_path` when the trial robot output lives outside the repo
+   root (`Path.relative_to` cannot express such paths;
+   `load_app_config`'s repo-root join leaves absolute paths untouched).
+   Fixes `test_write_option_b_trial_app_arms_dual_overlay`.
+
+### Verification
+
+- `pytest tests/unit -q`: 243 passed (previously 241 passed, 2 failed).
+- `ruff check .` and `ruff format --check .`: clean.
+
 ## 2026-08-02 — Phase 7.4 closed as partially functional; Phase 7.5 approved (docs only)
 
 Decision 2026-08-02: **Phase 7.4 is left in its current state — partially
