@@ -1,3 +1,13 @@
+## BEGIN: 2026-08-03 14:10 -0700
+
+The video links on README.md for an older video work correctly on github. The one just created for the more recent video does not work. Use the link for the older video as a reference and fix this for the newer demo video. On the 7.5 documentation file, remove all other references for playing the video once this works, and just assume that the user will either download the file via git or will click on the video image directly.
+
+push/commit to the branch and then fast-forward onto main so that I can verify the result.
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-08-03 14:02 -0700
 
 The Phase 8 branch was not yet rebased onto main.
@@ -6,7 +16,6 @@ Also, clicking on the image of the video displays the HTML file to play the vide
 
 ## END
 
-# Old prompts:
 
 ## BEGIN: 2026-08-03 13:55 -0700
 

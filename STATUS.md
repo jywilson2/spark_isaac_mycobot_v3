@@ -200,12 +200,10 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Next step / resume (2026-08-03)
 
-**Where we left off:** On `wip_phase8`; `main` fast-forwarded to the same
-tip. README phase TOC + demos: poster → GitHub `.mp4` blob viewer (plays
-on github.com); offline HTML under [`docs/videos/`](docs/videos/). Phase
-7.5 evidence `n6-4-8` tip=18, body=0, self=0 —
-[GitHub viewer](https://github.com/jywilson2/spark_isaac_mycobot_v3/blob/main/docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4) /
-[`mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4).
+**Where we left off:** On `wip_phase8`. README demos use GitHub
+`user-attachments` bare URLs (7.3 and 7.5). Phase 7.5 evidence `n6-4-8`
+tip=18, body=0, self=0 —
+https://github.com/user-attachments/assets/0d204391-c383-4e00-93ef-c992c0de9d85
 
 **Next steps:**
 

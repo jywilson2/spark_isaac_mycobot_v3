@@ -1,5 +1,16 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-03 — Phase 7.5 demo uses user-attachments like Phase 7.3
+
+Branch `wip_phase8`. Upload
+`phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4` to GitHub
+`user-attachments` and wire README / Phase 7.5 docs with a bare URL:
+
+`https://github.com/user-attachments/assets/0d204391-c383-4e00-93ef-c992c0de9d85`
+
+(same pattern as the working 7.3 demo). Phase 7.5 doc keeps only the
+poster + bare URL (git clone for the repo mp4).
+
 ## 2026-08-03 — Fast-forward main; GitHub-playable video links
 
 Branch `wip_phase8`. `git rebase origin/main` was already a no-op (main is

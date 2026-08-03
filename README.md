@@ -69,29 +69,16 @@ Acceptance status: [`STATUS.md`](STATUS.md). Change log: [`CHANGES.md`](CHANGES.
 
 ### Demo videos
 
-GitHub’s markdown view does **not** execute repository `.html` players and
-does not stream repository `.mp4` files from relative links. Use the
-GitHub-hosted players below (click poster → GitHub’s built-in video viewer,
-or the inline `user-attachments` stream). Local HTML under
-[`docs/videos/`](docs/videos/) still works from a clone.
+Inline players use GitHub `user-attachments` (bare URL on its own line).
+Repository copies under [`docs/videos/`](docs/videos/) are for git clones.
 
-**Phase 7.3 — densest 2×20** (inline on GitHub via `user-attachments`):
+**Phase 7.3 — densest 2×20:**
 
 https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28
 
-[![2×20 poster — open GitHub video viewer](docs/videos/mycobot_280_m5_2x20_poster.jpg)](https://github.com/jywilson2/spark_isaac_mycobot_v3/blob/main/docs/videos/mycobot_280_m5_2x20.mp4)
+**Phase 7.5 — `n6-4-8` seed-4242:**
 
-Offline: [`play HTML`](docs/videos/mycobot_280_m5_2x20.html) ·
-[`mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
-
-**Phase 7.5 — `n6-4-8` seed-4242** (click poster → GitHub video viewer):
-
-[![n6-4-8 poster — open GitHub video viewer](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg)](https://github.com/jywilson2/spark_isaac_mycobot_v3/blob/main/docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
-
-Offline: [`play HTML`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html) ·
-[`mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
-
-Index: [`docs/videos/README.md`](docs/videos/README.md).
+https://github.com/user-attachments/assets/0d204391-c383-4e00-93ef-c992c0de9d85
 
 ## Current phase
 
@@ -459,20 +446,12 @@ can override the count:
 ./scripts/host/smoke_phase7_2_standard_2x20.sh --gui --auto-exit --record /tmp/phase7_2_demo.mp4
 ```
 
-A recorded 2×20 GUI run is committed as the Phase 7.3 demo (see
-[`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md);
-local click-to-play:
-[`docs/videos/mycobot_280_m5_2x20.html`](docs/videos/mycobot_280_m5_2x20.html)).
-Phase 7.5 adds a second demo for the incremental Z-density suite
-(`n6-4-8` seed-4242):
-[`docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html)
-(see [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md)).
-The player below streams the Phase 7.3 1:58 video. It is a GitHub
-`user-attachments` asset — the only source GitHub renders as an inline
-player; repository copies (HTML players, mp4, GIF, poster) live in
-[`docs/videos/`](docs/videos/) for forks and offline use:
-
-https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28
+Recorded demos stream inline via GitHub `user-attachments` (see [Demo
+videos](#demo-videos) above). Phase 7.3 write-up:
+[`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md).
+Phase 7.5 write-up:
+[`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
+Repository copies live in [`docs/videos/`](docs/videos/).
 
 `--no-auto-exit` keeps replaying episodes indefinitely after the first pass
 (close the window or Ctrl+C to finish). Playback still runs if planning reports
