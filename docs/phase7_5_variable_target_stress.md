@@ -292,10 +292,12 @@ criteria).
   `phase7_5-variable_dz0_30_n6-4-11_seed4242`; suite accepted 3/3; tip=21,
   body=0. Per-episode `tip_contacts` / `populate_s`: 6 / 660.0 s, 4 /
   687.6 s, 11 / 695.0 s (each stopped on `total_failures`).
-- **Inter-episode clear fix (2026-08-03):** playback now clears all
-  `/World/Phase7_2/Targets` children before each episode; tip/body
-  contacts stream as `phase7_2_physx:`. Re-run GUI loop of the frozen
-  `n6-4-11` bundle to close visual evidence after the clear fix.
+- **Inter-episode clear + self-collision gate (2026-08-03):** playback
+  clears all `/World/Phase7_2/Targets` children before each episode;
+  tip/body/self stream as `phase7_2_physx:`. GUI `--auto-exit` of frozen
+  `n6-4-11`: EXIT:0, tip=21, self=0; clear lines for ep2/ep3. Offline
+  cuRobo sphere sweep of recorded trajs: 0 violations. Prepared USD has
+  only one collision prim, so PhysX robot–robot reports remain limited.
 
 ## Relation to Phase 7.4
 
