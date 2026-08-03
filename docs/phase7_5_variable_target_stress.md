@@ -23,11 +23,15 @@ Log keys: [`console_log_keys.md`](console_log_keys.md).
 
 ## Demo video
 
-[![Phase 7.5 n6-4-8 seed4242 GUI replay](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg)](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html)
+[![Phase 7.5 n6-4-8 seed4242 GUI replay](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg)](https://github.com/jywilson2/spark_isaac_mycobot_v3/blob/main/docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
 
-**Play in browser (click poster):**
+**Play on GitHub (click poster):** opens GitHub’s built-in video viewer for
+[`phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](https://github.com/jywilson2/spark_isaac_mycobot_v3/blob/main/docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
+(repository `.html` is not executed by github.com markdown).
+
+**Play offline:**
 [`videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html`](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html)
-— opens a local HTML page; click the image to start the native video player.
+— open from a local clone; click the image to start the native video player.
 
 **Direct mp4:**
 [`videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
@@ -49,9 +53,7 @@ demonstrates completed Phase 7.5 machinery:
 Companion assets: `videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_preview.gif`
 (18 s excerpt),
 `videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg` (still frame),
-and the click-to-play HTML above. GitHub’s markdown viewer does not execute
-the HTML or stream repository mp4s — open the `.html` from a local clone
-(or any static file server) to play in-browser.
+and the offline HTML above. See [`videos/README.md`](videos/README.md).
 
 ## Problem
 

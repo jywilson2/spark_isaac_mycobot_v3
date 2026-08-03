@@ -37,11 +37,17 @@ Core module: `mycobot_curobo.target_placement`.
 
 ## Demo video
 
-[![Phase 7.3 2×20 GUI demo](videos/mycobot_280_m5_2x20_poster.jpg)](videos/mycobot_280_m5_2x20.html)
+[![Phase 7.3 2×20 GUI demo](videos/mycobot_280_m5_2x20_poster.jpg)](https://github.com/jywilson2/spark_isaac_mycobot_v3/blob/main/docs/videos/mycobot_280_m5_2x20.mp4)
 
-**Play in browser (click poster):**
+**Play on GitHub (click poster):** opens GitHub’s built-in video viewer for
+[`mycobot_280_m5_2x20.mp4`](https://github.com/jywilson2/spark_isaac_mycobot_v3/blob/main/docs/videos/mycobot_280_m5_2x20.mp4).
+README also streams this clip inline via
+`user-attachments`
+(`https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28`).
+
+**Play offline:**
 [`videos/mycobot_280_m5_2x20.html`](videos/mycobot_280_m5_2x20.html)
-— opens a local HTML page; click the image to start the native video player.
+— open from a local clone; click the image to start the native video player.
 
 **Direct mp4:**
 [`videos/mycobot_280_m5_2x20.mp4`](videos/mycobot_280_m5_2x20.mp4)
@@ -64,13 +70,8 @@ and demonstrates the completed Phase 7.3 machinery end to end:
 The file is named for the robot and suite size (`mycobot_280_m5` + `2x20`).
 Companion assets: `videos/mycobot_280_m5_2x20_preview.gif` (18 s autoplaying
 excerpt), `videos/mycobot_280_m5_2x20_poster.jpg` (still frame), and the
-click-to-play HTML above. GitHub’s markdown viewer does not execute the HTML
-or stream repository mp4s — open the `.html` from a local clone to play
-in-browser. The README also streams the same recording via the manually
-uploaded GitHub `user-attachments` asset
-`https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28`
-(uploaded 2026-07-23; repository copies remain the canonical offline
-artifacts).
+offline HTML above. See [`videos/README.md`](videos/README.md). Repository
+copies remain the canonical offline artifacts.
 
 ## Example configs
 

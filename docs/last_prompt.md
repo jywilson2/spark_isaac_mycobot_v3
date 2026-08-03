@@ -1,3 +1,13 @@
+## BEGIN: 2026-08-03 14:02 -0700
+
+The Phase 8 branch was not yet rebased onto main.
+
+Also, clicking on the image of the video displays the HTML file to play the video, but does not play the video from within github.
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-08-03 13:55 -0700
 
 Can you create the html that will allow the browser to launch a video player when the video image is clicked, and include it in the documentation with video references?
@@ -6,7 +16,6 @@ push/commit and rebase onto main.
 
 ## END
 
-# Old prompts:
 
 ## BEGIN: 2026-08-03 13:50 -0700
 

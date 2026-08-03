@@ -1,5 +1,17 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-03 — Fast-forward main; GitHub-playable video links
+
+Branch `wip_phase8`. `git rebase origin/main` was already a no-op (main is
+an ancestor; phase8 was 10 commits ahead). Land by fast-forwarding `main`
+to the phase8 tip.
+
+Also fix demo playback on github.com: repository `.html` is not executed
+by the markdown viewer. Poster links now target the `.mp4` **blob** URL so
+GitHub’s built-in video viewer plays the clip; local HTML players remain
+for offline use. Phase 7.3 keeps its README `user-attachments` inline
+stream.
+
 ## 2026-08-03 — Click-to-play HTML video players under docs/videos
 
 Branch `wip_phase8`. Add browser players that start the native `<video>`

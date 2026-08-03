@@ -67,19 +67,31 @@ Acceptance status: [`STATUS.md`](STATUS.md). Change log: [`CHANGES.md`](CHANGES.
 | 10 | Planned | Hardware adapter; motion disabled by default | [roadmap §10](docs/implementation_phases.md#phase-10--hardware-interface-and-dry-run-execution) |
 | 11 | Planned | Gated physical MyCobot validation | [roadmap §11](docs/implementation_phases.md#phase-11--physical-mycobot-280-m5-validation) |
 
-Demo videos (offline under [`docs/videos/`](docs/videos/); click poster → HTML player):
+### Demo videos
 
-- Phase 7.3 densest 2×20:
-  [![2×20 poster](docs/videos/mycobot_280_m5_2x20_poster.jpg)](docs/videos/mycobot_280_m5_2x20.html)
-  — [`play HTML`](docs/videos/mycobot_280_m5_2x20.html) ·
-  [`mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
-- Phase 7.5 incremental `n6-4-8` seed-4242:
-  [![n6-4-8 poster](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg)](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html)
-  — [`play HTML`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html) ·
-  [`mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
+GitHub’s markdown view does **not** execute repository `.html` players and
+does not stream repository `.mp4` files from relative links. Use the
+GitHub-hosted players below (click poster → GitHub’s built-in video viewer,
+or the inline `user-attachments` stream). Local HTML under
+[`docs/videos/`](docs/videos/) still works from a clone.
 
-Open the `.html` file in a browser (local clone) and click the image to start
-playback. Index: [`docs/videos/README.md`](docs/videos/README.md).
+**Phase 7.3 — densest 2×20** (inline on GitHub via `user-attachments`):
+
+https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28
+
+[![2×20 poster — open GitHub video viewer](docs/videos/mycobot_280_m5_2x20_poster.jpg)](https://github.com/jywilson2/spark_isaac_mycobot_v3/blob/main/docs/videos/mycobot_280_m5_2x20.mp4)
+
+Offline: [`play HTML`](docs/videos/mycobot_280_m5_2x20.html) ·
+[`mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
+
+**Phase 7.5 — `n6-4-8` seed-4242** (click poster → GitHub video viewer):
+
+[![n6-4-8 poster — open GitHub video viewer](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg)](https://github.com/jywilson2/spark_isaac_mycobot_v3/blob/main/docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
+
+Offline: [`play HTML`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html) ·
+[`mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
+
+Index: [`docs/videos/README.md`](docs/videos/README.md).
 
 ## Current phase
 

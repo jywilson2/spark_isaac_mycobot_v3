@@ -1,15 +1,24 @@
 # Demo videos
 
-Offline GUI recordings and click-to-play HTML players. Open an `.html` file in
-a browser (from a local clone or any static file server) and click the poster
-image to start the native video player.
+## Play on GitHub
 
-| Demo | HTML player | mp4 | Poster |
-|------|-------------|-----|--------|
-| Phase 7.3 densest 2×20 | [`mycobot_280_m5_2x20.html`](mycobot_280_m5_2x20.html) | [`mycobot_280_m5_2x20.mp4`](mycobot_280_m5_2x20.mp4) | [`…_poster.jpg`](mycobot_280_m5_2x20_poster.jpg) |
-| Phase 7.5 `n6-4-8` seed4242 | [`phase7_5-variable_dz0_30_n6-4-8_seed4242.html`](phase7_5-variable_dz0_30_n6-4-8_seed4242.html) | [`phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4) | [`…_poster.jpg`](phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg) |
+Repository `.html` pages are **not** executed by github.com’s markdown
+viewer (clicking them shows source). To play **inside GitHub**:
 
-GitHub’s markdown viewer does **not** execute these HTML pages inline and does
-not stream repository `.mp4` files. Use the HTML players locally, or the
-optional GitHub `user-attachments` stream linked from the Phase 7.3 write-up
-for README inline playback of the 2×20 clip.
+1. Click the poster in the README / phase report — it links to the `.mp4`
+   on the `blob/main/...` page, where GitHub’s built-in video viewer runs.
+2. Phase 7.3 also has an inline README stream via GitHub
+   `user-attachments` (bare URL in the README).
+
+| Demo | GitHub video viewer (click) | Offline HTML | mp4 |
+|------|----------------------------|--------------|-----|
+| Phase 7.3 densest 2×20 | [blob viewer](https://github.com/jywilson2/spark_isaac_mycobot_v3/blob/main/docs/videos/mycobot_280_m5_2x20.mp4) | [`mycobot_280_m5_2x20.html`](mycobot_280_m5_2x20.html) | [`…mp4`](mycobot_280_m5_2x20.mp4) |
+| Phase 7.5 `n6-4-8` seed4242 | [blob viewer](https://github.com/jywilson2/spark_isaac_mycobot_v3/blob/main/docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4) | [`phase7_5-…html`](phase7_5-variable_dz0_30_n6-4-8_seed4242.html) | [`…mp4`](phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4) |
+
+Phase 7.3 inline attachment (README-only stream):
+`https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28`
+
+## Play offline (local clone)
+
+Open an `.html` file in a browser and click the poster to start the native
+`<video>` element. Relative `src` paths load the sibling `.mp4` / poster.

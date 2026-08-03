@@ -89,7 +89,12 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     html73 = (ROOT / "docs/videos/mycobot_280_m5_2x20.html").read_text(encoding="utf-8")
     assert "mycobot_280_m5_2x20.mp4" in html73
     assert "mycobot_280_m5_2x20_poster.jpg" in html73
-    assert (ROOT / "docs/videos/README.md").is_file()
+    videos_readme = (ROOT / "docs/videos/README.md").read_text(encoding="utf-8")
+    assert "blob/main/docs/videos/" in videos_readme
+    assert "built-in video viewer" in videos_readme or "GitHub video viewer" in videos_readme
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "blob/main/docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4" in readme
+    assert "user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28" in readme
     assert "phase7_2_multi_target_integration_2x5.yml" in smoke72_int
     assert "--targets 5" in smoke72_int
     assert "--episodes 2" in smoke72_int
