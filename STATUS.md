@@ -79,8 +79,10 @@ GUI must clear **all** `/World/Phase7_2/Targets` between episodes
 (disjoint candidate ids); enable articulation self-collisions + robot
 contact reports; stream tip/body/**self** evidence as `phase7_2_physx:`;
 self-collision always fails smoke exit (Cursor rule
-`.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`). See
-[`spec.md`](spec.md) §8 Phase 7.5 and
+`.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`). GUI
+`n6-4-11` replay 2026-08-03: EXIT:0, tip=21, self=0; offline sphere
+sweep of frozen trajs also clear. PhysX link self-contacts limited by
+USD (`contact_report_prims=1`). See [`spec.md`](spec.md) §8 Phase 7.5 and
 [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
 
 **Phase 1.1 — Target-scale collision-sphere coverage: COMPLETE / OPTION B

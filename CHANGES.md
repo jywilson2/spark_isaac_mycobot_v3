@@ -28,10 +28,24 @@ reports were not enabled.
    episode.
 5. Docs/glossary/Cursor rule 35 updated. CI: **279** passed.
 
+### Evidence (2026-08-03)
+
+- Pushed `44481dc`. GUI `--auto-exit` replay of frozen
+  `n6-4-11` → **EXIT:0**, tip=21, body=0, self=0; inter-episode clear
+  logged (`cleared 6` then `cleared 4` prior prims).
+- Offline cuRobo sphere self-collision sweep of all 21 recorded
+  trajectories: **0** negative-clearance samples (worst ~0.0003 m on
+  ep3 `start->1`).
+- Prepared USD has only **one** `CollisionAPI` prim
+  (`contact_report_prims=1`), so PhysX robot–robot contacts cannot fire
+  on link meshes; visual folds (if mesh-only / PD lag) need denser USD
+  colliders or measured-joint sphere checks during playback.
+
 ### Needs review
 
-- Re-run GUI loop of frozen `n6-4-11` to confirm self-collision is reported
-  and exit ≠ 0 when the fold reappears.
+- If a visual fold reappears with EXIT:0, add playback-time sphere
+  self-checks on **measured** joints (not only planned waypoints) and/or
+  author link collision meshes into the prepared USD.
 
 ## 2026-08-03 — Inter-episode field clear, PhysX console tags, log glossary
 
