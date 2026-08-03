@@ -68,9 +68,11 @@ Phase 7.5 (variable-target-count Z-density stress suite,
 pre-filter, inter-episode field clear, PhysX self-collision fail-closed,
 post-episode PhysX accept/regen, and suite self-collision clearance floor
 `0.003` m. Final operator-reviewed evidence: seed-4242 `n6-4-8`
-headless+GUI EXIT:0 (tip=18, body=0, self=0). Phase 8 opens on
-`wip_phase8`. See
-[`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md),
+headless+GUI EXIT:0 (tip=18, body=0, self=0). Demo video:
+[`docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
+(poster/GIF companions in [`docs/videos/`](docs/videos/); write-up in
+[`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md)).
+Phase 8 opens on `wip_phase8`. See also
 `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`,
 [`docs/console_log_keys.md`](docs/console_log_keys.md), and
 `.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`.
@@ -454,7 +456,11 @@ can override the count:
 
 A recorded 2×20 GUI run is committed as the Phase 7.3 demo (see
 [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md)).
-The player below streams the full 1:58 video. It is a GitHub
+Phase 7.5 adds a second demo for the incremental Z-density suite
+(`n6-4-8` seed-4242) under
+[`docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
+(see [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md)).
+The player below streams the Phase 7.3 1:58 video. It is a GitHub
 `user-attachments` asset — the only source GitHub renders as an inline
 player; repository copies (mp4, animated GIF excerpt, poster still) live in
 [`docs/videos/`](docs/videos/) for forks and offline use:

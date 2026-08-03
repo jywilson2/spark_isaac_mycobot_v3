@@ -71,6 +71,14 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "record_kit_window" in smoke72
     assert "imageio_ffmpeg" in smoke72
     assert "--record requires --gui" in smoke72
+    record_frozen = (ROOT / "scripts/host/record_frozen_bundle_gui.sh").read_text(encoding="utf-8")
+    assert "record_kit_window" in record_frozen
+    assert "play_multi_target_suite.py" in record_frozen
+    assert "--gui --auto-exit" in record_frozen
+    assert "BUNDLE.json OUTPUT.mp4" in record_frozen
+    assert (ROOT / "docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4").is_file()
+    assert (ROOT / "docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg").is_file()
+    assert (ROOT / "docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_preview.gif").is_file()
     assert "phase7_2_multi_target_integration_2x5.yml" in smoke72_int
     assert "--targets 5" in smoke72_int
     assert "--episodes 2" in smoke72_int

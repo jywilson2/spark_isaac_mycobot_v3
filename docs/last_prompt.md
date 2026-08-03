@@ -1,3 +1,11 @@
+## BEGIN: 2026-08-03 13:41 -0700
+
+Using the phase 7.5 branch, update the video related documentation located in @docs/video with the video file just generated and push/commit to the branch. Also, rebase onto main.
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-08-03 13:28 -0700
 
 I have reviewed and it looks good. Please commit/push to the branch and rebase onto main.
@@ -6,7 +14,6 @@ Then switch to the wip branch for Phase 8.
 
 ## END
 
-# Old prompts:
 
 ## BEGIN: 2026-08-03 13:19 -0700
 

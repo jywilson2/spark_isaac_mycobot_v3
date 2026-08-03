@@ -270,6 +270,11 @@ compute-capability warning is retained in that report and is not suppressed.
 - Example: `config/phase7_5_variable_targets_dz_0_30.yml` via
   `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`
   (`max_physx_regenerations: 3`).
+- Demo video: `docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`
+  (frozen-bundle GUI replay, recorded 2026-08-03 via
+  `scripts/host/record_frozen_bundle_gui.sh`; presented in
+  `docs/phase7_5_variable_target_stress.md`). Companion poster/GIF in the
+  same `docs/videos/` directory.
 - Branch: `wip_phase7_5`.
 
 ## Phase 7.4 Z variability

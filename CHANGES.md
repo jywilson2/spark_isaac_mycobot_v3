@@ -1,5 +1,18 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-03 — Phase 7.5 demo video under docs/videos
+
+Branch `wip_phase7_5`. Commit the operator-reviewed GUI recording of the
+PhysX-gated clearance-floor bundle and wire docs to match the Phase 7.3
+`docs/videos/` pattern.
+
+1. `docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4` (+ `_poster.jpg`,
+   `_preview.gif`) named after the frozen bundle artifact.
+2. Demo section in `docs/phase7_5_variable_target_stress.md`; README /
+   REFERENCES links.
+3. Host helper `scripts/host/record_frozen_bundle_gui.sh` to re-record a
+   frozen bundle without re-planning.
+
 ## 2026-08-03 — Phase 7.5 self-collision clearance floor 3 mm
 
 Branch `wip_phase7_5`. GUI ep3 `start→1` looked folded while spheres and

@@ -203,7 +203,9 @@ planning-success claims, or hardware-readiness claims carry forward.
 **Where we left off:** Phase 7.5 landed on `wip_phase7_5` (operator
 GUI review OK 2026-08-03). Final clearance-floor evidence:
 `phase7_5-variable_dz0_30_n6-4-8_seed4242` headless+GUI EXIT:0, tip=18,
-body=0, self=0. Opening Phase 8 on `wip_phase8`.
+body=0, self=0. Demo video committed at
+[`docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4).
+Opening Phase 8 on `wip_phase8`.
 
 **Next steps:**
 

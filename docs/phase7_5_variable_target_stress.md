@@ -18,7 +18,34 @@ Log keys: [`console_log_keys.md`](console_log_keys.md).
 | Host plan/play | `isaac_sim/plan_multi_target_suite.py`, `play_multi_target_suite.py` |
 | Example config | `config/phase7_5_variable_targets_dz_0_30.yml` |
 | Host smoke | `scripts/host/smoke_phase7_5_variable_dz_0_30.sh` |
+| Frozen-bundle GUI record | `scripts/host/record_frozen_bundle_gui.sh` |
 | Unit tests | `tests/unit/test_phase7_5_variable_targets.py` |
+
+## Demo video
+
+[![Phase 7.5 n6-4-8 seed4242 GUI replay](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg)](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
+
+[`videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
+(2 min 35 s, 2880×1800 @ 30 fps, H.264, 6.0 MB; captured 2026-08-03 on the
+DGX Spark host with `scripts/host/record_frozen_bundle_gui.sh` against the
+frozen PhysX-gated clearance-floor bundle).
+
+The clip shows GUI `--auto-exit` replay of
+`phase7_5-variable_dz0_30_n6-4-8_seed4242` (tip=18, body=0, self=0) and
+demonstrates completed Phase 7.5 machinery:
+
+- incremental population with geometric-full primary stop (`n6-4-8`);
+- post-contact retreat so subsequent legs start clear of retained cubes;
+- inter-episode full clear of `/World/Phase7_2/Targets`;
+- PhysX tip/body/self evidence streaming (`phase7_2_physx:`);
+- suite self-collision clearance floor `0.003` m (near-miss folds fail
+  closed at independent validation before PhysX).
+
+Companion assets: `videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_preview.gif`
+(18 s excerpt) and
+`videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg` (still frame).
+GitHub does not stream repository mp4s inline — clicking the poster/mp4
+downloads or opens the file; play locally with any H.264-capable player.
 
 ## Problem
 
@@ -349,7 +376,8 @@ criteria).
   tip=18, body=0, self=0. Ep3 cand1 failed closed
   (`validation_failed: self-collision clearance is insufficient`);
   PhysX gate once discarded (`gate_timeout`) then ACCEPT
-  (`physx_regen_attempts=1`).
+  (`physx_regen_attempts=1`). Demo video committed as
+  [`videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4).
 
 ## Relation to Phase 7.4
 
