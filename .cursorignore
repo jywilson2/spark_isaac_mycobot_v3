@@ -1,3 +1,3 @@
 # Human-only material (article notes, drafts). Tracked in git but excluded
-# from AI/agent context. See notes/ for contents.
-notes/
+# from AI/agent context. See docs/notes/ for contents.
+docs/notes/

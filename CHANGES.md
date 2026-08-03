@@ -1,5 +1,10 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-03 — Move `notes/` to `docs/notes/`
+
+Branch `wip_phase8`. Relocate the human-only notes tree under `docs/notes/`
+and point `.cursorignore` at the new path (still excluded from AI context).
+
 ## 2026-08-03 — Phase 7.5 doc: single demo-video link
 
 Branch `wip_phase8`. Drop the duplicate poster hyperlink in
@@ -190,14 +195,15 @@ same-link.
 - Re-run GUI `n6-4-11` and confirm `phase7_2_physx: SELF COLLISION` (or
   regenerate if the fold is a true prohibited contact).
 
-## 2026-08-03 — Human-only `notes/` directory (excluded from AI context)
+## 2026-08-03 — Human-only notes directory (excluded from AI context)
 
-Non-development change. Added `notes/` for article drafts and discussion
-transcripts (first entry:
-`notes/2026-08-03_hierarchical_requirements_discussion.md`, a conversation on
-hierarchical requirements and objective traceability). New `.cursorignore`
-excludes `notes/` from AI/agent context while keeping it tracked in git. No
-code, config, or verification behavior changed.
+Non-development change. Added a human-only notes tree for article drafts and
+discussion transcripts (first entry:
+`docs/notes/2026-08-03_hierarchical_requirements_discussion.md`, a conversation
+on hierarchical requirements and objective traceability; originally under
+`notes/`, moved to `docs/notes/` the same day). `.cursorignore` excludes that
+tree from AI/agent context while keeping it tracked in git. No code, config,
+or verification behavior changed.
 
 ## 2026-08-03 — PhysX self-collision fails GUI/headless smoke
 

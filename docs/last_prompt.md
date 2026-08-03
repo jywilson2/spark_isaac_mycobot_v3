@@ -1,3 +1,13 @@
+## BEGIN: 2026-08-03 14:45 -0700
+
+Can you move the notes directory to the docs directory, changing other files that reference this directory as well.
+
+The commit/push and fast-forward on main.
+
+## END
+
+# Old prompts:
+
 ## BEGIN: 2026-08-03 14:28 -0700
 
 Looks good. Fix the Phase 7.5 documentation which includes two links to the demo video.  Only one is needed.
@@ -6,7 +16,6 @@ Commit/push and fast-forward the main branch.
 
 ## END
 
-# Old prompts:
 
 ## BEGIN: 2026-08-03 14:20 -0700
 
