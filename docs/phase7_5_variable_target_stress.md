@@ -23,13 +23,11 @@ Log keys: [`console_log_keys.md`](console_log_keys.md).
 
 ## Demo video
 
-[![Phase 7.5 n6-4-8 seed4242 GUI replay](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg)](https://github.com/user-attachments/assets/0d204391-c383-4e00-93ef-c992c0de9d85)
-
 https://github.com/user-attachments/assets/0d204391-c383-4e00-93ef-c992c0de9d85
 
 GUI `--auto-exit` replay of `phase7_5-variable_dz0_30_n6-4-8_seed4242`
-(tip=18, body=0, self=0; 2 min 35 s, 2880×1800 @ 30 fps). Click the image
-(or the bare URL) on GitHub to play; or obtain
+(tip=18, body=0, self=0; 2 min 35 s, 2880×1800 @ 30 fps). Play via the
+link above on GitHub, or obtain
 `videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4` via git clone.
 
 ## Problem

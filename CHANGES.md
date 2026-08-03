@@ -1,5 +1,11 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-03 — Phase 7.5 doc: single demo-video link
+
+Branch `wip_phase8`. Drop the duplicate poster hyperlink in
+`docs/phase7_5_variable_target_stress.md`; keep only the bare
+`user-attachments` URL.
+
 ## 2026-08-03 — Phase 7.5 demo uses user-attachments like Phase 7.3
 
 Branch `wip_phase8`. Upload

@@ -1,3 +1,20 @@
+## BEGIN: 2026-08-03 14:28 -0700
+
+Looks good. Fix the Phase 7.5 documentation which includes two links to the demo video.  Only one is needed.
+
+Commit/push and fast-forward the main branch.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-03 14:20 -0700
+
+Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that.
+
+## END
+
+
 ## BEGIN: 2026-08-03 14:10 -0700
 
 The video links on README.md for an older video work correctly on github. The one just created for the more recent video does not work. Use the link for the older video as a reference and fix this for the newer demo video. On the 7.5 documentation file, remove all other references for playing the video once this works, and just assume that the user will either download the file via git or will click on the video image directly.
@@ -6,7 +23,6 @@ push/commit to the branch and then fast-forward onto main so that I can verify t
 
 ## END
 
-# Old prompts:
 
 ## BEGIN: 2026-08-03 14:02 -0700
 
