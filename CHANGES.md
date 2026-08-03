@@ -1,5 +1,38 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-03 — Human-only `notes/` directory (excluded from AI context)
+
+Non-development change. Added `notes/` for article drafts and discussion
+transcripts (first entry:
+`notes/2026-08-03_hierarchical_requirements_discussion.md`, a conversation on
+hierarchical requirements and objective traceability). New `.cursorignore`
+excludes `notes/` from AI/agent context while keeping it tracked in git. No
+code, config, or verification behavior changed.
+
+## 2026-08-03 — PhysX self-collision fails GUI/headless smoke
+
+Branch `wip_phase7_5`. Episode 3 of the `n6-4-11` GUI loop showed the arm
+folding into itself without a smoke failure — tip/body monitoring ignored
+robot–robot contacts, and articulation self-collisions / robot contact
+reports were not enabled.
+
+1. `ContactKind.PROHIBITED_SELF_COLLISION` /
+   `MultiTargetFailureCategory.SELF_COLLISION`; suite
+   `total_self_collisions`.
+2. Classify non-adjacent robot–robot PhysX contacts (adjacent ignore map
+   matches robot YAML `self_collision_ignore`).
+3. Enable articulation self-collisions + `PhysxContactReportAPI` on robot
+   collision prims before playback.
+4. Abort the leg on self-collision; print `phase7_2_physx: SELF COLLISION…`;
+   force smoke exit 1 even when `max_failed_episodes` would tolerate the
+   episode.
+5. Docs/glossary/Cursor rule 35 updated. CI: **279** passed.
+
+### Needs review
+
+- Re-run GUI loop of frozen `n6-4-11` to confirm self-collision is reported
+  and exit ≠ 0 when the fold reappears.
+
 ## 2026-08-03 — Inter-episode field clear, PhysX console tags, log glossary
 
 Branch `wip_phase7_5`. GUI replay of `n6-4-11` left prior-episode cubes on

@@ -1,3 +1,68 @@
+## BEGIN: 2026-08-03 05:18 -0700
+
+Commit/push and rerun smoke tests.  If an error is now detected than regenerate the episode targets and commit/push once again.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-03 05:11 -0700
+
+In the first few movement sequences of episode 3 the arm collided with itself. This should be reported and detected as an error casuing test failure.
+
+## END
+
+
+## BEGIN: 2026-08-03 05:00 -0700
+
+Execute: Re-run the GUI loop of n6-4-11 to confirm the clear fix visually
+
+## END
+
+
+## BEGIN: 2026-08-03 04:57 -0700
+
+Can you add this last question/answer to the same document you just created in notes?
+
+## END
+
+
+## BEGIN: 2026-08-03 04:54 -0700
+
+One more thing:
+
+Do you know of any articles on how to construct requirements documents for optimal AI Iteraction?
+
+## END
+
+
+## BEGIN: 2026-08-03 04:48 -0700
+
+Can you copy this conversation into a separate file that is not seen by the AI for development, but is still included in the repo? I would like to use this as notes for a future article. Perhaps this could be a separate directory, such as "notes", whatever is the current convention.
+
+## END
+
+
+## BEGIN: 2026-08-03 04:38 -0700
+
+I understand your point about the gap between intent and mechanism, and I agree with your point ragarding the need to avoid diluting attention. Is there a way to create detailed requirements, separately from the parent objective? In other words, "do X, reference objective Y"? Since the objectives will change less often it and will be referenced repeatedly by each detailed requirement, so this would be structurally more appealing.
+
+## END
+
+
+## BEGIN: 2026-08-03 04:24 -0700
+
+This is just a general discussion topic. No project changes.
+
+I find that the errors which are overlooked by the AI are those which would occur without a high level view of the project's objectives. Even with detailed requirements, it seems that a higher level functional requirement is needed by which the detailed requirements can be measured.
+
+Would this help avoid errors where something is overlooked because it is missing from the detailed requirements, but is clearly needed to achieve the project high level objective?
+
+Can the AI process requirements in a heirarchical manner this way?
+
+## END
+
+
 ## BEGIN: 2026-08-03 04:15 -0700
 
 Some issues with the smoke test:
@@ -14,7 +79,6 @@ Commit and push the working branch if all tests pass.
 
 ## END
 
-# Old prompts:
 
 ## BEGIN: 2026-08-03 04:00 -0700
 

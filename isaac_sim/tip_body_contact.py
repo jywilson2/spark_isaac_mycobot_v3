@@ -1,14 +1,36 @@
-"""Tip-vs-body PhysX contact classification for Phase 7.2 multi-target suites."""
+"""Tip/body/self PhysX contact classification for Phase 7.2 multi-target suites."""
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from mycobot_curobo.multi_target import ContactEvent, ContactKind
+
+# Matches config/robots/mycobot_280_m5.yml self_collision_ignore (adjacent chain).
+# Non-adjacent robot–robot PhysX contacts are prohibited self-collisions.
+DEFAULT_SELF_COLLISION_IGNORE: dict[str, frozenset[str]] = {
+    "g_base": frozenset({"joint1"}),
+    "joint1": frozenset({"g_base", "joint2"}),
+    "joint2": frozenset({"joint1", "joint3"}),
+    "joint3": frozenset({"joint2", "joint4"}),
+    "joint4": frozenset({"joint3", "joint5"}),
+    "joint5": frozenset({"joint4", "joint6"}),
+    "joint6": frozenset({"joint5", "joint6_flange"}),
+    "joint6_flange": frozenset({"joint6"}),
+}
 
 
 def _path(value: Any) -> str:
     return str(value) if value is not None else ""
+
+
+def _normalize_collision_link_name(link_name: str) -> str:
+    """Strip Phase 1.1 ``*_world_cover`` virtual-link suffixes when present."""
+
+    name = str(link_name)
+    if name.endswith("_world_cover"):
+        return name[: -len("_world_cover")]
+    return name
 
 
 def _link_name_from_actor_path(actor_path: str, robot_root_path: str) -> str | None:
@@ -18,7 +40,7 @@ def _link_name_from_actor_path(actor_path: str, robot_root_path: str) -> str | N
     remainder = actor_path[len(root) :].lstrip("/")
     if not remainder:
         return None
-    return remainder.split("/")[0]
+    return _normalize_collision_link_name(remainder.split("/")[0])
 
 
 def _path_segments(path: str) -> tuple[str, ...]:
@@ -56,6 +78,59 @@ def match_target_id(actor_path: str, target_paths: dict[str, str]) -> str | None
                 best_id = target_id
                 best_len = len(root)
     return best_id
+
+
+def self_collision_pair_ignored(
+    link_a: str,
+    link_b: str,
+    *,
+    ignore_map: Mapping[str, frozenset[str]] | None = None,
+) -> bool:
+    """True when the pair is the same link or listed in the adjacent ignore map."""
+
+    first = _normalize_collision_link_name(link_a)
+    second = _normalize_collision_link_name(link_b)
+    if first == second:
+        return True
+    mapping = DEFAULT_SELF_COLLISION_IGNORE if ignore_map is None else ignore_map
+    ignored = mapping.get(first, frozenset())
+    return second in ignored
+
+
+def classify_robot_self_contact(
+    actor0: Any,
+    actor1: Any,
+    *,
+    robot_root_path: str,
+    ignore_map: Mapping[str, frozenset[str]] | None = None,
+) -> ContactEvent:
+    """Classify a PhysX contact as prohibited robot self-collision or none.
+
+    Adjacent links from the robot YAML ``self_collision_ignore`` map are ignored
+    (connected kinematics / expected mesh proximity). Non-adjacent robot–robot
+    contacts fail closed as ``prohibited_self_collision``.
+    """
+
+    first, second = _path(actor0), _path(actor1)
+    root = robot_root_path.rstrip("/")
+
+    def under_root(path: str) -> bool:
+        return path == root or path.startswith(root + "/")
+
+    if not (under_root(first) and under_root(second)):
+        return ContactEvent(ContactKind.NONE)
+    link_a = _link_name_from_actor_path(first, robot_root_path)
+    link_b = _link_name_from_actor_path(second, robot_root_path)
+    if link_a is None or link_b is None:
+        return ContactEvent(ContactKind.NONE)
+    if self_collision_pair_ignored(link_a, link_b, ignore_map=ignore_map):
+        return ContactEvent(ContactKind.NONE)
+    ordered = tuple(sorted((link_a, link_b)))
+    return ContactEvent(
+        ContactKind.PROHIBITED_SELF_COLLISION,
+        link_name=ordered[0],
+        other_link_name=ordered[1],
+    )
 
 
 def classify_robot_target_contact(
@@ -100,19 +175,50 @@ def classify_robot_target_contact(
     )
 
 
+def classify_physx_contact(
+    actor0: Any,
+    actor1: Any,
+    *,
+    target_paths: dict[str, str],
+    robot_root_path: str,
+    tip_allow_link_names: Sequence[str],
+    ignore_map: Mapping[str, frozenset[str]] | None = None,
+) -> ContactEvent:
+    """Classify tip/body/self for one PhysX contact header."""
+
+    self_event = classify_robot_self_contact(
+        actor0,
+        actor1,
+        robot_root_path=robot_root_path,
+        ignore_map=ignore_map,
+    )
+    if self_event.kind is ContactKind.PROHIBITED_SELF_COLLISION:
+        return self_event
+    return classify_robot_target_contact(
+        actor0,
+        actor1,
+        target_paths=target_paths,
+        robot_root_path=robot_root_path,
+        tip_allow_link_names=tip_allow_link_names,
+    )
+
+
 def merge_contact_events(
     events: Sequence[ContactEvent],
     *,
     active_target_id: str | None = None,
 ) -> ContactEvent:
-    """Fold a batch so body contact wins over tip contact over none.
+    """Fold a batch so self-collision wins, then body, then tip, then none.
 
     When ``active_target_id`` is set, tip contact on that active target wins over
     body contact on the **same** target. Flange overhang on a face smaller than
     the flange can produce mixed mesh reports; true body hits on *other* targets
-    still fail closed.
+    still fail closed. Self-collision always wins over tip/body.
     """
 
+    self_hits = [event for event in events if event.kind is ContactKind.PROHIBITED_SELF_COLLISION]
+    if self_hits:
+        return self_hits[0]
     body = [event for event in events if event.kind is ContactKind.PROHIBITED_BODY_CONTACT]
     tip = [event for event in events if event.kind is ContactKind.ALLOWED_TIP_CONTACT]
     if active_target_id is not None:
@@ -133,7 +239,7 @@ def merge_contact_events(
 
 
 class TipBodyContactMonitor:
-    """Subscribe to PhysX contacts and classify tip vs body against numbered targets."""
+    """Subscribe to PhysX contacts and classify tip, body, and self-collision."""
 
     def __init__(self, simulation_interface: Any | None = None) -> None:
         self._interface = simulation_interface
@@ -141,6 +247,7 @@ class TipBodyContactMonitor:
         self._target_paths: dict[str, str] = {}
         self._robot_root_path = ""
         self._tip_allow_link_names: tuple[str, ...] = ()
+        self._ignore_map: dict[str, frozenset[str]] = dict(DEFAULT_SELF_COLLISION_IGNORE)
         self._active_target_id: str | None = None
         self._events: list[ContactEvent] = []
         self._raw_log: list[dict[str, str | None]] = []
@@ -163,12 +270,13 @@ class TipBodyContactMonitor:
         for header in headers or ():
             actor0 = getattr(header, "actor0", getattr(header, "actor0_path", None))
             actor1 = getattr(header, "actor1", getattr(header, "actor1_path", None))
-            event = classify_robot_target_contact(
+            event = classify_physx_contact(
                 actor0,
                 actor1,
                 target_paths=self._target_paths,
                 robot_root_path=self._robot_root_path,
                 tip_allow_link_names=self._tip_allow_link_names,
+                ignore_map=self._ignore_map,
             )
             if self._log_contacts:
                 self._raw_log.append(
@@ -178,6 +286,7 @@ class TipBodyContactMonitor:
                         "kind": event.kind.value,
                         "target_id": event.target_id,
                         "link_name": event.link_name,
+                        "other_link_name": event.other_link_name,
                         "active_target_id": self._active_target_id,
                     }
                 )
@@ -193,6 +302,7 @@ class TipBodyContactMonitor:
         tip_allow_link_names: Sequence[str],
         active_target_id: str | None = None,
         log_contacts: bool = False,
+        self_collision_ignore: Mapping[str, Sequence[str]] | None = None,
     ) -> bool:
         """Subscribe once for the active target set."""
 
@@ -207,6 +317,13 @@ class TipBodyContactMonitor:
         self._target_paths = dict(target_paths)
         self._robot_root_path = robot_root_path
         self._tip_allow_link_names = tuple(tip_allow_link_names)
+        if self_collision_ignore is None:
+            self._ignore_map = dict(DEFAULT_SELF_COLLISION_IGNORE)
+        else:
+            self._ignore_map = {
+                str(link): frozenset(str(item) for item in peers)
+                for link, peers in self_collision_ignore.items()
+            }
         self._active_target_id = None if active_target_id is None else str(active_target_id)
         self._log_contacts = bool(log_contacts)
         self._events = []

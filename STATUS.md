@@ -74,10 +74,11 @@ retained cube. **Remediation closed:** two-call post-contact retreat
 start-clearance; targets **never removed within an episode**; corridor
 ("maze") pre-filter; `candidate_failures` records; playback mid-path +
 planned-FK tip evidence for retreated legs. Host evidence seed-4242:
-headless `n6-4-11`, tip=21, body=0. **Playback clear (2026-08-03):**
+headless `n6-4-11`, tip=21, body=0. **Playback clear + PhysX self-collision (2026-08-03):**
 GUI must clear **all** `/World/Phase7_2/Targets` between episodes
-(disjoint candidate ids); PhysX tip/body evidence must stream as
-`phase7_2_physx:` (Cursor rule
+(disjoint candidate ids); enable articulation self-collisions + robot
+contact reports; stream tip/body/**self** evidence as `phase7_2_physx:`;
+self-collision always fails smoke exit (Cursor rule
 `.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`). See
 [`spec.md`](spec.md) §8 Phase 7.5 and
 [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).

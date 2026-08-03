@@ -10,10 +10,17 @@ alwaysApply: true
 - Headless **and GUI** multi-target / Phase 7.5 playback smokes must subscribe
   to PhysX contact reports (`TipBodyContactMonitor` / equivalent) for the
   entire episode motion.
+- Enable PhysX articulation **self-collisions** and apply
+  `PhysxContactReportAPI` on robot collision prims before playback; otherwise
+  robot–robot contacts are invisible to the monitor.
 - **Prohibited body–target contact** fails the episode (`body_contact`) and
   must fail suite acceptance when `failed_episodes > max_failed_episodes`.
-- Tip/body contact evidence must be printed on the **streamed smoke console
-  (stdout)** with the normative tag `phase7_2_physx:` (not only Kit UI
+- **Prohibited robot self-collision** (non-adjacent links; adjacent pairs
+  follow the robot YAML `self_collision_ignore` map) fails the episode
+  (`self_collision`) and **always** fails the smoke exit code — not waived by
+  `max_failed_episodes`.
+- Tip/body/self contact evidence must be printed on the **streamed smoke
+  console (stdout)** with the normative tag `phase7_2_physx:` (not only Kit UI
   messages). Absence of these lines when contacts occur is a defect.
 - Kit/PhysX engine overlap or collide errors (including spawn-time
   penetrating statics from stale prims) must fail the smoke when detected;

@@ -84,6 +84,7 @@ class TargetPopulation(str, Enum):
 class ContactKind(str, Enum):
     ALLOWED_TIP_CONTACT = "allowed_tip_contact"
     PROHIBITED_BODY_CONTACT = "prohibited_body_contact"
+    PROHIBITED_SELF_COLLISION = "prohibited_self_collision"
     NONE = "none"
 
 
@@ -91,6 +92,7 @@ class MultiTargetFailureCategory(str, Enum):
     PLAN_FAILED = "plan_failed"
     VALIDATION_FAILED = "validation_failed"
     BODY_CONTACT = "body_contact"
+    SELF_COLLISION = "self_collision"
     TIP_CONTACT_MISSED = "tip_contact_missed"
     MAX_PLANNING_FAILURE_PER_TARGET_EXCEEDED = "max_planning_failure_per_target_exceeded"
     MAX_TARGET_FAILURES_EXCEEDED = "max_target_failures_exceeded"  # deprecated PASS escape
@@ -120,11 +122,12 @@ INCREMENTAL_FORBIDDEN_KEYS: frozenset[str] = frozenset(
 
 @dataclass(frozen=True)
 class ContactEvent:
-    """Result of one tip/body contact classification sample."""
+    """Result of one tip/body/self contact classification sample."""
 
     kind: ContactKind
     target_id: str | None = None
     link_name: str | None = None
+    other_link_name: str | None = None
 
 
 class ContactDetector(Protocol):
@@ -1495,6 +1498,7 @@ class MultiTargetSuiteSummary:
     failure_category_counts: dict[str, int]
     total_tip_contacts: int
     total_body_contacts: int
+    total_self_collisions: int
     failed_episodes: int
     total_planning_failures: int
     total_target_failures: int
@@ -1533,6 +1537,12 @@ def aggregate_multi_target_results(
         for leg in result.legs
         if leg.contact_kind is ContactKind.PROHIBITED_BODY_CONTACT
     )
+    self_collisions = sum(
+        1
+        for result in results
+        for leg in result.legs
+        if leg.contact_kind is ContactKind.PROHIBITED_SELF_COLLISION
+    )
     failed_episodes = sum(1 for result in results if not result.succeeded)
     return MultiTargetSuiteSummary(
         root_seed=root_seed,
@@ -1542,6 +1552,7 @@ def aggregate_multi_target_results(
         failure_category_counts=dict(sorted(failures.items())),
         total_tip_contacts=sum(result.tip_contact_count for result in results),
         total_body_contacts=body_contacts,
+        total_self_collisions=self_collisions,
         failed_episodes=failed_episodes,
         total_planning_failures=sum(result.planning_failure_count for result in results),
         total_target_failures=sum(result.target_failure_count for result in results),
@@ -1596,6 +1607,7 @@ def format_suite_summary(summary: MultiTargetSuiteSummary) -> str:
         f"Phase 7.2: {summary.successes}/{summary.total_episodes} "
         f"({summary.success_rate:.1%}) failures={summary.failure_category_counts} "
         f"tip={summary.total_tip_contacts} body={summary.total_body_contacts} "
+        f"self={summary.total_self_collisions} "
         f"failed_episodes={summary.failed_episodes} "
         f"plan_fails={summary.total_planning_failures} "
         f"target_fails={summary.total_target_failures} "
@@ -1834,7 +1846,10 @@ class MultiTargetEpisodeRunner:
                     leg, episode_index=episode.episode_index, episode_count=episode_count
                 )
             )
-            if leg.failure_category is MultiTargetFailureCategory.BODY_CONTACT:
+            if leg.failure_category in {
+                MultiTargetFailureCategory.BODY_CONTACT,
+                MultiTargetFailureCategory.SELF_COLLISION,
+            }:
                 return self._fail_episode(
                     episode, legs, state, started, leg.failure_category, leg.failure_reason
                 )
@@ -2128,7 +2143,11 @@ class MultiTargetEpisodeRunner:
             time_to_contact_s = planning_duration_s + motion_duration_s
         failure_category = None
         failure_reason = None
-        if contact.kind is ContactKind.PROHIBITED_BODY_CONTACT:
+        if contact.kind is ContactKind.PROHIBITED_SELF_COLLISION:
+            failure_category = MultiTargetFailureCategory.SELF_COLLISION
+            pair = f"{contact.link_name}↔{contact.other_link_name}"
+            failure_reason = f"self collision on {from_id}->{to_id} links={pair}"
+        elif contact.kind is ContactKind.PROHIBITED_BODY_CONTACT:
             failure_category = MultiTargetFailureCategory.BODY_CONTACT
             failure_reason = f"body contact on {from_id}->{to_id}"
         return replace(

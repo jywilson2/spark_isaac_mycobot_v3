@@ -164,6 +164,8 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         compute_viewport_framing,
         configure_kit_for_stage_lighting,
         content_aabb_from_field,
+        enable_articulation_self_collisions,
+        enable_robot_contact_reports,
         frame_viewport_on_arm,
         prepare_illuminated_stage,
         remove_prim,
@@ -373,6 +375,8 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         to_id: str,
     ):
         physx = monitor.classify()
+        if physx.kind is ContactKind.PROHIBITED_SELF_COLLISION:
+            return physx
         if physx.kind is ContactKind.PROHIBITED_BODY_CONTACT:
             return physx
         face = np.asarray(target.to_surface_target().position_base_m, dtype=float)
@@ -427,6 +431,18 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
 
     world = World(stage_units_in_meters=1.0)
     robot_root = _find_articulation_root(stage)
+    self_col_ok = enable_articulation_self_collisions(stage, robot_root)
+    report_count = enable_robot_contact_reports(stage, robot_root)
+    print(
+        "phase7_2_playback: physx self-collision "
+        f"enabled={self_col_ok} contact_report_prims={report_count}",
+        flush=True,
+    )
+    if not self_col_ok or report_count <= 0:
+        raise RuntimeError(
+            "failed to enable PhysX articulation self-collisions / contact reports "
+            f"(enabled={self_col_ok}, contact_report_prims={report_count})"
+        )
     robot = world.scene.add(SingleArticulation(prim_path=robot_root, name="mycobot_phase7_2"))
     world.reset()
     prepare_illuminated_stage(stage, lighting_config)
@@ -594,6 +610,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 motion_started = time.perf_counter()
                 tip_seen_at: float | None = None
                 body_contact_during_motion: ContactEvent | None = None
+                self_collision_during_motion: ContactEvent | None = None
                 waypoint_steps = _physics_steps_for_duration(trajectory.dt_s, physics_dt_s)
                 terminal = articulation_position_targets(
                     trajectory.position_rad[-1], dof_names, current
@@ -601,6 +618,8 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 for waypoint in trajectory.position_rad:
                     if not app.is_running():
                         raise _PlaybackStopped()
+                    if self_collision_during_motion is not None:
+                        break
                     targets = articulation_position_targets(waypoint, dof_names, current)
                     try:
                         _drive_targets(robot, targets)
@@ -615,6 +634,20 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                             raise _PlaybackStopped()
                         world.step(render=args.gui)
                         classification = monitor.classify()
+                        if classification.kind is ContactKind.PROHIBITED_SELF_COLLISION:
+                            # Fail closed immediately — do not continue a folding arm.
+                            if self_collision_during_motion is None:
+                                self_collision_during_motion = classification
+                                pair = (
+                                    f"{classification.link_name}↔{classification.other_link_name}"
+                                )
+                                message = (
+                                    f"SELF COLLISION DETECTED {leg.from_id}->{leg.to_id} "
+                                    f"links={pair}"
+                                )
+                                print(f"phase7_2_physx: {message}", flush=True)
+                                post_message(message)
+                            break
                         if classification.kind is ContactKind.ALLOWED_TIP_CONTACT:
                             if tip_seen_at is None:
                                 tip_seen_at = time.perf_counter()
@@ -645,24 +678,33 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                             )
                             if tip is not None and tip_reaches_surface_m(tip, face):
                                 tip_seen_at = time.perf_counter()
-                # Snap to the planned terminal waypoint so tip-face classification
-                # is not lost to short-hold PD lag under headless stepping.
-                snapped = _snap_joint_positions(robot, terminal)
-                current = terminal
                 motion_duration_s = time.perf_counter() - motion_started
-                for _ in range(_physics_steps_for_duration(args.hold_s, physics_dt_s)):
-                    if not app.is_running():
-                        raise _PlaybackStopped()
+                snapped = False
+                if self_collision_during_motion is None:
+                    # Snap to the planned terminal waypoint so tip-face classification
+                    # is not lost to short-hold PD lag under headless stepping.
+                    snapped = _snap_joint_positions(robot, terminal)
+                    current = terminal
+                    for _ in range(_physics_steps_for_duration(args.hold_s, physics_dt_s)):
+                        if not app.is_running():
+                            raise _PlaybackStopped()
+                        _snap_joint_positions(robot, terminal)
+                        world.step(render=args.gui)
+                        if monitor.classify().kind is ContactKind.PROHIBITED_SELF_COLLISION:
+                            self_collision_during_motion = monitor.classify()
+                            break
+                    # Re-apply terminal joints after the last physics step so contact
+                    # classification sees the planned tip pose, not a collision push-out.
                     _snap_joint_positions(robot, terminal)
-                    world.step(render=args.gui)
-                # Re-apply terminal joints after the last physics step so contact
-                # classification sees the planned tip pose, not a collision push-out.
-                _snap_joint_positions(robot, terminal)
                 target_obj = episode.field.target_by_id(leg.to_id)
                 # Re-classify with active-target tip priority (flange overhang on a
                 # face smaller than the flange can emit mixed mesh reports).
                 final_monitor = monitor.classify()
-                if body_contact_during_motion is not None and (
+                if self_collision_during_motion is not None or (
+                    final_monitor.kind is ContactKind.PROHIBITED_SELF_COLLISION
+                ):
+                    contact = self_collision_during_motion or final_monitor
+                elif body_contact_during_motion is not None and (
                     final_monitor.kind is ContactKind.PROHIBITED_BODY_CONTACT
                 ):
                     contact = body_contact_during_motion
@@ -678,6 +720,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                     incremental
                     and contact.kind is ContactKind.NONE
                     and body_contact_during_motion is None
+                    and self_collision_during_motion is None
                 ):
                     if tip_seen_at is None:
                         face = np.asarray(
@@ -710,6 +753,34 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 planning_s = (
                     0.0 if leg.planning_duration_s is None else float(leg.planning_duration_s)
                 )
+                if contact.kind is ContactKind.PROHIBITED_SELF_COLLISION:
+                    pair = f"{contact.link_name}↔{contact.other_link_name}"
+                    message = (
+                        f"SELF COLLISION {leg.from_id}->{leg.to_id} "
+                        f"links={pair} plan_s={planning_s:.3f} "
+                        f"motion_s={motion_duration_s:.3f}"
+                    )
+                    print(f"phase7_2_physx: {message}", flush=True)
+                    post_message(message)
+                    updated = replace(
+                        leg,
+                        contact_kind=contact.kind,
+                        motion_duration_s=motion_duration_s,
+                        time_to_contact_s=planning_s + motion_duration_s,
+                        failure_category=MultiTargetFailureCategory.SELF_COLLISION,
+                        failure_reason=message,
+                    )
+                    updated_legs.append(updated)
+                    print(
+                        format_leg_console_row(
+                            updated, episode_index=episode_index, episode_count=episode_count
+                        ),
+                        flush=True,
+                    )
+                    episode_failed = True
+                    failure_category = MultiTargetFailureCategory.SELF_COLLISION
+                    failure_reason = message
+                    break
                 if contact.kind is ContactKind.PROHIBITED_BODY_CONTACT:
                     set_cube_color(stage, target_paths[leg.to_id], BODY_CONTACT_COLOR_RGBA)
                     message = (
@@ -950,6 +1021,7 @@ def main(argv: list[str] | None = None) -> int:
         successes = int(summary.get("successes", 0))
         total = int(summary.get("total_episodes", -1))
         failed = int(summary.get("failed_episodes", max(0, total - successes)))
+        self_collisions = int(summary.get("total_self_collisions", 0))
         # Honor plan-bundle failed-episode budget when present.
         bundle_meta = json.loads(args.bundle.read_text(encoding="utf-8"))
         max_failed = int(bundle_meta.get("max_failed_episodes", 0))
@@ -958,6 +1030,14 @@ def main(argv: list[str] | None = None) -> int:
             exit_code = 0 if failed <= max_failed else 1
         else:
             exit_code = 0 if successes == total else 1
+        # PhysX self-collision always fails the smoke (hard safety), even when
+        # max_failed_episodes would otherwise tolerate the episode failure.
+        if self_collisions > 0:
+            exit_code = 1
+            print(
+                f"phase7_2_physx: smoke FAIL self_collisions={self_collisions}",
+                flush=True,
+            )
     except Exception as exc:
         payload["error"] = f"{type(exc).__name__}: {exc}"
         traceback.print_exc()

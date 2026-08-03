@@ -115,9 +115,11 @@ the next episode's ids is wrong: candidate serials are disjoint (e.g.
 and produce PhysX overlaps that look like “targets not removed between
 episodes.”
 
-GUI and headless smokes must keep PhysX tip/body monitoring fail-closed
+GUI and headless smokes must keep PhysX tip/body/**self** monitoring
+fail-closed (articulation self-collisions + robot contact reports enabled)
 and print evidence on the streamed console as `phase7_2_physx:` lines.
-See [`console_log_keys.md`](console_log_keys.md) and Cursor rule
+Robot self-collision always fails the smoke exit code. See
+[`console_log_keys.md`](console_log_keys.md) and Cursor rule
 `.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`.
 
 ### What this measures (and what it does not)

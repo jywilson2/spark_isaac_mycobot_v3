@@ -1547,11 +1547,17 @@ over successive independently validated plans with an explicit world revision.
   **FAIL** immediately (`body_contact`), even if tip contact also occurs.
 - Zero prohibited body–target contacts is required simulation evidence and does
   not replace cuRobo planning or independent validation.
-- **PhysX monitoring (GUI and headless):** playback must subscribe to PhysX
-  contact reports for the entire motion; tip and prohibited body contacts must
-  appear on the streamed smoke stdout as `phase7_2_physx:` lines. Kit UI-only
-  notices are insufficient. Engine overlap/collide errors (including from
-  stale target prims) must fail the smoke when detected.
+- **PhysX monitoring (GUI and headless):** playback must enable articulation
+  self-collisions, apply contact-report APIs on robot collision prims, and
+  subscribe to PhysX contact reports for the entire motion. Tip, prohibited
+  body–target, and prohibited robot self-collision contacts must appear on the
+  streamed smoke stdout as `phase7_2_physx:` lines. Kit UI-only notices are
+  insufficient. Engine overlap/collide errors (including from stale target
+  prims) must fail the smoke when detected.
+- **Self-collision (hard fail):** non-adjacent robot–robot PhysX contacts
+  fail the episode (`self_collision` / `prohibited_self_collision`) and force
+  smoke exit code 1 even when `max_failed_episodes` would tolerate the
+  episode. Adjacent pairs follow the robot YAML `self_collision_ignore` map.
 - **Inter-episode clear:** before each episode spawn and each suite replay
   pass, remove all prims under `/World/Phase7_2/Targets` (not only the next
   episode's ids). Partial clears leave colliding statics across disjoint

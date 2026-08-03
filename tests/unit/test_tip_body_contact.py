@@ -2,9 +2,11 @@ from types import SimpleNamespace
 
 from isaac_sim.tip_body_contact import (
     TipBodyContactMonitor,
+    classify_robot_self_contact,
     classify_robot_target_contact,
     match_target_id,
     merge_contact_events,
+    self_collision_pair_ignored,
     tip_allow_link_matches,
 )
 from mycobot_curobo.multi_target import ContactEvent, ContactKind
@@ -91,6 +93,41 @@ def test_body_priority_in_merge() -> None:
     assert merged.kind is ContactKind.PROHIBITED_BODY_CONTACT
 
 
+def test_adjacent_self_contact_ignored_nonadjacent_fails() -> None:
+    assert self_collision_pair_ignored("joint2", "joint3")
+    assert self_collision_pair_ignored("joint2", "joint2")
+    assert not self_collision_pair_ignored("joint2", "joint5")
+    ignored = classify_robot_self_contact(
+        "/World/Robot/joint2/collisions",
+        "/World/Robot/joint3/collisions",
+        robot_root_path="/World/Robot",
+    )
+    assert ignored.kind is ContactKind.NONE
+    hit = classify_robot_self_contact(
+        "/World/Robot/joint2/collisions",
+        "/World/Robot/joint5/collisions",
+        robot_root_path="/World/Robot",
+    )
+    assert hit.kind is ContactKind.PROHIBITED_SELF_COLLISION
+    assert {hit.link_name, hit.other_link_name} == {"joint2", "joint5"}
+
+
+def test_self_collision_wins_merge_over_tip_and_body() -> None:
+    merged = merge_contact_events(
+        (
+            ContactEvent(ContactKind.ALLOWED_TIP_CONTACT, target_id="1"),
+            ContactEvent(ContactKind.PROHIBITED_BODY_CONTACT, target_id="2"),
+            ContactEvent(
+                ContactKind.PROHIBITED_SELF_COLLISION,
+                link_name="joint2",
+                other_link_name="joint5",
+            ),
+        ),
+        active_target_id="1",
+    )
+    assert merged.kind is ContactKind.PROHIBITED_SELF_COLLISION
+
+
 def test_monitor_records_injected_events() -> None:
     class _Interface:
         def __init__(self) -> None:
@@ -131,4 +168,14 @@ def test_monitor_records_injected_events() -> None:
     )
     # Active-target tip priority does not apply when only body is present.
     assert monitor.classify().kind is ContactKind.PROHIBITED_BODY_CONTACT
+    monitor.reset()
+    interface.callback(
+        [
+            SimpleNamespace(
+                actor0="/World/Robot/joint1/collisions",
+                actor1="/World/Robot/joint6_flange/collisions",
+            )
+        ]
+    )
+    assert monitor.classify().kind is ContactKind.PROHIBITED_SELF_COLLISION
     monitor.stop()

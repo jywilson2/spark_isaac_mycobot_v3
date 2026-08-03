@@ -53,8 +53,13 @@ are scalar-first `wxyz` when present in JSON.
 |----------------|---------|
 | `TIP CONTACT a->b plan_s=… motion_s=… ttc_s=…` | Allowed tip/EE contact on active target `b`; episode continues (retain or remove per config). |
 | `BODY CONTACT a->b plan_s=… motion_s=…` | Prohibited non-tip body–target contact; episode **FAIL** (`body_contact`). Suite fails when `failed_episodes > max_failed_episodes`. |
+| `SELF COLLISION DETECTED a->b links=x↔y` | Mid-path robot–robot PhysX contact (non-adjacent links); motion aborts. |
+| `SELF COLLISION a->b links=x↔y plan_s=… motion_s=…` | Leg failure for self-collision (`self_collision` / `prohibited_self_collision`). |
+| `smoke FAIL self_collisions=N` | Playback exit code forced to 1 whenever any self-collision leg was observed (hard safety; not waived by `max_failed_episodes`). |
 
 Absence of `phase7_2_physx:` lines during a GUI/headless play that reports tip contacts is a monitoring defect. Kit-native PhysX overlap/collide engine messages (spawn-time penetrating statics) must also fail the smoke when detected; see the Cursor rule and `spec.md` §8 Phase 7.2 / 7.5.
+
+Adjacent kinematic pairs from the robot YAML `self_collision_ignore` map are ignored so connected-link proximity does not false-trigger.
 
 ---
 
@@ -119,6 +124,7 @@ Absence of `phase7_2_physx:` lines during a GUI/headless play that reports tip c
 | `successes` / `total_episodes` / `success_rate` | Episode pass counts. |
 | `tip` / `total_tip_contacts` | Suite tip-contact total. |
 | `body` / `total_body_contacts` | Suite prohibited body-contact total (**must be 0** for acceptance under default budgets). |
+| `self` / `total_self_collisions` | Suite PhysX robot–robot self-collision leg count (**must be 0**; smoke exit fails if > 0). |
 | `failed_episodes` | Episodes that failed. |
 | `plan_fails` / `total_planning_failures` | Aggregated planning failures. |
 | `target_fails` / `total_target_failures` | Aggregated target failures. |

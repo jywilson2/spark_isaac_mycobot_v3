@@ -561,6 +561,61 @@ def remove_prim(stage: Any, prim_path: str) -> None:
 PHASE7_2_TARGETS_ROOT = "/World/Phase7_2/Targets"
 
 
+def enable_articulation_self_collisions(stage: Any, robot_root_path: str) -> bool:
+    """Enable PhysX articulation self-collisions on the robot root.
+
+    Required for playback to generate robot–robot contact events that the
+    Phase 7.2/7.5 PhysX monitor can fail closed on.
+    """
+
+    from pxr import PhysxSchema, UsdPhysics
+
+    if not robot_root_path.startswith("/"):
+        raise ValueError("robot_root_path must be an absolute USD path")
+    root = stage.GetPrimAtPath(robot_root_path)
+    if not root.IsValid():
+        return False
+    if not root.HasAPI(UsdPhysics.ArticulationRootAPI):
+        # Walk children for the articulation root when the named path is a wrapper.
+        for child in root.GetChildren():
+            if child.HasAPI(UsdPhysics.ArticulationRootAPI):
+                root = child
+                break
+        else:
+            return False
+    api = PhysxSchema.PhysxArticulationAPI.Apply(root)
+    attr = api.CreateEnabledSelfCollisionsAttr()
+    attr.Set(True)
+    return True
+
+
+def enable_robot_contact_reports(stage: Any, robot_root_path: str) -> int:
+    """Apply PhysxContactReportAPI to colliding prims under the robot.
+
+    Target cubes already carry contact reports; robot links need the same API
+    so robot–robot (self) contacts appear on the PhysX subscription.
+    """
+
+    from pxr import PhysxSchema, UsdPhysics
+
+    if not robot_root_path.startswith("/"):
+        raise ValueError("robot_root_path must be an absolute USD path")
+    root = stage.GetPrimAtPath(robot_root_path)
+    if not root.IsValid():
+        return 0
+    enabled = 0
+    stack = [root]
+    while stack:
+        prim = stack.pop()
+        stack.extend(list(prim.GetChildren()))
+        if not prim.HasAPI(UsdPhysics.CollisionAPI):
+            continue
+        contact = PhysxSchema.PhysxContactReportAPI.Apply(prim)
+        contact.CreateThresholdAttr(0.0)
+        enabled += 1
+    return enabled
+
+
 def clear_phase7_2_target_field(stage: Any, *, root_path: str = PHASE7_2_TARGETS_ROOT) -> int:
     """Remove every target prim under the multi-target field root.
 
