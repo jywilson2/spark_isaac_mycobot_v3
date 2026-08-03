@@ -37,6 +37,13 @@ Core module: `mycobot_curobo.target_placement`.
 
 ## Demo video
 
+[![Phase 7.3 2×20 GUI demo](videos/mycobot_280_m5_2x20_poster.jpg)](videos/mycobot_280_m5_2x20.html)
+
+**Play in browser (click poster):**
+[`videos/mycobot_280_m5_2x20.html`](videos/mycobot_280_m5_2x20.html)
+— opens a local HTML page; click the image to start the native video player.
+
+**Direct mp4:**
 [`videos/mycobot_280_m5_2x20.mp4`](videos/mycobot_280_m5_2x20.mp4)
 (1 min 58 s, 2880×1800 @ 30 fps, H.264, 6.4 MB; captured 2026-07-23 on the
 DGX Spark host with the smoke wrapper's `--record` option).
@@ -56,15 +63,14 @@ and demonstrates the completed Phase 7.3 machinery end to end:
 
 The file is named for the robot and suite size (`mycobot_280_m5` + `2x20`).
 Companion assets: `videos/mycobot_280_m5_2x20_preview.gif` (18 s autoplaying
-excerpt embedded in the README) and `videos/mycobot_280_m5_2x20_poster.jpg`
-(still frame). Note GitHub does not stream repository mp4s in the browser —
-raw links are served as `application/octet-stream` with `nosniff`, so
-clicking the mp4 downloads it; play it locally with any H.264-capable
-player. The README streams the same recording in an inline player via the
-manually uploaded GitHub `user-attachments` asset
+excerpt), `videos/mycobot_280_m5_2x20_poster.jpg` (still frame), and the
+click-to-play HTML above. GitHub’s markdown viewer does not execute the HTML
+or stream repository mp4s — open the `.html` from a local clone to play
+in-browser. The README also streams the same recording via the manually
+uploaded GitHub `user-attachments` asset
 `https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28`
-(uploaded 2026-07-23 through the GitHub web editor; the repository copies
-here remain the canonical offline artifacts).
+(uploaded 2026-07-23; repository copies remain the canonical offline
+artifacts).
 
 ## Example configs
 

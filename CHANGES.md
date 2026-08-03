@@ -1,5 +1,24 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-03 — Click-to-play HTML video players under docs/videos
+
+Branch `wip_phase8`. Add browser players that start the native `<video>`
+element when the poster image is clicked.
+
+1. `docs/videos/mycobot_280_m5_2x20.html` and
+   `docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html`.
+2. Index `docs/videos/README.md`; README / phase 7.3 / 7.5 / REFERENCES
+   link poster → HTML (mp4 remains available as a direct download).
+3. Open the `.html` from a local clone — GitHub markdown does not execute it.
+
+## 2026-08-03 — README phase TOC and current-phase bullets
+
+Branch `wip_phase8`. Replaced the dense Current phase prose with:
+
+1. A phase Table of Contents (status + one-line description + doc links).
+2. Bullet lists for Phase 7.5 completion, earlier 7.x, Phases 0–6 stack,
+   and not-yet-implemented work. Active branch called out as `wip_phase8`.
+
 ## 2026-08-03 — Phase 7.5 demo video under docs/videos
 
 Branch `wip_phase7_5`. Commit the operator-reviewed GUI recording of the
@@ -1830,6 +1849,14 @@ is the regression diagnosis, not sphere-list changes.
 4. Added `scripts/host/run_phase7_2_gpu.sh` for focused host GPU coverage.
 
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
+
+## 2026-08-03 — README phase TOC and current-phase bullets
+
+Branch `wip_phase8`. Replaced the dense Current phase prose with:
+
+1. A phase Table of Contents (status + one-line description + doc links).
+2. Bullet lists for Phase 7.5 completion, earlier 7.x, Phases 0–6 stack,
+   and not-yet-implemented work. Active branch called out as `wip_phase8`.
 
 ## 2026-07-20 — Phase 7.2 plan-failure counting (spec)
 

@@ -244,7 +244,8 @@ compute-capability warning is retained in that report and is not suppressed.
   Isaac-bundled `imageio_ffmpeg` static build); see phase 7.2 report Host
   CLI overrides.
 - Phase 7.3 demo video: `docs/videos/mycobot_280_m5_2x20.mp4` (densest 2×20
-  suite GUI playback, recorded 2026-07-23 via `--record`; presented in
+  suite GUI playback, recorded 2026-07-23 via `--record`; click-to-play HTML
+  `docs/videos/mycobot_280_m5_2x20.html`; presented in
   `docs/phase7_3_target_placement.md`).
 - Unseeded 2×20 robustness batch (2026-07-31, 10 headless runs): summarized
   in the phase 7.2 report "Standard smoke (2 episodes × 20 targets)";
@@ -272,9 +273,10 @@ compute-capability warning is retained in that report and is not suppressed.
   (`max_physx_regenerations: 3`).
 - Demo video: `docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`
   (frozen-bundle GUI replay, recorded 2026-08-03 via
-  `scripts/host/record_frozen_bundle_gui.sh`; presented in
-  `docs/phase7_5_variable_target_stress.md`). Companion poster/GIF in the
-  same `docs/videos/` directory.
+  `scripts/host/record_frozen_bundle_gui.sh`; click-to-play HTML
+  `docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html`; presented in
+  `docs/phase7_5_variable_target_stress.md`). Companion poster/GIF and
+  index in `docs/videos/README.md`.
 - Branch: `wip_phase7_5`.
 
 ## Phase 7.4 Z variability

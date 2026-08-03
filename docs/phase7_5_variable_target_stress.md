@@ -23,8 +23,13 @@ Log keys: [`console_log_keys.md`](console_log_keys.md).
 
 ## Demo video
 
-[![Phase 7.5 n6-4-8 seed4242 GUI replay](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg)](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
+[![Phase 7.5 n6-4-8 seed4242 GUI replay](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg)](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html)
 
+**Play in browser (click poster):**
+[`videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html`](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html)
+— opens a local HTML page; click the image to start the native video player.
+
+**Direct mp4:**
 [`videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
 (2 min 35 s, 2880×1800 @ 30 fps, H.264, 6.0 MB; captured 2026-08-03 on the
 DGX Spark host with `scripts/host/record_frozen_bundle_gui.sh` against the
@@ -42,10 +47,11 @@ demonstrates completed Phase 7.5 machinery:
   closed at independent validation before PhysX).
 
 Companion assets: `videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_preview.gif`
-(18 s excerpt) and
-`videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg` (still frame).
-GitHub does not stream repository mp4s inline — clicking the poster/mp4
-downloads or opens the file; play locally with any H.264-capable player.
+(18 s excerpt),
+`videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg` (still frame),
+and the click-to-play HTML above. GitHub’s markdown viewer does not execute
+the HTML or stream repository mp4s — open the `.html` from a local clone
+(or any static file server) to play in-browser.
 
 ## Problem
 

@@ -1,10 +1,33 @@
+## BEGIN: 2026-08-03 13:55 -0700
+
+Can you create the html that will allow the browser to launch a video player when the video image is clicked, and include it in the documentation with video references?
+
+push/commit and rebase onto main.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-03 13:50 -0700
+
+Reformat the current phase section of README.md  (add more bullet points) and create a Table of Contents section that allows quick access to the documentation for each phase, along with a quick description of the individual phases.
+
+## END
+
+
+## BEGIN: 2026-08-03 13:46 -0700
+
+Yes, switch back to the Phase 8 branch and resynch.
+
+## END
+
+
 ## BEGIN: 2026-08-03 13:41 -0700
 
 Using the phase 7.5 branch, update the video related documentation located in @docs/video with the video file just generated and push/commit to the branch. Also, rebase onto main.
 
 ## END
 
-# Old prompts:
 
 ## BEGIN: 2026-08-03 13:28 -0700
 

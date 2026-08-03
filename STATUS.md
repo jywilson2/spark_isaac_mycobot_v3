@@ -200,12 +200,13 @@ planning-success claims, or hardware-readiness claims carry forward.
 
 ## Next step / resume (2026-08-03)
 
-**Where we left off:** Phase 7.5 landed on `wip_phase7_5` (operator
-GUI review OK 2026-08-03). Final clearance-floor evidence:
-`phase7_5-variable_dz0_30_n6-4-8_seed4242` headless+GUI EXIT:0, tip=18,
-body=0, self=0. Demo video committed at
-[`docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4).
-Opening Phase 8 on `wip_phase8`.
+**Where we left off:** On `wip_phase8` (FF-synced through Phase 7.5 tip
+including demo video). README has a phase TOC + bullet Current phase;
+demo videos use click-to-play HTML under [`docs/videos/`](docs/videos/)
+(poster → `.html` → native player). Phase 7.5 evidence:
+`phase7_5-variable_dz0_30_n6-4-8_seed4242` tip=18, body=0, self=0 —
+[`play HTML`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html) /
+[`mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4).
 
 **Next steps:**
 

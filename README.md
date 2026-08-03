@@ -40,42 +40,80 @@ modules, tests, configs, phase docs) and conversation/tool output, i.e.
 context is summarized. Treat one full window (~200k tokens ≈ a quarter to a
 half of the corpus per pass) as the practical worst-case upper bound.
 
+## Table of contents — phases
+
+Full roadmap: [`docs/implementation_phases.md`](docs/implementation_phases.md).
+Acceptance status: [`STATUS.md`](STATUS.md). Change log: [`CHANGES.md`](CHANGES.md).
+
+| Phase | Status | Quick description | Docs |
+|------:|--------|-------------------|------|
+| 0 | Complete | Reproducible env; fail closed without cuRobo v0.8.0 | [`phase0_environment.md`](docs/phase0_environment.md) |
+| 1 | Complete | MyCobot YAML, spheres, TCP, joint/frame contracts | [`phase1_robot_model.md`](docs/phase1_robot_model.md) |
+| 1.1 | Complete | Target-scale dual-overlay collision spheres (Option B) | [`phase1_1_target_scale_collision_spheres.md`](docs/phase1_1_target_scale_collision_spheres.md) |
+| 2 | Complete | Surface targets → task frames + approach axis | [`phase2_task_frames.md`](docs/phase2_task_frames.md) |
+| 3 | Complete | `plan_grasp` nominal free-space + terminal approach | [`phase3_nominal_planning.md`](docs/phase3_nominal_planning.md) |
+| 4 | Complete | Independent FK validation before executable status | [`phase4_validation.md`](docs/phase4_validation.md) |
+| 5 | Complete | Zero-residual execution seam + residual hook | [`phase5_execution_residual.md`](docs/phase5_execution_residual.md) |
+| 6 | Complete | Randomized workspace benchmark + failure taxonomy | [`phase6_benchmark.md`](docs/phase6_benchmark.md) |
+| 7 | Complete | Isaac Sim validated-plan playback + tip metrics | [`phase7_isaac_sim.md`](docs/phase7_isaac_sim.md) |
+| 7.1 | Complete | Unknown-start cube approach visualization suite | [`phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md) |
+| 7.2 | Complete | Multi-target tip-contact clearance suite | [`phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md) |
+| 7.3 | Complete | Controllable target-block placement (`random` / `layout`) | [`phase7_3_target_placement.md`](docs/phase7_3_target_placement.md) |
+| 7.4 | Partial / closed | Z-band + Z-aware EE floor; wide-band evidence waived | [`phase7_4_z_variability.md`](docs/phase7_4_z_variability.md) |
+| 7.5 | Complete / landed | Incremental Z-density stress; PhysX accept/regen | [`phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md) |
+| 8 | **Open** (`wip_phase8`) | Bounded residual RL subordinate to cuRobo + validation | [roadmap §8](docs/implementation_phases.md#phase-8--bounded-residual-rl-isaac-lab--isaac-sim) |
+| 9 | Planned | Fabricated flange contact tool (OpenSCAD / STL) | [`phase9_contact_tool.md`](docs/phase9_contact_tool.md) |
+| 9.1 | Planned | Tool calibration / sim / optional residual eval | [`phase9_1_tool_evaluation.md`](docs/phase9_1_tool_evaluation.md) |
+| 10 | Planned | Hardware adapter; motion disabled by default | [roadmap §10](docs/implementation_phases.md#phase-10--hardware-interface-and-dry-run-execution) |
+| 11 | Planned | Gated physical MyCobot validation | [roadmap §11](docs/implementation_phases.md#phase-11--physical-mycobot-280-m5-validation) |
+
+Demo videos (offline under [`docs/videos/`](docs/videos/); click poster → HTML player):
+
+- Phase 7.3 densest 2×20:
+  [![2×20 poster](docs/videos/mycobot_280_m5_2x20_poster.jpg)](docs/videos/mycobot_280_m5_2x20.html)
+  — [`play HTML`](docs/videos/mycobot_280_m5_2x20.html) ·
+  [`mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
+- Phase 7.5 incremental `n6-4-8` seed-4242:
+  [![n6-4-8 poster](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg)](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html)
+  — [`play HTML`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html) ·
+  [`mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
+
+Open the `.html` file in a browser (local clone) and click the image to start
+playback. Index: [`docs/videos/README.md`](docs/videos/README.md).
+
 ## Current phase
 
-**Phase 7 — Isaac Sim validated-plan playback: complete. Phase 7.1 —
-unknown-start cube approach suite: complete. Phase 7.2 — multi-target
-tip-contact clearance suite: complete. Phase 7.3 — controllable
-target-block placement: complete. Phase 7.4 — extended Z variability and
-Z-aware EE-clearance spacing: partially functional, closed in that state
-by decision 2026-08-02 on `wip_phase7_4` (wide-band `delta_z_m: 0.30`
-fixed-count acceptance evidence stays partial; the wide-band stress goal
-moves to Phase 7.5).** See
-[`docs/phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md),
-[`docs/phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md),
-[`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md),
-and [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md)
-(dexterous-reach reject-and-regenerate; optional `delta_z_m` stress suites
-including `delta_z_m: 0.30`).
-A demo video of the densest 2×20 suite (GUI playback) is at
-[`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4)
-(inline streaming player in the Phase 7.2 suite section below).
+**Active branch:** `wip_phase8` — Phase 8 bounded residual RL (sim only).
 
-Full roadmap (Phases 0–11, including decimal Phases 7.1–7.5 and 9.1):
-[`docs/implementation_phases.md`](docs/implementation_phases.md).
-Phase 7.5 (variable-target-count Z-density stress suite,
-`target_population: incremental`) is **complete / landed** on
-`wip_phase7_5` (2026-08-03): post-contact retreat, maze corridor
-pre-filter, inter-episode field clear, PhysX self-collision fail-closed,
-post-episode PhysX accept/regen, and suite self-collision clearance floor
-`0.003` m. Final operator-reviewed evidence: seed-4242 `n6-4-8`
-headless+GUI EXIT:0 (tip=18, body=0, self=0). Demo video:
-[`docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
-(poster/GIF companions in [`docs/videos/`](docs/videos/); write-up in
-[`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md)).
-Phase 8 opens on `wip_phase8`. See also
-`scripts/host/smoke_phase7_5_variable_dz_0_30.sh`,
-[`docs/console_log_keys.md`](docs/console_log_keys.md), and
-`.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`.
+### Just completed (Phase 7.5)
+
+- Variable-target-count Z-density stress (`target_population: incremental`)
+- Post-contact retreat so next legs start clear of retained cubes
+- Maze corridor pre-filter (in-order navigability)
+- Inter-episode full clear of `/World/Phase7_2/Targets`
+- PhysX tip/body/self fail-closed evidence (`phase7_2_physx:`)
+- Post-episode host PhysX accept/regen (`max_physx_regenerations`)
+- Suite self-collision clearance floor `0.003` m
+- Operator-reviewed evidence: seed-4242 `n6-4-8`, tip=18, body=0, self=0
+- Demo video + record helper:
+  [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md),
+  `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`,
+  `scripts/host/record_frozen_bundle_gui.sh`,
+  [`docs/console_log_keys.md`](docs/console_log_keys.md),
+  [`.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`](.cursor/rules/35-isaac-smoke-physx-and-logs.mdc)
+
+### Earlier Phase 7.x (complete unless noted)
+
+- **7** — Isaac validated-plan playback
+  ([`phase7_isaac_sim.md`](docs/phase7_isaac_sim.md))
+- **7.1** — Unknown-start cube approach suite
+  ([`phase7_1_cube_approach.md`](docs/phase7_1_cube_approach.md))
+- **7.2** — Multi-target tip-contact clearance
+  ([`phase7_2_multi_target_contact.md`](docs/phase7_2_multi_target_contact.md))
+- **7.3** — Controllable placement + 2×20 demo video
+  ([`phase7_3_target_placement.md`](docs/phase7_3_target_placement.md))
+- **7.4** — Z variability; wide-band fixed-count evidence partial / closed
+  ([`phase7_4_z_variability.md`](docs/phase7_4_z_variability.md))
 
 ```mermaid
 flowchart LR
@@ -89,66 +127,21 @@ flowchart LR
   done -->|yes| pass[episode PASS]
 ```
 
-Implemented now:
+### Stack already in place (Phases 0–6)
 
-- Python `src/` package layout;
-- exact cuRobo v0.8.0 Git-tag dependency;
-- deterministic runtime/version guard;
-- CUDA tensor-allocation check;
-- machine-readable environment report;
-- lightweight unit tests and a separately marked GPU import smoke test;
-- ruff lint/format configuration;
-- validated cuRobo format-2.0 robot config with explicit joint/frame contracts;
-- independent CPU FK and five known-state regression fixtures;
-- static collision spheres, self-collision config, and GPU planner warmup;
-- typed surface targets and deterministic configurable roll goal sets;
-- public cuRoboV2 `GoalToolPose` conversion;
-- structured `plan_grasp` nominal plans with finite trajectory extraction,
-  selected-roll mapping, and a fresh/warmed backend for exactly one call;
-- typed fail-closed validation reports covering terminal geometry, limits,
-  dynamics, continuity, and available collision clearance;
-- real cuRobo FK and self-collision validation in an explicitly empty world;
-- typed zero-residual execution with deterministic safety projection,
-  timestamp/watchdog checks, joint feasibility, and an in-memory adapter;
-- deterministic randomized workspace cases, frozen smoke/regression fixtures,
-  exact failed-request replay, stable failure taxonomy, and JSON/Markdown
-  reports;
-- versioned validated-plan playback JSON, exact articulation DOF mapping,
-  NumPy pose metrics, and an Isaac Sim 6.x headless/GUI player.
-- deterministic Phase 7.1 cube geometry/scene revisions, frozen episode replay,
-  A–D mode sampling, JSON/console reporting, and cube sphere-AABB clearance;
-- a fail-closed cube-world validation adapter and cuRobo-only joint relocation
-  adapter for Mode C;
-- illuminated Isaac Phase 7.1 plan/playback split (cuRobo process then Kit),
-  drive-target motion, PhysX prohibited-contact evidence, and null tip metrics;
-- Phase 7.2 multi-target tip-contact clearance suite (three-tier failure
-  budgets, tip-contact rule, host plan/play smoke, `--no-auto-exit` replay);
-- Phase 7.3 controllable target-block placement (grid/random/layout policies,
-  fail-closed separation and keep-outs —
-  [`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md);
-  demo video
-  [`docs/videos/mycobot_280_m5_2x20.mp4`](docs/videos/mycobot_280_m5_2x20.mp4));
-- Phase 7.4 Z band (`z_band_fraction` / unclamped `delta_z_m`), Z-aware EE
-  floor, and dexterous-reach screening (wrist-sphere model from URDF
-  geometry) with suite-wide reject-and-regenerate generation bounded by
-  `max_reach_rejections` (default `target_count × episode_count`) —
-  [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md).
-  Goal-feasibility amendment implemented 2026-08-01:
-  world-aware tip-IK placement screen, `order: z_desc` tallest-first
-  contact order, goal-set rolls (`roll_candidates_deg`) for wide-band
-  suites, and field regeneration on `targets_unplanned`.
+- Python `src/` package; cuRobo v0.8.0 pin; runtime/version guard; CUDA check
+- Robot model, dual-overlay spheres, FK fixtures, self-collision warmup
+- Typed surface targets / roll goal sets / `GoalToolPose` conversion
+- `plan_grasp` + independent validation + zero-residual execution seam
+- Randomized benchmark, frozen fixtures, failure taxonomy, JSON/Markdown reports
+- Isaac Sim 6.x headless/GUI player with PhysX contact evidence
 
-Not implemented:
+### Not implemented yet
 
-- generic non-empty-world collision-clearance evaluation beyond the Phase 7.1
-  cube adapter (still fails closed);
-- non-zero residual correction (Phase 8);
-- Phase 9/9.1 fabricated contact tool and evaluation;
-- residual RL training and hardware motion (Phases 8–11).
-
-See [`STATUS.md`](STATUS.md) for acceptance status and [`CHANGES.md`](CHANGES.md)
-for the change inventory. The tested runtime evidence is in
-[`docs/phase0_environment.md`](docs/phase0_environment.md).
+- Generic non-empty-world clearance beyond the Phase 7.1 cube adapter
+- Non-zero residual correction / residual RL training (**Phase 8** — open)
+- Fabricated contact tool and evaluation (Phases 9 / 9.1)
+- Hardware dry-run and physical validation (Phases 10–11)
 
 ## Install
 
@@ -455,14 +448,16 @@ can override the count:
 ```
 
 A recorded 2×20 GUI run is committed as the Phase 7.3 demo (see
-[`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md)).
+[`docs/phase7_3_target_placement.md`](docs/phase7_3_target_placement.md);
+local click-to-play:
+[`docs/videos/mycobot_280_m5_2x20.html`](docs/videos/mycobot_280_m5_2x20.html)).
 Phase 7.5 adds a second demo for the incremental Z-density suite
-(`n6-4-8` seed-4242) under
-[`docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4)
+(`n6-4-8` seed-4242):
+[`docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html`](docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html)
 (see [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md)).
 The player below streams the Phase 7.3 1:58 video. It is a GitHub
 `user-attachments` asset — the only source GitHub renders as an inline
-player; repository copies (mp4, animated GIF excerpt, poster still) live in
+player; repository copies (HTML players, mp4, GIF, poster) live in
 [`docs/videos/`](docs/videos/) for forks and offline use:
 
 https://github.com/user-attachments/assets/e1632486-8215-4b7e-8963-d726cd621b28

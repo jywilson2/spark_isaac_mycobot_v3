@@ -79,6 +79,17 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert (ROOT / "docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4").is_file()
     assert (ROOT / "docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg").is_file()
     assert (ROOT / "docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242_preview.gif").is_file()
+    html75 = (ROOT / "docs/videos/phase7_5-variable_dz0_30_n6-4-8_seed4242.html").read_text(
+        encoding="utf-8"
+    )
+    assert "phase7_5-variable_dz0_30_n6-4-8_seed4242.mp4" in html75
+    assert "phase7_5-variable_dz0_30_n6-4-8_seed4242_poster.jpg" in html75
+    assert 'id="poster"' in html75
+    assert "<video" in html75
+    html73 = (ROOT / "docs/videos/mycobot_280_m5_2x20.html").read_text(encoding="utf-8")
+    assert "mycobot_280_m5_2x20.mp4" in html73
+    assert "mycobot_280_m5_2x20_poster.jpg" in html73
+    assert (ROOT / "docs/videos/README.md").is_file()
     assert "phase7_2_multi_target_integration_2x5.yml" in smoke72_int
     assert "--targets 5" in smoke72_int
     assert "--episodes 2" in smoke72_int
