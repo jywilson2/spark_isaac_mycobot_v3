@@ -17,6 +17,10 @@ max_total_target_failures: 25
 max_targets_per_episode: 0
 min_targets_per_episode: 1
 retreat_distance_m: 0.10
+# After each episode is populated, headless PhysX-smoke it; hard PhysX errors
+# discard + regenerate (seed + regen_attempt) up to this budget (spec §8 7.5).
+# Phase 7.5 host smokes must not set this to 0.
+max_physx_regenerations: 3
 # Capacity suites may draw an empty episode; tolerate one insufficient episode.
 max_failed_episodes: 1
 max_placement_attempts: 100000
@@ -43,7 +47,9 @@ planner_profile: planning_high_effort
 validation_profile: simulation_initial
 scene_revision_prefix: phase7_5-variable
 artifact_path: artifacts/phase7_5
-minimum_self_collision_clearance_m: 0.0
+# 3 mm floor rejects sphere-legal near-miss folds (host evidence: ep3 start->1
+# worst self clearance ~0.3 mm looked like a fold while PhysX stayed silent).
+minimum_self_collision_clearance_m: 0.003
 minimum_world_collision_clearance_m: 0.006
 lighting:
   dome_intensity: 400.0

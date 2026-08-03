@@ -19,6 +19,11 @@ DEFAULT_SELF_COLLISION_IGNORE: dict[str, frozenset[str]] = {
     "joint6_flange": frozenset({"joint6"}),
 }
 
+# Canonical MyCobot link names (deepest match wins under nested Geometry paths).
+CANONICAL_ROBOT_LINK_NAMES: frozenset[str] = frozenset(DEFAULT_SELF_COLLISION_IGNORE)
+# Prepared USD names the flange visual/collision mesh ``joint7``.
+_LINK_NAME_ALIASES: dict[str, str] = {"joint7": "joint6_flange"}
+
 
 def _path(value: Any) -> str:
     return str(value) if value is not None else ""
@@ -33,14 +38,34 @@ def _normalize_collision_link_name(link_name: str) -> str:
     return name
 
 
+def _canonical_link_from_segment(segment: str) -> str | None:
+    """Map one USD path segment to a canonical robot link name, if any."""
+
+    name = _normalize_collision_link_name(segment)
+    # Collision instance xforms are named ``jointN_1`` in the prepared USD.
+    if name.endswith("_1") and len(name) > 2:
+        name = name[:-2]
+    name = _LINK_NAME_ALIASES.get(name, name)
+    if name in CANONICAL_ROBOT_LINK_NAMES:
+        return name
+    return None
+
+
 def _link_name_from_actor_path(actor_path: str, robot_root_path: str) -> str | None:
+    """Return the deepest canonical robot link named in ``actor_path``.
+
+    Articulation root is ``/…/Geometry``, so the first path segment is always
+    ``g_base``. Using that alone would ignore every arm–arm contact.
+    """
+
     root = robot_root_path.rstrip("/")
     if not actor_path.startswith(root + "/") and actor_path != root:
         return None
-    remainder = actor_path[len(root) :].lstrip("/")
-    if not remainder:
-        return None
-    return _normalize_collision_link_name(remainder.split("/")[0])
+    for segment in reversed(_path_segments(actor_path)):
+        link = _canonical_link_from_segment(segment)
+        if link is not None:
+            return link
+    return None
 
 
 def _path_segments(path: str) -> tuple[str, ...]:

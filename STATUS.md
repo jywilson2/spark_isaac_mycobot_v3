@@ -56,7 +56,8 @@ screen, `order: z_desc`, goal-set rolls for wide-band suites, regen on
 `max(3, ceil(target_count/3))`.
 
 **Phase 7.5 — Variable-target-count Z-density stress suite: COMPLETE
-(2026-08-02) on `wip_phase7_5` (docs/playback clear amended 2026-08-03)**
+(2026-08-02) on `wip_phase7_5` (docs/playback clear + PhysX-regen
+spec amended 2026-08-03)**
 `target_population: incremental` — targets created/verified/planned
 one-by-one against retained accepted cubes; one `plan_grasp` attempt per
 candidate is the feasibility oracle; primary stop geometric-full with
@@ -81,8 +82,32 @@ contact reports; stream tip/body/**self** evidence as `phase7_2_physx:`;
 self-collision always fails smoke exit (Cursor rule
 `.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`). GUI
 `n6-4-11` replay 2026-08-03: EXIT:0, tip=21, self=0; offline sphere
-sweep of frozen trajs also clear. PhysX link self-contacts limited by
-USD (`contact_report_prims=1`). See [`spec.md`](spec.md) §8 Phase 7.5 and
+sweep of frozen trajs also clear. **USD self-collision authorship fixed
+2026-08-03** (enabledSelfCollisions + contact reports on 8 colliders via
+instance proxies; deepest-link path parsing). Re-GUI pending.
+**Post-episode PhysX accept/regen implemented 2026-08-03:** after each
+episode is populated, host headless PhysX-smoke accepts or
+discards+regenerates (`max_physx_regenerations`, default 3) with
+`phase7_5_physx_regen:` diagnostics (`links`, waypoint, `q_rad`, optional
+`sphere_clearance_m`). PhysX stays host-only (`isaac_sim/physx_episode_gate.py`).
+**Gate launch deadlock fixed 2026-08-03:** first gated smoke wedged
+(nested Kit child inherited parent carb env via `sys.executable` +
+`LD_PRELOAD`); gate now launches `python.sh` with a sanitized environment
+in its own session and a 900 s fail-closed timeout (`gate_timeout`
+discard). **Host evidence 2026-08-03:** seed-4242 `dz0_30` headless smoke
+**EXIT:0**, artifact `phase7_5-variable_dz0_30_n6-4-11_seed4242`, tip=21,
+body=0, self=0; all three episodes `physx_acceptance=pass` with
+`physx_regen_attempts=0`. **GUI replay same day:** `--gui --auto-exit`
+**EXIT:0**, tip=21, body=0, self=0; inter-episode clears logged
+(`cleared 6` / `cleared 4`); contact reports enabled (8 prims).
+**Clearance remediation 2026-08-03:** suite
+`minimum_self_collision_clearance_m` raised **0.0 → 0.003 m**. Re-smoke
+seed-4242 headless+GUI **EXIT:0** →
+`phase7_5-variable_dz0_30_n6-4-8_seed4242` (tip=18, body=0, self=0);
+ep3 rejected the prior near-miss fold at validation
+(`self-collision clearance is insufficient`); one PhysX
+`gate_timeout` discard then ACCEPT. See [`spec.md`](spec.md) §8 Phase 7.5
+and
 [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
 
 **Phase 1.1 — Target-scale collision-sphere coverage: COMPLETE / OPTION B
@@ -173,20 +198,16 @@ planning-success claims, or hardware-readiness claims carry forward.
       `--no-auto-exit`.
 - [x] No physical command, alternate planner, or physical-accuracy claim.
 
-## Next step / resume (2026-08-02)
+## Next step / resume (2026-08-03)
 
-**Where we left off:** Phase 7.5 on `wip_phase7_5` uses **geometric
-fullness** as the primary population stop with
-`max_total_target_failures: 25` secondary
-(`max_consecutive_target_failures: 0`). Headless seed-4242 smoke
-accepted: `n6-4-11`, tip=21, body=0, populate_s 660.0 / 687.6 / 695.0 s
-per episode. GUI deferred per operator. Phase 7.4 remains partially
-functional / closed.
+**Where we left off:** Phase 7.5 landed on `wip_phase7_5` (operator
+GUI review OK 2026-08-03). Final clearance-floor evidence:
+`phase7_5-variable_dz0_30_n6-4-8_seed4242` headless+GUI EXIT:0, tip=18,
+body=0, self=0. Opening Phase 8 on `wip_phase8`.
 
 **Next steps:**
 
-1. Operator GUI smoke of `phase7_5-variable_dz0_30_n6-4-11_seed4242`.
-2. Phase 8 (bounded residual RL, sim only) on `wip_phase8`. Entry criteria
+1. Phase 8 (bounded residual RL, sim only) on `wip_phase8`. Entry criteria
    verified 2026-07-31. **Note:** residual policies trained under
    scaffolding-only spheres may need retraining under the denser
    world-cover set now armed by default.

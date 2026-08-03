@@ -93,7 +93,8 @@ def _build_urdf_importer_config(prepared_urdf: Path, output_usd: Path) -> Any:
     config.usd_path = str(output_usd.parent.resolve())
     config.merge_mesh = False
     config.collision_from_visuals = False
-    config.allow_self_collision = False
+    # Required for Phase 7.2/7.5 PhysX arm–arm contact reporting during playback.
+    config.allow_self_collision = True
     config.fix_base = True
     config.joint_target_type = "position"
     config.override_joint_stiffness = float(gains.stiffness)  # N·m/rad

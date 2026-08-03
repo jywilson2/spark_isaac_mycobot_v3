@@ -262,10 +262,14 @@ compute-capability warning is retained in that report and is not suppressed.
 - Console / report key glossary:
   [`docs/console_log_keys.md`](docs/console_log_keys.md) (update in the same
   change set whenever log keys change).
-- PhysX fail-closed + inter-episode field clear Cursor rule:
+- PhysX fail-closed + inter-episode field clear + post-episode PhysX
+  accept/regen Cursor rule:
   `.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`.
+- Host gate: `isaac_sim/physx_episode_gate.py`; discard diagnostics
+  (`phase7_5_physx_regen:`) support later collision-sphere cover fixes.
 - Example: `config/phase7_5_variable_targets_dz_0_30.yml` via
-  `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`.
+  `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`
+  (`max_physx_regenerations: 3`).
 - Branch: `wip_phase7_5`.
 
 ## Phase 7.4 Z variability

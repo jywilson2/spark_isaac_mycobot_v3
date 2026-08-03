@@ -12,7 +12,11 @@ alwaysApply: true
   entire episode motion.
 - Enable PhysX articulation **self-collisions** and apply
   `PhysxContactReportAPI` on robot collision prims before playback; otherwise
-  robot–robot contacts are invisible to the monitor.
+  robot–robot contacts are invisible to the monitor. Prepared MyCobot USD
+  must keep `physxArticulation:enabledSelfCollisions=1`,
+  `newton:selfCollisionEnabled=1`, and contact reports on arm `*_1`
+  collision meshes (instance proxies). Link-name classification must use the
+  deepest canonical link (`joint2`…`joint6_flange`), never only `g_base`.
 - **Prohibited body–target contact** fails the episode (`body_contact`) and
   must fail suite acceptance when `failed_episodes > max_failed_episodes`.
 - **Prohibited robot self-collision** (non-adjacent links; adjacent pairs
@@ -37,6 +41,18 @@ alwaysApply: true
   Disjoint candidate ids across episodes make partial clears leave
   overlapping cubes and silent PhysX collisions.
 
+## Post-episode PhysX acceptance (Phase 7.5)
+
+- After each incremental episode is populated/planned, the **host plan
+  pipeline** must headless-PhysX-smoke that episode before keeping it.
+  Hard PhysX errors discard and regenerate (deterministic seed advance)
+  up to `max_physx_regenerations`; exhaustion fails closed.
+- Discard diagnostics must support later **sphere-cover** fixes: category,
+  canonical link pair (or body↔target), leg ids, waypoint/`q_rad`, and
+  when evaluable host-side sphere clearance. Tag: `phase7_5_physx_regen:`.
+  See `spec.md` §8 Phase 7.5 and `docs/console_log_keys.md`.
+- PhysX stays host-only; do not import PhysX into core `mycobot_curobo`.
+
 ## Console log glossary
 
 - Canonical key meanings live in [`docs/console_log_keys.md`](../../docs/console_log_keys.md).
@@ -45,5 +61,5 @@ alwaysApply: true
   **same change set**, plus `CHANGES.md` and the applicable phase report /
   `spec.md` when the tag is normative.
 - Prefer stable tag prefixes (`phase7_2_playback:`, `phase7_2_physx:`,
-  `phase7_5_populate:`, …) over ad-hoc unmarked prints for smoke-critical
-  evidence.
+  `phase7_5_populate:`, `phase7_5_physx_regen:`, …) over ad-hoc unmarked
+  prints for smoke-critical evidence.

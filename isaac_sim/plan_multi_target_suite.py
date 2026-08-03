@@ -99,6 +99,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "Defaults to config/app.yml.",
     )
     parser.add_argument("--output-bundle", type=Path, required=True)
+    parser.add_argument(
+        "--skip-physx-gate",
+        action="store_true",
+        help="Skip post-episode PhysX accept/regen (not for Phase 7.5 host smokes).",
+    )
+    parser.add_argument(
+        "--usd",
+        type=Path,
+        default=None,
+        help="Prepared robot USD for the PhysX gate (defaults to prepared MyCobot USD).",
+    )
     return parser.parse_args(argv)
 
 
@@ -380,13 +391,21 @@ def plan_incremental(
     episode_count: int | None,
     independent_random_episode_seeds: bool,
     app_config_path: Path | None = None,
+    enable_physx_gate: bool = True,
+    usd: Path | None = None,
 ) -> Any:
-    """Run Phase 7.5 incremental population with optimistic tip contact."""
+    """Run Phase 7.5 incremental population with optimistic tip contact.
+
+    When ``enable_physx_gate`` is true and ``max_physx_regenerations > 0``, each
+    populated episode is headless-PhysX-smoked before acceptance (host subprocess).
+    """
+
+    import gc
 
     import torch
     from curobo.types import JointState
 
-    from mycobot_curobo.robot_model import JOINT_NAMES
+    from mycobot_curobo.robot_model import JOINT_NAMES, load_robot_model_spec
 
     app, planner_factory, validator = _build_planner_and_validator(
         planner_profile_name=config.planner_profile,
@@ -400,16 +419,23 @@ def plan_incremental(
     )
     trajectories: dict[str, Any] = {}
     base_profile = load_planner_profile(config.planner_profile)
-    sphere_backend = create_curobo_planner(
-        replace(base_profile, random_seed=int(config.root_seed)),
-        robot_config_path=app.robot_config_path,
-        scene_config_path=REPO_ROOT / "config/scenes/empty.yml",
-    )
+
+    def _make_sphere_backend() -> Any:
+        return create_curobo_planner(
+            replace(base_profile, random_seed=int(config.root_seed)),
+            robot_config_path=app.robot_config_path,
+            scene_config_path=REPO_ROOT / "config/scenes/empty.yml",
+        )
+
+    sphere_backend: Any = _make_sphere_backend()
 
     def plan_sink(plan: NominalPlan) -> None:
         trajectories[plan.request_id] = plan.combined_trajectory
 
     def waypoint_spheres_fn(positions: np.ndarray) -> np.ndarray:
+        nonlocal sphere_backend
+        if sphere_backend is None:
+            raise ConfigurationError("sphere backend released during PhysX gate")
         positions_arr = np.asarray(positions, dtype=float)
         if positions_arr.ndim != 2 or positions_arr.shape[1] != len(JOINT_NAMES):
             raise ConfigurationError("waypoint positions must have shape [N, 6]")
@@ -419,6 +445,99 @@ def plan_incremental(
         )
         result = sphere_backend.compute_kinematics(state)
         return result.robot_spheres.detach().cpu().numpy().reshape(positions_arr.shape[0], -1, 4)
+
+    physx_gate_fn = None
+    if enable_physx_gate and int(config.max_physx_regenerations) > 0:
+        from isaac_sim.physx_episode_gate import (
+            build_sphere_clearance_fn,
+            collision_pairs_from_planner,
+            resolve_prepared_usd,
+            run_headless_physx_gate,
+            sphere_link_names_from_counts,
+        )
+
+        prepared_usd = resolve_prepared_usd(REPO_ROOT, usd)
+        pairs = collision_pairs_from_planner(sphere_backend)
+        robot_spec = load_robot_model_spec(app.robot_config_path)
+        link_names = sphere_link_names_from_counts(robot_spec.collision_sphere_count_by_link)
+        # Option B dual overlay may emit more sphere slots than scaffolding links;
+        # pass names only when lengths match the FK sphere count.
+        sample = waypoint_spheres_fn(np.zeros((1, len(JOINT_NAMES)), dtype=float))
+        sphere_names = link_names if len(link_names) == int(sample.shape[1]) else None
+        sphere_fn = build_sphere_clearance_fn(
+            waypoint_spheres_fn=waypoint_spheres_fn,
+            collision_pairs=pairs,
+            sphere_link_names=sphere_names,
+        )
+        _z_frag, _z_width, _z_lo, _z_hi = format_z_dist_header(config)
+        z_density = {
+            "delta_z_m": float(_z_width),
+            "z_band_fraction": config.z_band_fraction,
+            "z_lo_m": float(_z_lo),
+            "z_hi_m": float(_z_hi),
+        }
+
+        def _release_cuda_for_kit() -> None:
+            """Drop cuRobo GPU objects so Kit can allocate during the gate."""
+
+            nonlocal sphere_backend
+            print("phase7_5_physx_regen: releasing cuRobo CUDA before Kit gate", flush=True)
+            sphere_backend = None
+            gc.collect()
+            try:
+                torch.cuda.empty_cache()
+            except Exception as exc:  # noqa: BLE001
+                print(f"phase7_5_physx_regen: cuda empty_cache skipped ({exc})", flush=True)
+
+        def _restore_cuda_after_kit() -> None:
+            nonlocal sphere_backend
+            print("phase7_5_physx_regen: restoring cuRobo CUDA after Kit gate", flush=True)
+            sphere_backend = _make_sphere_backend()
+
+        def physx_gate_fn(result, extra, episode_traj):  # type: ignore[no-untyped-def]
+            from dataclasses import replace as dc_replace
+
+            _release_cuda_for_kit()
+            try:
+                # Sphere clearance needs cuRobo CUDA — evaluate after restore.
+                passed, discard = run_headless_physx_gate(
+                    result=result,
+                    extra=extra,
+                    trajectories=episode_traj,
+                    tip_allow_link_names=config.tip_allow_link_names,
+                    lighting=config.lighting,
+                    z_density=z_density,
+                    root_seed=root_seed if root_seed is not None else config.root_seed,
+                    max_failed_episodes=config.max_failed_episodes,
+                    usd=prepared_usd,
+                    repo_root=REPO_ROOT,
+                    sphere_clearance_fn=None,
+                )
+            finally:
+                _restore_cuda_after_kit()
+            if discard is not None and discard.q_rad is not None:
+                try:
+                    clearance, pair = sphere_fn(np.asarray(discard.q_rad, dtype=float))
+                    discard = dc_replace(
+                        discard,
+                        sphere_clearance_m=float(clearance),
+                        sphere_pair=pair,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    print(
+                        f"phase7_5_physx_regen: sphere clearance eval failed: {exc}",
+                        flush=True,
+                    )
+            return passed, discard
+
+        print(
+            "phase7_5_physx_regen: enabled "
+            f"max_physx_regenerations={config.max_physx_regenerations} "
+            f"usd={prepared_usd}",
+            flush=True,
+        )
+    else:
+        print("phase7_5_physx_regen: skipped (disabled or max_physx_regenerations=0)", flush=True)
 
     runner = IncrementalPopulationRunner(
         planner_factory=planner_factory,
@@ -435,6 +554,7 @@ def plan_incremental(
         episode_count=episode_count,
         independent_random_episode_seeds=independent_random_episode_seeds,
         trajectories_out=trajectories,
+        physx_gate_fn=physx_gate_fn,
     )
     return suite
 
@@ -470,6 +590,8 @@ def main(argv: list[str] | None = None) -> int:
             episode_count=args.episodes,
             independent_random_episode_seeds=independent_episode_seeds,
             app_config_path=args.app_config,
+            enable_physx_gate=not bool(args.skip_physx_gate),
+            usd=args.usd,
         )
         print(
             format_suite_table(
@@ -523,9 +645,14 @@ def main(argv: list[str] | None = None) -> int:
                     "tip_contacts": len(result.contacted_ids),
                     "candidate_failures": [asdict(record) for record in extra.candidate_failures],
                     "retreat_distance_m": float(config.retreat_distance_m),
+                    "physx_discards": [record.to_dict() for record in extra.physx_discards],
+                    "physx_acceptance": extra.physx_acceptance,
+                    "physx_regen_attempts": int(extra.physx_regen_attempts),
                 }
                 for extra, result in zip(suite.extras, suite.results)
             ],
+            "physx_regeneration_exhausted": bool(suite.physx_regeneration_exhausted),
+            "max_physx_regenerations": int(config.max_physx_regenerations),
             "placement_generation": None,
             "summary": asdict(suite.summary),
             "results": [asdict(result) for result in suite.results],

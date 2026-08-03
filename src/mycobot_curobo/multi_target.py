@@ -102,6 +102,7 @@ class MultiTargetFailureCategory(str, Enum):
     MAX_CONSECUTIVE_UNPLANNED_TARGETS_EXCEEDED = "max_consecutive_unplanned_targets_exceeded"
     INSUFFICIENT_TARGETS = "insufficient_targets"
     CONFIGURATION_MODEL_FAILURE = "configuration_model_failure"
+    PHYSX_REGENERATION_EXHAUSTED = "physx_regeneration_exhausted"
 
 
 # Keys that must be absent under target_population: incremental (fail closed).
@@ -327,6 +328,9 @@ class MultiTargetSuiteConfig:
     # Host GPU: 0.02 m / 0.05 m still left Option B sphere penetration on some
     # accepts; 0.10 m is the current fail-closed-safe default.
     retreat_distance_m: float = 0.10
+    # Host post-episode PhysX accept/regen budget (discarded attempts per episode).
+    # Gate implementation is host-only; 0 disables the gate (not for Phase 7.5 smokes).
+    max_physx_regenerations: int = 3
 
 
 def _tuple3(value: Any, label: str) -> tuple[float, float, float]:
@@ -455,6 +459,9 @@ def load_multi_target_suite_config(
         retreat_distance_m = float(retreat_raw)
         if not math.isfinite(retreat_distance_m) or retreat_distance_m <= 0.0:
             raise ConfigurationError("retreat_distance_m must be positive and finite")
+        max_physx_regenerations = _non_negative_int(
+            payload.get("max_physx_regenerations", 3), "max_physx_regenerations"
+        )
     else:
         placement = PlacementPolicy(str(payload["placement"]))
         order = OrderPolicy(str(payload["order"]))
@@ -489,6 +496,7 @@ def load_multi_target_suite_config(
         max_targets_per_episode = 0
         min_targets_per_episode = 1
         retreat_distance_m = 0.10
+        max_physx_regenerations = 3
     episode_count = _positive_int(payload["episode_count"], "episode_count")
     max_failed_episodes = _non_negative_int(
         payload.get("max_failed_episodes", 0), "max_failed_episodes"
@@ -721,6 +729,7 @@ def load_multi_target_suite_config(
         max_targets_per_episode=max_targets_per_episode,
         min_targets_per_episode=min_targets_per_episode,
         retreat_distance_m=retreat_distance_m,
+        max_physx_regenerations=max_physx_regenerations,
     )
 
 

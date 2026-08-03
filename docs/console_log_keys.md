@@ -24,6 +24,7 @@ are scalar-first `wxyz` when present in JSON.
 | `phase7_5_episode:` | `mycobot_curobo.incremental_population` | Population episode DONE summary. |
 | `phase7_5_suite:` | `mycobot_curobo.incremental_population` | Multi-episode table + artifact base name. |
 | `phase7_5_replay:` | playback + format helpers | Frozen-bundle replay BEGIN / per-leg / DONE. |
+| `phase7_5_physx_regen:` | host plan pipeline (post-episode PhysX gate) | Discard / retry / exhausted lines for PhysX-failed episodes; must carry sphere-cover diagnostic fields. |
 | `phase7_5_episode_metrics:` | plan + play hosts | Compact per-episode `tip_contacts` / `populate_s` echo. |
 | `[ep i/n] from->to …` | `format_leg_console_row` | Per-leg plan/valid/contact timings (Phase 7.2 style). |
 | `[i/n] targets=…` | `format_episode_console_row` | Per-episode aggregate success row. |
@@ -60,6 +61,36 @@ are scalar-first `wxyz` when present in JSON.
 Absence of `phase7_2_physx:` lines during a GUI/headless play that reports tip contacts is a monitoring defect. Kit-native PhysX overlap/collide engine messages (spawn-time penetrating statics) must also fail the smoke when detected; see the Cursor rule and `spec.md` §8 Phase 7.2 / 7.5.
 
 Adjacent kinematic pairs from the robot YAML `self_collision_ignore` map are ignored so connected-link proximity does not false-trigger.
+
+---
+
+## `phase7_5_physx_regen:` keys / phrases
+
+Emitted by the **post-episode PhysX acceptance** loop (host plan
+pipeline). Normative field table lives in `spec.md` §8 Phase 7.5.
+
+| Token / phrase | Meaning |
+|----------------|---------|
+| `ep i/n regen a/b DISCARD` | Episode `i` PhysX-failed; discard attempt `a` of budget `b` (`max_physx_regenerations`). |
+| `category self_collision` / `body_contact` / `physx_overlap` | Hard-error class that triggered discard. |
+| `leg from->to request=…` | Failing leg ids when motion-time. |
+| `links x↔y` | Canonical robot link pair (self-collision). |
+| `target_id=…` | Body–target contact id when applicable. |
+| `waypoint i/N u=… t_s=…` | First offending trajectory sample. |
+| `q_rad=[…]` | Joint state at that sample (`JOINT_NAMES` order). |
+| `sphere_clearance_m=… sphere_pair=…` | Optional host-side cuRobo sphere clearance at `q_rad` (required when evaluable without Kit). |
+| `reason …` | One-line summary for sphere-cover tickets. |
+| `RETRY \| next_episode_seed=…` | Regenerating population with advanced seed. |
+| `EXHAUSTED` / `physx_regeneration_exhausted` | Budget spent; suite fails closed. |
+| `ACCEPT \| physx_regen_attempts=K` | Episode kept after `K` prior discards (may be 0). |
+| `launching headless gate … exe=… timeout_s=…` | Gate child launch: resolved Isaac python (`python.sh`, never nested Kit `sys.executable`) and kill budget. |
+| `gate play finished exit=… report_exists=…` | Gate child completed; report presence gates the pass path. |
+| `gate timeout after Ns; discarding episode (fail closed)` | Gate child exceeded `timeout_s`; process group killed; discard reason `gate_timeout`. |
+
+Bundle mirror: `incremental_episodes[*].physx_discards[]` and
+`physx_acceptance` / `physx_regen_attempts` on kept episodes. A discard
+line without `links` (or `target_id`), `waypoint`, and `q_rad` is
+non-compliant.
 
 ---
 

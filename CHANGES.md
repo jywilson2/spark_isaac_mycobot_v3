@@ -1,5 +1,134 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-03 — Phase 7.5 self-collision clearance floor 3 mm
+
+Branch `wip_phase7_5`. GUI ep3 `start→1` looked folded while spheres and
+PhysX stayed green (worst sphere clearance ~0.3 mm; floor was `0.0`).
+
+1. `config/phase7_5_variable_targets_dz_0_30.yml`:
+   `minimum_self_collision_clearance_m: 0.003` (suite overrides validation
+   profile). Near-miss folds fail closed at independent validation.
+2. Unit assert on example config load; docs/STATUS updated.
+3. Host evidence seed-4242: headless **EXIT:0**, artifact
+   `phase7_5-variable_dz0_30_n6-4-8_seed4242` (was `n6-4-11`); tip=18,
+   body=0, self=0. Ep3 cand1 failed closed with
+   `validation_failed: self-collision clearance is insufficient` (the
+   prior fold path). Ep3 PhysX gate discarded once (`gate_timeout` 900 s)
+   then accepted on regen (`physx_regen_attempts=1`).
+4. GUI replay `--gui --auto-exit` **EXIT:0**, tip=18, body=0, self=0;
+   failed_episodes=0; inter-episode clears logged.
+
+### Needs review
+
+- Raise `DEFAULT_GATE_TIMEOUT_S` if 8-target episodes routinely exceed 900 s.
+- If folds remain with clearance ≫ 3 mm, densify joint4↔flange spheres.
+
+Operator GUI review 2026-08-03: looks good. Landing `wip_phase7_5` onto
+`main` and opening `wip_phase8`.
+
+## 2026-08-03 — Fix PhysX gate deadlock: sanitized env, python.sh, timeout
+
+Branch `wip_phase7_5`. First gated smoke wedged at episode 1's gate: the
+child playback was spawned with the parent Kit's `sys.executable` and
+inherited Kit/carb environment (`LD_PRELOAD=libcarb.so`, `CARB_*`,
+`EXP_PATH`, Kit `PYTHONPATH`), deadlocking the nested carb bootstrap
+(futex wait, 0 % CPU, 44 MB RSS after 10 min).
+
+1. `isaac_sim/physx_episode_gate.py`: `resolve_gate_python` prefers
+   `ISAACSIM_PYTHON_EXE` / `ISAACSIM_PATH/python.sh` over nested Kit
+   python; `sanitized_gate_env` strips Kit-injected vars and resets
+   `PYTHONPATH` to exactly the repo entries (also stops per-launch
+   PYTHONPATH duplication).
+2. Gate child runs in its own session; `timeout_s`
+   (`DEFAULT_GATE_TIMEOUT_S = 900`) kills the whole process group and
+   discards fail-closed as `physx_overlap` / `gate_timeout`.
+3. Launch line now logs `exe=` and `timeout_s=`; new timeout console
+   line documented in `docs/console_log_keys.md`.
+4. Unit tests: env sanitization, exe resolution order, timeout
+   fail-closed discard (`tests/unit/test_physx_regen.py`, 9 passing).
+5. Spec §8 Phase 7.5 gains normative item 7 (gate subprocess isolation
+   and timeout); phase report documents the fix.
+
+### Needs review
+
+- 900 s gate timeout is adequate: accepted gates on this host completed
+  well under the budget (ep1 gate ~few minutes).
+- Re-GUI the regenerated `n6-4-11` bundle (headless already EXIT:0).
+
+## 2026-08-03 — Host evidence: PhysX-gated `n6-4-11` smoke EXIT:0
+
+Seed-4242 default `dz0_30` full headless smoke under the post-episode
+PhysX gate: **SMOKE_EXIT:0**, tip=21, body=0, self=0,
+`suite_accepted=true`. Bundle
+`phase7_5-variable_dz0_30_n6-4-11_seed4242.bundle.json` records
+`physx_acceptance=pass` / `physx_regen_attempts=0` for all three episodes
+(no discards this seed).
+
+**GUI replay (same day):** frozen-bundle `--gui --auto-exit` **EXIT:0**,
+tip=21, body=0, self=0; PhysX self-collision monitoring on
+(`contact_report_prims=8`); inter-episode field clears
+(`cleared 6` then `cleared 4`). No `SELF COLLISION` / `BODY CONTACT` lines.
+
+## 2026-08-03 — Implement post-episode PhysX accept / regenerate
+
+Branch `wip_phase7_5`. Host plan pipeline now PhysX-gates each incremental
+episode before suite acceptance.
+
+1. Core loop in `IncrementalPopulationRunner.run_suite` with injectable
+   `physx_gate_fn`; seed advance `base + regen_attempt`; exhaustion →
+   `MultiTargetFailureCategory.PHYSX_REGENERATION_EXHAUSTED`.
+2. Host gate `isaac_sim/physx_episode_gate.py`: temp 1-episode bundle →
+   headless `play_multi_target_suite.py --episode-index 0`; tip-miss alone
+   does not discard. Sphere clearance at failing `q_rad` when evaluable.
+3. Play captures structured `physx_failures[]` (links, waypoint, `q_rad`).
+4. Helpers/types `mycobot_curobo/physx_regen.py`; bundle fields
+   `physx_discards` / `physx_acceptance` / `physx_regen_attempts`.
+5. `--skip-physx-gate` on plan CLI (not for Phase 7.5 smokes).
+6. Unit tests: seed math, discard log fields, regen-until-pass, exhaustion.
+7. Host reliability: release cuRobo CUDA before Kit gate subprocess;
+   `start_new_session=True`; restore CUDA after gate.
+8. **Host evidence:** seed-4242 `dz0_30` headless smoke **EXIT:0** —
+   `n6-4-11`, tip=21, body=0, self=0; each episode
+   `phase7_5_physx_regen: … ACCEPT | physx_regen_attempts=0`.
+
+### Needs review
+
+- No PhysX discards on this seed (gate passed first try). Re-GUI the new
+  frozen `n6-4-11` bundle to confirm the earlier visual fold is gone or
+  still sphere-legal / mesh-only.
+- Kit-per-episode wall time (~1 Kit start per accepted episode).
+
+## 2026-08-03 — Spec: post-episode PhysX accept / regenerate
+
+Branch `wip_phase7_5`. Spec amendment for the host plan-pipeline gate
+(implemented in the entry above). Normative loop, `max_physx_regenerations`,
+`phase7_5_physx_regen:` sphere-cover diagnostics, config parse wiring.
+
+## 2026-08-03 — Prepared USD arm–arm PhysX collision detection
+
+Branch `wip_phase7_5`. Episode 3 still showed a visual fold while the smoke
+reported self=0. Root causes: articulation self-collision was authored
+**off**, collision meshes lived only in instanceable `*_1` prototypes
+(runtime contact-report walk saw 1 prim), and link-name parsing took the
+first Geometry child (`g_base`) so every arm–arm hit was ignored as
+same-link.
+
+1. Prepared USD enhancer (`isaac_sim/prepared_usd_self_collision.py`) —
+   `newton:selfCollisionEnabled=1`,
+   `physxArticulation:enabledSelfCollisions=1`, `PhysxContactReportAPI` on
+   seven arm collision prototypes + base `box_1`. Runs after URDF convert
+   and before playback (prepared tree is gitignored).
+2. `enable_robot_contact_reports` traverses instance proxies (8 colliders).
+3. Deepest-link path parsing (`joint7` → `joint6_flange`); URDF import
+   default `allow_self_collision=True` for future regenerations.
+4. Unit: nested-path link resolution + enhancer fixture tests.
+5. CI: **282** passed, Ruff clean.
+
+### Needs review
+
+- Re-run GUI `n6-4-11` and confirm `phase7_2_physx: SELF COLLISION` (or
+  regenerate if the fold is a true prohibited contact).
+
 ## 2026-08-03 — Human-only `notes/` directory (excluded from AI context)
 
 Non-development change. Added `notes/` for article drafts and discussion

@@ -594,9 +594,13 @@ def enable_robot_contact_reports(stage: Any, robot_root_path: str) -> int:
 
     Target cubes already carry contact reports; robot links need the same API
     so robot–robot (self) contacts appear on the PhysX subscription.
+
+    Prepared MyCobot USD stores arm collision meshes as **instanceable**
+    ``*_1`` prototypes, so a plain ``GetChildren`` walk misses
+    ``CollisionAPI``. Traverse instance proxies as well.
     """
 
-    from pxr import PhysxSchema, UsdPhysics
+    from pxr import PhysxSchema, Usd, UsdPhysics
 
     if not robot_root_path.startswith("/"):
         raise ValueError("robot_root_path must be an absolute USD path")
@@ -604,14 +608,31 @@ def enable_robot_contact_reports(stage: Any, robot_root_path: str) -> int:
     if not root.IsValid():
         return 0
     enabled = 0
-    stack = [root]
-    while stack:
-        prim = stack.pop()
-        stack.extend(list(prim.GetChildren()))
+    seen: set[str] = set()
+    # Include instance proxies so convexHull collision meshes under
+    # ``jointN_1`` receive contact reports.
+    for prim in Usd.PrimRange(root, Usd.TraverseInstanceProxies()):
+        path = str(prim.GetPath())
+        if path in seen:
+            continue
         if not prim.HasAPI(UsdPhysics.CollisionAPI):
             continue
-        contact = PhysxSchema.PhysxContactReportAPI.Apply(prim)
-        contact.CreateThresholdAttr(0.0)
+        seen.add(path)
+        # Instance proxies are often read-only; author on the prototype prim.
+        author = prim
+        if prim.IsInstanceProxy():
+            proto_fn = getattr(prim, "GetPrimInPrototype", None)
+            proto = proto_fn() if callable(proto_fn) else None
+            if proto is not None and proto.IsValid():
+                author = proto
+        try:
+            contact = PhysxSchema.PhysxContactReportAPI.Apply(author)
+            contact.CreateThresholdAttr(0.0)
+        except Exception:
+            # Prepared USD already authors PhysxContactReportAPI on collision
+            # prototypes; count the proxy even if runtime authoring is blocked.
+            if not author.HasAPI(PhysxSchema.PhysxContactReportAPI):
+                continue
         enabled += 1
     return enabled
 

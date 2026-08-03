@@ -323,16 +323,12 @@ work landed.
 
 **Branch:** `wip_phase7_5`
 
-**Status:** **Complete** (2026-08-02) on `wip_phase7_5`. The first host
-smoke (`n1-1-1`) exposed a defect: legs ended at the contact pose, so
-every post-acceptance plan started at zero clearance to the
-just-contacted retained cube and failed. Remediation (two-call
-post-contact retreat at `retreat_distance_m: 0.10`, never-removed
-retained obstacles, corridor "maze" pre-filter, `candidate_failures`,
-mid-path + planned-FK tip playback) is host-re-evidenced: headless
-seed-4242 `n3-0-5` suite accepted under `max_failed_episodes: 1`
-(tip=8, body=0); GUI replay of the frozen bundle exit 0. See
-[`spec.md`](../spec.md) §8 Phase 7.5 and
+**Status:** **Complete / landed** (2026-08-02; clearance + PhysX-regen
+amendments 2026-08-03). Final operator-reviewed evidence: seed-4242
+`n6-4-8` headless+GUI EXIT:0 (tip=18, body=0, self=0) under
+`minimum_self_collision_clearance_m: 0.003` and post-episode PhysX
+accept/regen. Earlier `n6-4-11` / `n3-0-5` remain historical artifacts.
+See [`spec.md`](../spec.md) §8 Phase 7.5 and
 [`docs/phase7_5_variable_target_stress.md`](phase7_5_variable_target_stress.md).
 
 **Objective:** Measure how many targets can be placed and tip-contacted
@@ -349,6 +345,9 @@ proximity to stop ("streak k/K") on every planner-verified candidate line.
 The growing field must stay a **navigable maze**: new cubes must never
 intersect previously recorded leg corridors (corridor clearance
 pre-filter), so playback can revisit every block in acceptance order.
+After each episode is frozen, the host must PhysX-accept or
+discard+regenerate (`max_physx_regenerations`) with sphere-cover-ready
+diagnostics (`phase7_5_physx_regen:`).
 
 **Must not:** Replace cuRobo or add a second feasibility authority beyond
 the plan attempt + Phase 4 validation; remove contacted cubes at any point
@@ -366,6 +365,10 @@ implementation may begin on `wip_phase7_5`.
 ---
 
 ## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
+
+**Branch:** `wip_phase8`
+
+**Status:** Open (2026-08-03) after Phase 7.5 landing.
 
 **Objective:** Train a residual policy that outputs a **bounded Cartesian
 correction** (and/or small joint residual mapped through the Phase 5 seam),

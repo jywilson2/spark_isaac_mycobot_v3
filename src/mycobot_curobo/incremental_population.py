@@ -35,6 +35,14 @@ from mycobot_curobo.multi_target import (
     _draw_distinct_episode_seeds,
     suite_acceptance_passed,
 )
+from mycobot_curobo.physx_regen import (
+    PhysxDiscardRecord,
+    format_physx_regen_accept_line,
+    format_physx_regen_discard_line,
+    format_physx_regen_exhausted_line,
+    format_physx_regen_retry_line,
+    physx_retry_episode_seed,
+)
 from mycobot_curobo.planner import (
     JOINT_NAMES,
     NamedJointState,
@@ -92,6 +100,9 @@ class IncrementalEpisodeExtras:
     delta_z_m: float
     wall_duration_s: float
     candidate_failures: tuple[CandidateFailureRecord, ...] = ()
+    physx_discards: tuple[PhysxDiscardRecord, ...] = ()
+    physx_acceptance: str | None = None
+    physx_regen_attempts: int = 0
 
 
 @dataclass
@@ -106,6 +117,7 @@ class IncrementalSuiteRun:
     artifact_base_name: str
     summary: MultiTargetSuiteSummary
     suite_accepted: bool
+    physx_regeneration_exhausted: bool = False
 
 
 def z_density_width_m(config: MultiTargetSuiteConfig) -> float:
@@ -459,6 +471,13 @@ class IncrementalPopulationRunner:
         episode_count: int | None = None,
         independent_random_episode_seeds: bool = False,
         trajectories_out: dict[str, Any] | None = None,
+        physx_gate_fn: (
+            Callable[
+                [MultiTargetEpisodeResult, IncrementalEpisodeExtras, dict[str, Any]],
+                tuple[bool, PhysxDiscardRecord | None],
+            ]
+            | None
+        ) = None,
     ) -> IncrementalSuiteRun:
         if config.target_population is not TargetPopulation.INCREMENTAL:
             raise ConfigurationError(
@@ -478,18 +497,206 @@ class IncrementalPopulationRunner:
             )
         results: list[MultiTargetEpisodeResult] = []
         extras: list[IncrementalEpisodeExtras] = []
+        kept_episode_seeds: list[int] = []
         trajectories: dict[str, Any] = {} if trajectories_out is None else trajectories_out
-        for index, (episode_seed, _order_seed) in enumerate(seed_pairs):
-            result, extra = self.run_episode(
-                config,
-                episode_index=index,
-                episode_count=count,
-                root_seed=episode_seed if shared_root is None else shared_root,
-                episode_seed=episode_seed,
-                trajectories=trajectories,
+        physx_exhausted = False
+        max_regens = int(config.max_physx_regenerations)
+        for index, (base_episode_seed, _order_seed) in enumerate(seed_pairs):
+            discards: list[PhysxDiscardRecord] = []
+            kept_result: MultiTargetEpisodeResult | None = None
+            kept_extra: IncrementalEpisodeExtras | None = None
+            kept_seed = int(base_episode_seed)
+            # Clear prior attempt trajectories for this episode index prefix before each try.
+            episode_request_prefix = f"ep{index:03d}_"
+            for regen_attempt in range(0, max_regens + 1):
+                episode_seed = (
+                    int(base_episode_seed)
+                    if regen_attempt == 0
+                    else physx_retry_episode_seed(base_episode_seed, regen_attempt)
+                )
+                # Drop trajectories from a discarded prior attempt for this episode.
+                stale = [key for key in trajectories if key.startswith(episode_request_prefix)]
+                for key in stale:
+                    del trajectories[key]
+                result, extra = self.run_episode(
+                    config,
+                    episode_index=index,
+                    episode_count=count,
+                    root_seed=episode_seed if shared_root is None else shared_root,
+                    episode_seed=episode_seed,
+                    trajectories=trajectories,
+                )
+                if physx_gate_fn is None or max_regens <= 0:
+                    kept_result = result
+                    kept_extra = replace(
+                        extra,
+                        physx_discards=(),
+                        physx_acceptance="skipped",
+                        physx_regen_attempts=0,
+                    )
+                    kept_seed = episode_seed
+                    break
+                episode_traj = {
+                    key: value
+                    for key, value in trajectories.items()
+                    if key.startswith(episode_request_prefix)
+                }
+                passed, discard = physx_gate_fn(result, extra, episode_traj)
+                if passed:
+                    kept_result = result
+                    kept_extra = replace(
+                        extra,
+                        physx_discards=tuple(discards),
+                        physx_acceptance="pass",
+                        physx_regen_attempts=len(discards),
+                    )
+                    kept_seed = episode_seed
+                    self._console_log(
+                        format_physx_regen_accept_line(
+                            episode_index=index,
+                            episode_count=count,
+                            physx_regen_attempts=len(discards),
+                        )
+                    )
+                    break
+                if discard is None:
+                    discard = PhysxDiscardRecord(
+                        episode_index=index,
+                        regen_attempt=max(regen_attempt, 1),
+                        episode_seed=episode_seed,
+                        category="physx_overlap",
+                        leg_from_id=None,
+                        leg_to_id=None,
+                        request_id=None,
+                        links=None,
+                        target_id=None,
+                        waypoint_index=None,
+                        waypoint_count=None,
+                        u=None,
+                        t_s=None,
+                        q_rad=None,
+                        sphere_clearance_m=None,
+                        sphere_pair=None,
+                        reason="physx gate failed without diagnostic payload",
+                    )
+                # regen_attempt on the discard is 1-based discard ordinal.
+                discard = replace(discard, regen_attempt=len(discards) + 1)
+                discards.append(discard)
+                self._console_log(
+                    format_physx_regen_discard_line(
+                        episode_index=index,
+                        episode_count=count,
+                        regen_attempt=discard.regen_attempt,
+                        max_physx_regenerations=max_regens,
+                        discard=discard,
+                    )
+                )
+                if len(discards) >= max_regens:
+                    self._console_log(
+                        format_physx_regen_exhausted_line(
+                            episode_index=index,
+                            episode_count=count,
+                            max_physx_regenerations=max_regens,
+                        )
+                    )
+                    physx_exhausted = True
+                    kept_result = replace(
+                        result,
+                        succeeded=False,
+                        failure_category=MultiTargetFailureCategory.PHYSX_REGENERATION_EXHAUSTED,
+                        failure_reason=(
+                            f"physx_regeneration_exhausted after {max_regens} discard(s)"
+                        ),
+                    )
+                    kept_extra = replace(
+                        extra,
+                        physx_discards=tuple(discards),
+                        physx_acceptance="exhausted",
+                        physx_regen_attempts=len(discards),
+                    )
+                    kept_seed = episode_seed
+                    break
+                next_seed = physx_retry_episode_seed(base_episode_seed, len(discards))
+                self._console_log(
+                    format_physx_regen_retry_line(
+                        episode_index=index,
+                        episode_count=count,
+                        regen_attempt=len(discards),
+                        max_physx_regenerations=max_regens,
+                        next_episode_seed=next_seed,
+                    )
+                )
+            assert kept_result is not None and kept_extra is not None
+            results.append(kept_result)
+            extras.append(kept_extra)
+            kept_episode_seeds.append(kept_seed)
+            if physx_exhausted:
+                # Fail closed: do not populate later episodes after exhaustion.
+                break
+        # Pad skipped episodes if we aborted early on PhysX exhaustion.
+        while len(results) < count:
+            # Synthetic failed placeholder so suite length matches config.
+            from mycobot_curobo.multi_target import MultiTargetEpisode, TargetField
+
+            ep_index = len(results)
+            base_seed = int(seed_pairs[ep_index][0])
+            empty = MultiTargetEpisodeResult(
+                episode=MultiTargetEpisode(
+                    episode_index=ep_index,
+                    root_seed=base_seed if shared_root is None else shared_root,
+                    episode_seed=base_seed,
+                    order_seed=base_seed,
+                    field=TargetField(
+                        targets=(),
+                        placement=PlacementPolicy.RANDOM,
+                        order=OrderPolicy.LISTED,
+                        retain_targets_after_contact=True,
+                        contact_order_ids=(),
+                    ),
+                    start_position_rad=config.start_joint_position_rad,
+                    planner_profile=config.planner_profile,
+                    tip_allow_link_names=config.tip_allow_link_names,
+                    max_planning_failure_per_target=1,
+                    max_target_failures=0,
+                    max_reconsider_passes=0,
+                    max_failed_episodes=config.max_failed_episodes,
+                    max_consecutive_unplanned_targets=0,
+                    scene_revision_prefix=config.scene_revision_prefix,
+                    retain_targets_after_contact=True,
+                ),
+                succeeded=False,
+                failure_category=MultiTargetFailureCategory.PHYSX_REGENERATION_EXHAUSTED,
+                failure_reason="skipped after prior physx_regeneration_exhausted",
+                planning_failure_count=0,
+                target_failure_count=0,
+                failed_target_ids=(),
+                legs=(),
+                contacted_ids=(),
+                removed_ids=(),
+                episode_duration_s=0.0,
+                deferred_target_ids=(),
+                planned_target_ids=(),
             )
-            results.append(result)
-            extras.append(extra)
+            results.append(empty)
+            extras.append(
+                IncrementalEpisodeExtras(
+                    stop_reason=PopulationStopReason.GEOMETRIC_FULL,
+                    consecutive_failures_at_stop=0,
+                    total_target_failures=0,
+                    accepted_plan_durations_s=(),
+                    failed_plan_durations_s=(),
+                    geometric_rejects=GeometricRejectCounts(),
+                    draws=0,
+                    planned_candidates=0,
+                    z_band_lo_m=0.0,
+                    z_band_hi_m=0.0,
+                    delta_z_m=0.0,
+                    wall_duration_s=0.0,
+                    physx_acceptance="skipped",
+                    physx_regen_attempts=0,
+                )
+            )
+            kept_episode_seeds.append(base_seed)
         summary_seed = (
             shared_root
             if shared_root is not None
@@ -505,17 +712,19 @@ class IncrementalPopulationRunner:
             accepted_counts=accepted_counts,
             root_seed=summary_seed,
         )
+        accepted = suite_acceptance_passed(summary, max_failed_episodes=config.max_failed_episodes)
+        if physx_exhausted:
+            accepted = False
         return IncrementalSuiteRun(
             results=tuple(results),
             extras=tuple(extras),
             trajectories=trajectories,
             root_seed=shared_root,
-            episode_seeds=tuple(int(pair[0]) for pair in seed_pairs),
+            episode_seeds=tuple(kept_episode_seeds),
             artifact_base_name=artifact,
             summary=summary,
-            suite_accepted=suite_acceptance_passed(
-                summary, max_failed_episodes=config.max_failed_episodes
-            ),
+            suite_accepted=accepted,
+            physx_regeneration_exhausted=physx_exhausted,
         )
 
     def run_episode(

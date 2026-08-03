@@ -1,9 +1,8 @@
 # Phase 7.5 — Variable-target-count Z-density stress suite
 
 **Status:** **COMPLETE** (2026-08-02) — remediation + geometric-full
-primary stop host-re-evidenced (`n6-4-11`, tip=21, body=0). Playback
-inter-episode clear + PhysX console tags amended 2026-08-03 (GUI loop
-re-evidence after clear fix still open). See
+primary stop. **2026-08-03 clearance floor 3 mm** re-evidenced on
+`n6-4-8` (headless+GUI EXIT:0, tip=18, body=0, self=0). See
 [Defect: only the first target plans](#defect-only-the-first-target-plans-2026-08-02).
 **Branch:** `wip_phase7_5`.
 Normative rules: [`spec.md`](../spec.md) §8 Phase 7.5.
@@ -56,6 +55,8 @@ is demoted to cheap advisory pre-filtering.
 | `min_targets_per_episode` | `1` | Acceptance floor; fewer accepted targets ⇒ `insufficient_targets` episode failure. |
 | `max_failed_episodes` | `1` (example YAML) | Suite budget; capacity suites may draw one empty episode. Core default remains `0`. |
 | `retreat_distance_m` | `0.10` | Post-contact retreat along the outward normal (second `plan_grasp` from contact); next leg starts from the retreated state. |
+| `max_physx_regenerations` | `3` | Max discarded PhysX-failed population attempts per episode before `physx_regeneration_exhausted`. Host smokes must not set `0`. |
+| `minimum_self_collision_clearance_m` | **`0.003`** (example YAML) | Independent-validation self-sphere floor. Raised from `0.0` (2026-08-03) after a visual fold at ~0.3 mm clearance that PhysX did not report. |
 
 **Stop policy:** primary stop is **geometric fullness** (random placement
 keeps packing until separation/keep-out/corridor/reach cannot yield a
@@ -121,6 +122,49 @@ and print evidence on the streamed console as `phase7_2_physx:` lines.
 Robot self-collision always fails the smoke exit code. See
 [`console_log_keys.md`](console_log_keys.md) and Cursor rule
 `.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`.
+
+### Post-episode PhysX acceptance / regeneration (normative)
+
+After each episode is populated and planned, the **host plan pipeline**
+must headless-PhysX-smoke **that episode** before keeping it. Hard PhysX
+errors (`self_collision`, `body_contact`, spawn overlap) discard the
+episode and regenerate with
+`episode_seed' = episode_seed + regen_attempt`, up to
+`max_physx_regenerations` (default 3). Exhaustion fails closed
+(`physx_regeneration_exhausted`). Tip-miss alone does not trigger regen.
+
+**Implementation (2026-08-03):** `IncrementalPopulationRunner.run_suite`
+calls an injected host gate (`isaac_sim/physx_episode_gate.py`) that writes
+a one-episode temp bundle and runs headless
+`play_multi_target_suite.py --episode-index 0`. Plan CLI default enables
+the gate when `max_physx_regenerations > 0`; `--skip-physx-gate` is for
+non-smoke debugging only. Play reports structured `physx_failures[]`
+(links, waypoint, `q_rad`); the parent process fills optional
+`sphere_clearance_m` / `sphere_pair`.
+
+**Gate launch fix (2026-08-03):** the first smoke wedged in the gate:
+the child was spawned with the parent Kit's `sys.executable` and inherited
+Kit/carb environment (`LD_PRELOAD=libcarb.so`, `CARB_*`, `EXP_PATH`, Kit
+`PYTHONPATH`), which deadlocked the nested carb bootstrap (futex wait,
+0 % CPU, 44 MB RSS). The gate now resolves `python.sh`
+(`resolve_gate_python`), strips Kit-injected variables and resets
+`PYTHONPATH` to the repo entries (`sanitized_gate_env`), starts the child
+in its own session, and kills the whole gate process group after
+`timeout_s` (default 900 s), discarding the attempt fail-closed as
+`physx_overlap` / `gate_timeout`.
+
+PhysX stays host-only (not imported into core planning). Sphere
+validation remains the planner authority; this gate only filters
+mesh/playback gaps spheres miss.
+
+Every discard must log `phase7_5_physx_regen:` fields rich enough for
+later **sphere-cover** fixes: category, canonical link pair (or
+body↔target), leg `from→to`, waypoint index / `u` / `t_s`, joint
+`q_rad`, and when evaluable without Kit, `sphere_clearance_m` +
+minimizing sphere pair. Records persist in
+`incremental_episodes[*].physx_discards[]`. A bare `SELF COLLISION`
+without those fields is non-compliant. Full table:
+[`spec.md`](../spec.md) §8 Phase 7.5 “Post-episode PhysX acceptance”.
 
 ### What this measures (and what it does not)
 
@@ -296,8 +340,16 @@ criteria).
   clears all `/World/Phase7_2/Targets` children before each episode;
   tip/body/self stream as `phase7_2_physx:`. GUI `--auto-exit` of frozen
   `n6-4-11`: EXIT:0, tip=21, self=0; clear lines for ep2/ep3. Offline
-  cuRobo sphere sweep of recorded trajs: 0 violations. Prepared USD has
-  only one collision prim, so PhysX robot–robot reports remain limited.
+  cuRobo sphere sweep of recorded trajs: 0 violations. Prepared USD
+  self-collision authorship amended 2026-08-03 (8 colliders via instance
+  proxies + deepest-link parsing).
+- **Clearance floor 3 mm (2026-08-03):** example suite
+  `minimum_self_collision_clearance_m: 0.003`. Re-smoke seed-4242 →
+  `phase7_5-variable_dz0_30_n6-4-8_seed4242`; headless+GUI EXIT:0;
+  tip=18, body=0, self=0. Ep3 cand1 failed closed
+  (`validation_failed: self-collision clearance is insufficient`);
+  PhysX gate once discarded (`gate_timeout`) then ACCEPT
+  (`physx_regen_attempts=1`).
 
 ## Relation to Phase 7.4
 

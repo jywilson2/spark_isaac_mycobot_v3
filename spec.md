@@ -1548,12 +1548,15 @@ over successive independently validated plans with an explicit world revision.
 - Zero prohibited body–target contacts is required simulation evidence and does
   not replace cuRobo planning or independent validation.
 - **PhysX monitoring (GUI and headless):** playback must enable articulation
-  self-collisions, apply contact-report APIs on robot collision prims, and
-  subscribe to PhysX contact reports for the entire motion. Tip, prohibited
-  body–target, and prohibited robot self-collision contacts must appear on the
-  streamed smoke stdout as `phase7_2_physx:` lines. Kit UI-only notices are
-  insufficient. Engine overlap/collide errors (including from stale target
-  prims) must fail the smoke when detected.
+  self-collisions, apply contact-report APIs on robot collision prims
+  (including instance-proxy collision meshes), and subscribe to PhysX contact
+  reports for the entire motion. Prepared MyCobot USD must author
+  `physxArticulation:enabledSelfCollisions` and contact reports on arm
+  collision prototypes. Tip, prohibited body–target, and prohibited robot
+  self-collision contacts must appear on the streamed smoke stdout as
+  `phase7_2_physx:` lines. Kit UI-only notices are insufficient. Engine
+  overlap/collide errors (including from stale target prims) must fail the
+  smoke when detected.
 - **Self-collision (hard fail):** non-adjacent robot–robot PhysX contacts
   fail the episode (`self_collision` / `prohibited_self_collision`) and force
   smoke exit code 1 even when `max_failed_episodes` would tolerate the
@@ -2309,11 +2312,101 @@ as colliding statics. Stale-field PhysX overlaps must fail the smoke.
 
 **PhysX console evidence (normative).** Headless and GUI playback must
 subscribe to PhysX contact reports for the whole motion, fail the episode
-on prohibited body–target contact, and print tip/body evidence on the
-streamed smoke stdout under the tag `phase7_2_physx:`. Kit-only messages
-without stdout tags are insufficient. Console tag meanings are catalogued
-in [`docs/console_log_keys.md`](docs/console_log_keys.md); that glossary
-must be updated whenever log keys change.
+on prohibited body–target contact and prohibited robot self-collision, and
+print tip/body/self evidence on the streamed smoke stdout under the tag
+`phase7_2_physx:`. Kit-only messages without stdout tags are insufficient.
+Console tag meanings are catalogued in
+[`docs/console_log_keys.md`](docs/console_log_keys.md); that glossary must
+be updated whenever log keys change.
+
+### Post-episode PhysX acceptance and regeneration (normative)
+
+After an incremental episode is **fully populated and frozen** (accepted
+legs + trajectories recorded), the **host plan pipeline** must headless-
+replay **that episode alone** under the same PhysX tip/body/self monitors
+used by suite playback **before** accepting the episode into the suite
+bundle. This is a playback acceptance gate, not a planner oracle:
+
+1. **Pass:** zero prohibited PhysX events
+   (`prohibited_self_collision`, `prohibited_body_contact`, and
+   spawn-time PhysX overlap/collide errors as defined for smokes) → keep
+   the episode and continue to the next episode index.
+2. **Fail:** any hard PhysX error → **discard** the episode (do not
+   retain its field/trajectories in the suite artifact), log a
+   diagnostic record (below), and **regenerate** population for the same
+   episode index with a deterministic next seed
+   `episode_seed' = episode_seed + regen_attempt` (regen attempts are
+   1-based). Repeat until PhysX-clean or the regeneration budget is
+   exhausted.
+3. **Budget:** `max_physx_regenerations` (non-negative int; default
+   **`3`**) is the maximum number of **discarded** attempts per episode
+   index. Exhaustion without a PhysX-clean episode is a fail-closed suite
+   failure (`physx_regeneration_exhausted`), distinct from
+   `insufficient_targets`.
+4. **Scope of hard errors that trigger discard:**
+   `self_collision` / `prohibited_self_collision`, `body_contact` /
+   `prohibited_body_contact`, and spawn-time penetrating statics /
+   Kit PhysX collide errors attributed to the robot or target field.
+   Tip-contact misses alone do **not** trigger PhysX regeneration (they
+   remain ordinary episode failures unless they co-occur with a hard
+   error above).
+5. **Isolation:** PhysX must not be imported into the core
+   `mycobot_curobo` package. The gate lives in host plan/play orchestration
+   (`isaac_sim/`, `scripts/host/`). Sphere self-collision during
+   `plan_grasp` / Phase 4 validation remains the planner feasibility
+   authority; PhysX regeneration only filters mesh/playback gaps the
+   sphere model misses.
+6. **Persistence:** every discarded attempt is retained in the suite
+   artifact under
+   `incremental_episodes[*].physx_discards[]` (and mirrored on stdout)
+   so frequent discards can drive later collision-sphere cover /
+   buffer / ignore-map fixes. Accepted episodes record
+   `physx_acceptance: pass` and `physx_regen_attempts` (discard count
+   before the kept attempt).
+7. **Gate subprocess isolation and timeout:** the gate playback runs as a
+   **separate Isaac python process** (`python.sh` via
+   `ISAACSIM_PYTHON_EXE` / `ISAACSIM_PATH`, never the parent Kit's
+   embedded `sys.executable`) with a **sanitized environment**: parent
+   Kit/carb injections (`LD_PRELOAD`, `CARB_*`, `OMNI_*`, `EXP_PATH`,
+   `ISAAC_PATH`, Kit `PYTHONPATH` / `LD_LIBRARY_PATH` / `PYTHONHOME`)
+   are stripped and `PYTHONPATH` is reset to exactly the repo entries.
+   Inheriting the parent Kit environment deadlocks the nested carb
+   bootstrap (observed 2026-08-03: futex wait, 0 % CPU). The child runs
+   in its own session; if it exceeds the gate timeout (default **900 s**)
+   its whole process group is killed and the attempt is **discarded
+   fail-closed** as `physx_overlap` with reason `gate_timeout`.
+
+**PhysX → sphere-cover diagnostic log (normative).** Every hard PhysX
+error that discards an episode (and the same fields on final suite-fail
+exhaustion) must be described so a human or agent can improve the
+planner's sphere cover without re-watching Kit. At minimum, each
+`phase7_5_physx_regen:` line and each `physx_discards[]` record includes:
+
+| Field | Meaning |
+|-------|---------|
+| `ep` / `episode_index` | Episode index (0- or 1-based must match other Phase 7.5 tags). |
+| `regen` / `regen_attempt` | Discard ordinal for this episode index (1…`max_physx_regenerations`). |
+| `episode_seed` | Seed of the discarded population attempt. |
+| `category` | `self_collision` or `body_contact` (or `physx_overlap` for spawn collide). |
+| `leg` | `from_id→to_id` and `request_id` of the failing leg when applicable. |
+| `links` | Canonical robot link pair for self-collision (`jointA↔jointB`), using the same names as `self_collision_ignore` / collision-sphere YAML (`joint7` normalized to `joint6_flange`). |
+| `target_id` | For body contact: contacted non-tip target id (and active tip target if different). |
+| `waypoint` | First offending trajectory sample index and fraction along the leg (`i/N`, `u∈[0,1]`). |
+| `t_s` | Time along the leg at that sample (`i * dt_s`) when `dt_s` is known. |
+| `q_rad` | Six joint positions (cuRobo / `JOINT_NAMES` order) at that sample, meters/radians SI. |
+| `sphere_clearance_m` | Optional but required when the host can evaluate it without Kit: minimum active cuRobo self-collision sphere-pair clearance at `q_rad` (negative ⇒ spheres already see the fold; non-negative ⇒ mesh-only gap motivating denser cover / larger buffers). |
+| `sphere_pair` | When `sphere_clearance_m` is present: indices or link ids of the minimizing sphere pair. |
+| `reason` | One-line human summary suitable for CHANGES / sphere-cover tickets. |
+
+Stdout example shape:
+
+```text
+phase7_5_physx_regen: ep 3/3 regen 1/3 DISCARD | category self_collision | leg 1->6 request=… | links joint2↔joint5 | waypoint 12/48 u=0.25 t_s=0.60 | q_rad=[…] | sphere_clearance_m=0.0021 sphere_pair=joint2@2↔joint5@0 | reason mesh fold not covered by spheres
+phase7_5_physx_regen: ep 3/3 regen 1/3 RETRY | next_episode_seed=…
+```
+
+A discard that logs only `SELF COLLISION` without link pair, waypoint, and
+`q_rad` is non-compliant.
 
 ### Configuration (normative)
 
@@ -2325,6 +2418,7 @@ must be updated whenever log keys change.
 | `max_targets_per_episode` | `0` (disabled) | Non-negative int. Optional acceptance cap per episode. |
 | `min_targets_per_episode` | `1` | Episode acceptance floor: an episode that stops with fewer accepted targets **fails** (`insufficient_targets`). Suite acceptance then follows `max_failed_episodes` (default 0). |
 | `retreat_distance_m` | `0.10` | Positive float. Post-contact retreat offset along the target's outward normal, realized by a second `plan_grasp` from the contact state; must yield a start state clearing the world by ≥ `minimum_world_collision_clearance_m` (fail closed otherwise). Host evidence: 0.02 / 0.05 m left Option B sphere penetration on some accepts. |
+| `max_physx_regenerations` | **`3`** | Non-negative int. Maximum discarded PhysX-failed population attempts per episode index before `physx_regeneration_exhausted`. `0` disables the post-episode PhysX gate (not permitted for Phase 7.5 host smokes). |
 
 **Stop priority (normative):** population continues while geometrically
 legal candidates can be drawn. The **primary** stop is
@@ -2387,8 +2481,9 @@ episode has progressed toward its goal and (b) how close it is to a stop
 condition. Requirements:
 
 1. **Fixed tags.** Every line begins with `phase7_5_populate:`,
-   `phase7_5_sampling:`, `phase7_5_episode:`, `phase7_5_suite:`, or (at
-   playback) `phase7_5_replay:`.
+   `phase7_5_sampling:`, `phase7_5_episode:`, `phase7_5_suite:`,
+   `phase7_5_physx_regen:` (post-episode PhysX gate), or (at playback)
+   `phase7_5_replay:`.
 2. **Z-distribution header.** Each episode (population and replay) opens
    with the designated Z-density: distribution type, band width, and band
    bounds:
@@ -2502,6 +2597,12 @@ phase7_5_replay: ep 2/3 DONE | targets 14 contacted 14 | plan µ=7.1s σ=2.3s (r
    non-counting (streak unaffected); failure records round-trip through
    the bundle; retreat start-clearance verification fails closed;
    retreated terminal state is the next leg's start state.
+10. **(Amendment, 2026-08-03)** Host post-episode PhysX acceptance loop:
+    headless per-episode replay after population; discard + regenerate on
+    hard PhysX errors up to `max_physx_regenerations`; sphere-cover
+    diagnostic fields on every discard; unit tests for seed advancement,
+    budget exhaustion, and required log/record fields. PhysX stays
+    host-only.
 
 ### Acceptance criteria
 
@@ -2521,13 +2622,20 @@ phase7_5_replay: ep 2/3 DONE | targets 14 contacted 14 | plan µ=7.1s σ=2.3s (r
   contains `candidate_failures` records for every counted failure, and no
   recorded leg intersects any accepted cube other than its own target
   (in-order navigability holds at playback).
+- **(Amendment, 2026-08-03)** Every episode accepted into the Phase 7.5
+  host-smoke bundle has passed the post-episode PhysX gate (or the smoke
+  fails closed on `physx_regeneration_exhausted`). Discard logs include
+  link pair, waypoint, `q_rad`, and category suitable for sphere-cover
+  follow-up; `physx_discards` round-trip in the bundle.
 - Population wall time scales linearly with accepted targets (no field
-  regeneration, no reconsider passes in the log).
+  regeneration, no reconsider passes in the log), **except** bounded
+  PhysX-regeneration retries under `max_physx_regenerations`.
 - No alternate planner, no heuristic free-space waypoints outside
   `plan_grasp`'s documented approach/retract segments, no
   collision-geometry manipulation; the plan attempt is the only
   feasibility authority. The post-contact retreat is the pinned
   `plan_grasp` retract segment, not a hand-inserted lift waypoint.
+  PhysX regeneration does not replace or bypass `plan_grasp`.
 
 ---
 

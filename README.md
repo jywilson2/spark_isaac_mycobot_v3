@@ -63,19 +63,17 @@ A demo video of the densest 2×20 suite (GUI playback) is at
 Full roadmap (Phases 0–11, including decimal Phases 7.1–7.5 and 9.1):
 [`docs/implementation_phases.md`](docs/implementation_phases.md).
 Phase 7.5 (variable-target-count Z-density stress suite,
-`target_population: incremental`) is **complete** on `wip_phase7_5`
-(2026-08-02): post-contact retreat (`retreat_distance_m: 0.10`),
-never-removed retained obstacles, in-order navigability ("maze")
-corridor pre-filter, persisted candidate failure records, and
-mid-trajectory / planned-FK tip playback for retreated legs. Remediated
-host evidence: headless seed-4242 `n3-0-5` suite accepted (2/3,
-`max_failed_episodes: 1`, tip=8, body=0); GUI replay exit 0. See
-[`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md)
-and `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`. Console / report key
-meanings: [`docs/console_log_keys.md`](docs/console_log_keys.md). Playback
-must clear all `/World/Phase7_2/Targets` between episodes and stream
-PhysX tip/body evidence as `phase7_2_physx:` (see
-`.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`).
+`target_population: incremental`) is **complete / landed** on
+`wip_phase7_5` (2026-08-03): post-contact retreat, maze corridor
+pre-filter, inter-episode field clear, PhysX self-collision fail-closed,
+post-episode PhysX accept/regen, and suite self-collision clearance floor
+`0.003` m. Final operator-reviewed evidence: seed-4242 `n6-4-8`
+headless+GUI EXIT:0 (tip=18, body=0, self=0). Phase 8 opens on
+`wip_phase8`. See
+[`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md),
+`scripts/host/smoke_phase7_5_variable_dz_0_30.sh`,
+[`docs/console_log_keys.md`](docs/console_log_keys.md), and
+`.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`.
 
 ```mermaid
 flowchart LR

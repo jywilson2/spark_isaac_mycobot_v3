@@ -1,10 +1,128 @@
+## BEGIN: 2026-08-03 13:28 -0700
+
+I have reviewed and it looks good. Please commit/push to the branch and rebase onto main.
+
+Then switch to the wip branch for Phase 8.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-03 13:19 -0700
+
+Can you summarize the status of the current episode building effort, by looking at the logs.
+
+## END
+
+
+## BEGIN: 2026-08-03 12:18 -0700
+
+Apply the clearance change and rerun.
+
+## END
+
+
+## BEGIN: 2026-08-03 12:16 -0700
+
+What do you recommend?
+
+## END
+
+
+## BEGIN: 2026-08-03 12:11 -0700
+
+Episode 3 contained a self-collision early in the sequence.
+
+Can you analyze and speculate why?
+
+## END
+
+
+## BEGIN: 2026-08-03 12:06 -0700
+
+Run the smoke GUI for the last test suite.
+
+## END
+
+
+## BEGIN: 2026-08-03 10:53 -0700
+
+I am going to close this session and let the other drive the smoke. Is this okay?
+
+## END
+
+
+## BEGIN: 2026-08-03 10:24 -0700
+
+Are we stuck in the PhysX validation?
+
+## END
+
+
+## BEGIN: 2026-08-03 10:18 -0700
+
+As each new target is added is the field re-verified from the first target, just to be sure that the new target does not obstruct an existing planned trajectory?
+
+## END
+
+
+## BEGIN: 2026-08-03 10:14 -0700
+
+What does this mean "Start or End state in collision"?
+
+## END
+
+
+## BEGIN: 2026-08-03 10:08 -0700
+
+Stream the log files from the currently running smoke test in a separate console.
+
+## END
+
+
+## BEGIN: 2026-08-03 09:57 -0700
+
+Please implement this change and regnerate the episodes with the default Z density using this new PhysX validation.
+
+## END
+
+
+## BEGIN: 2026-08-03 09:47 -0700
+
+I concur with your analysis. Please make the spec changes as described. Also, require that the PhysX error be described in the log in a manner that would support support subsequent Sphere-cover fixes used by the planner.
+
+## END
+
+
+## BEGIN: 2026-08-03 09:35 -0700
+
+I propose that we smoke test (headless) each completed episode and if a PhysX error is detected, then discard the episode and attempt to regenerate it. Keep doing so until the episode is PhysX collision free. Then continue with the next episode.
+
+What is your option of this proposal?
+
+## END
+
+
+## BEGIN: 2026-08-03 09:29 -0700
+
+Will the planner also be able to detect the same folding issue?
+
+## END
+
+
+## BEGIN: 2026-08-03 05:37 -0700
+
+I still see a fold early in the execution of episode 3. Can you enhance the USD to allow arm-arm mesh contacts to be detected?
+
+## END
+
+
 ## BEGIN: 2026-08-03 05:18 -0700
 
 Commit/push and rerun smoke tests.  If an error is now detected than regenerate the episode targets and commit/push once again.
 
 ## END
 
-# Old prompts:
 
 ## BEGIN: 2026-08-03 05:11 -0700
 

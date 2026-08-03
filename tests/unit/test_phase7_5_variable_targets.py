@@ -192,6 +192,8 @@ def test_example_config_loads_incremental() -> None:
     assert config.max_total_target_failures == 25
     assert config.min_targets_per_episode == 1
     assert config.retreat_distance_m == pytest.approx(0.10)
+    assert config.max_physx_regenerations == 3
+    assert config.minimum_self_collision_clearance_m == pytest.approx(0.003)
     assert config.delta_z_m == pytest.approx(0.30)
     assert config.require_tip_ik is False
     assert config.max_field_regenerations == 0
@@ -200,6 +202,12 @@ def test_example_config_loads_incremental() -> None:
 def test_incremental_rejects_non_positive_retreat_distance(tmp_path: Path) -> None:
     path = _write_config(tmp_path, _base_incremental_yaml(retreat_distance_m=0.0))
     with pytest.raises(ConfigurationError, match="retreat_distance_m"):
+        load_multi_target_suite_config(path)
+
+
+def test_incremental_rejects_negative_max_physx_regenerations(tmp_path: Path) -> None:
+    path = _write_config(tmp_path, _base_incremental_yaml(max_physx_regenerations=-1))
+    with pytest.raises(ConfigurationError, match="max_physx_regenerations"):
         load_multi_target_suite_config(path)
 
 

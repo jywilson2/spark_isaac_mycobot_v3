@@ -93,6 +93,34 @@ def test_body_priority_in_merge() -> None:
     assert merged.kind is ContactKind.PROHIBITED_BODY_CONTACT
 
 
+def test_nested_geometry_path_resolves_deepest_link() -> None:
+    from isaac_sim.tip_body_contact import _link_name_from_actor_path
+
+    root = "/firefighter/Geometry"
+    assert (
+        _link_name_from_actor_path(
+            f"{root}/g_base/joint1/joint2/joint3/joint4/joint5/joint5_1/joint5",
+            root,
+        )
+        == "joint5"
+    )
+    assert (
+        _link_name_from_actor_path(
+            f"{root}/g_base/joint1/joint2/joint3/joint4/joint5/joint6/joint6_flange/joint7_1/joint7",
+            root,
+        )
+        == "joint6_flange"
+    )
+    # Must not collapse every arm contact to g_base (articulation root child).
+    assert (
+        _link_name_from_actor_path(
+            f"{root}/g_base/joint1/joint2/joint2_1/joint2",
+            root,
+        )
+        == "joint2"
+    )
+
+
 def test_adjacent_self_contact_ignored_nonadjacent_fails() -> None:
     assert self_collision_pair_ignored("joint2", "joint3")
     assert self_collision_pair_ignored("joint2", "joint2")

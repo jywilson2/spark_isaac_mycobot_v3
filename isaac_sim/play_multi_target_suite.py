@@ -63,6 +63,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.set_defaults(auto_exit=True)
     parser.add_argument("--output-report", type=Path, required=True)
     parser.add_argument("--hold-s", type=float, default=None)
+    parser.add_argument(
+        "--episode-index",
+        type=int,
+        default=None,
+        help="When set, play only this 0-based episode (PhysX gate / regen).",
+    )
     return parser.parse_args(argv)
 
 
@@ -394,10 +400,6 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
     print("phase7_2_playback: kit ready", flush=True)
     bundle = json.loads(args.bundle.read_text(encoding="utf-8"))
     results = [load_result(item) for item in bundle["results"]]
-    trajectories = {
-        request_id: load_trajectory(item)
-        for request_id, item in bundle.get("trajectories", {}).items()
-    }
     tip_links = tuple(bundle["tip_allow_link_names"])
     retain = bool(bundle["retain_targets_after_contact"])
     lighting_config = IsaacLightingConfig.from_mapping(bundle["lighting"])
@@ -407,12 +409,37 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
     )
     incremental_meta = list(bundle.get("incremental_episodes") or [])
     z_density = dict(bundle.get("z_density") or {})
+    selected_episode_index: int | None = None
+    if args.episode_index is not None:
+        ep_i = int(args.episode_index)
+        if ep_i < 0 or ep_i >= len(results):
+            raise ValueError(f"--episode-index {ep_i} out of range for {len(results)} episode(s)")
+        selected_episode_index = ep_i
+        results = [results[ep_i]]
+        if ep_i < len(incremental_meta):
+            incremental_meta = [incremental_meta[ep_i]]
+        else:
+            incremental_meta = []
+    trajectories = {
+        request_id: load_trajectory(item)
+        for request_id, item in bundle.get("trajectories", {}).items()
+    }
     if bundle.get("root_seed") is None:
         episode_seeds = bundle.get("episode_seeds") or []
         root_seed = int(episode_seeds[0]) if episode_seeds else 0
     else:
         root_seed = int(bundle["root_seed"])
     usd = _resolve_prepared_usd(args.repo_root.resolve(), args.usd)
+    from isaac_sim.prepared_usd_self_collision import enhance_prepared_mycobot_usd
+
+    try:
+        patches = enhance_prepared_mycobot_usd(usd.parent)
+        print(f"phase7_2_playback: prepared USD self-collision enhance {patches}", flush=True)
+    except FileNotFoundError as exc:
+        print(
+            f"phase7_2_playback: prepared USD self-collision enhance skipped ({exc})",
+            flush=True,
+        )
 
     configure_kit_for_stage_lighting()
     context = omni.usd.get_context()
@@ -473,7 +500,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         planned: MultiTargetEpisodeResult,
         episode_count: int,
         pass_label: str,
-    ) -> MultiTargetEpisodeResult:
+    ) -> tuple[MultiTargetEpisodeResult, dict[str, Any] | None]:
         populate_duration_s: float | None = None
         if incremental and episode_index < len(incremental_meta):
             raw_populate = incremental_meta[episode_index].get(
@@ -501,7 +528,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                     f"populate_s {populate_text}",
                     flush=True,
                 )
-            return planned
+            return planned, None
 
         episode = planned.episode
         replay_plan_durations: list[float] = []
@@ -580,6 +607,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         episode_failed = False
         failure_category = planned.failure_category
         failure_reason = planned.failure_reason
+        physx_failure: dict[str, Any] | None = None
         # Preserve planning-side episode failures (e.g. targets_unplanned) while
         # still animating validated legs in plan-creation order for replay.
         plan_already_failed = not planned.succeeded
@@ -611,11 +639,14 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 tip_seen_at: float | None = None
                 body_contact_during_motion: ContactEvent | None = None
                 self_collision_during_motion: ContactEvent | None = None
+                self_collision_waypoint_index: int | None = None
+                body_contact_waypoint_index: int | None = None
                 waypoint_steps = _physics_steps_for_duration(trajectory.dt_s, physics_dt_s)
                 terminal = articulation_position_targets(
                     trajectory.position_rad[-1], dof_names, current
                 )
-                for waypoint in trajectory.position_rad:
+                waypoint_count = int(len(trajectory.position_rad))
+                for waypoint_index, waypoint in enumerate(trajectory.position_rad):
                     if not app.is_running():
                         raise _PlaybackStopped()
                     if self_collision_during_motion is not None:
@@ -638,6 +669,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                             # Fail closed immediately — do not continue a folding arm.
                             if self_collision_during_motion is None:
                                 self_collision_during_motion = classification
+                                self_collision_waypoint_index = int(waypoint_index)
                                 pair = (
                                     f"{classification.link_name}↔{classification.other_link_name}"
                                 )
@@ -658,6 +690,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                             # fails the leg after the trajectory completes.
                             if body_contact_during_motion is None:
                                 body_contact_during_motion = classification
+                                body_contact_waypoint_index = int(waypoint_index)
                                 post_message(
                                     f"BODY CONTACT DETECTED {leg.from_id}->{leg.to_id} "
                                     f"link={classification.link_name} "
@@ -780,6 +813,27 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                     episode_failed = True
                     failure_category = MultiTargetFailureCategory.SELF_COLLISION
                     failure_reason = message
+                    wi = (
+                        self_collision_waypoint_index
+                        if self_collision_waypoint_index is not None
+                        else max(0, waypoint_count - 1)
+                    )
+                    q = [float(v) for v in np.asarray(trajectory.position_rad[wi], dtype=float)]
+                    denom = max(waypoint_count - 1, 1)
+                    physx_failure = {
+                        "category": "self_collision",
+                        "leg_from_id": leg.from_id,
+                        "leg_to_id": leg.to_id,
+                        "request_id": leg.request_id,
+                        "links": pair,
+                        "target_id": None,
+                        "waypoint_index": int(wi),
+                        "waypoint_count": int(waypoint_count),
+                        "u": float(wi) / float(denom),
+                        "t_s": float(wi) * float(trajectory.dt_s),
+                        "q_rad": q,
+                        "reason": message,
+                    }
                     break
                 if contact.kind is ContactKind.PROHIBITED_BODY_CONTACT:
                     set_cube_color(stage, target_paths[leg.to_id], BODY_CONTACT_COLOR_RGBA)
@@ -807,6 +861,27 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                     episode_failed = True
                     failure_category = MultiTargetFailureCategory.BODY_CONTACT
                     failure_reason = message
+                    wi = (
+                        body_contact_waypoint_index
+                        if body_contact_waypoint_index is not None
+                        else max(0, waypoint_count - 1)
+                    )
+                    q = [float(v) for v in np.asarray(trajectory.position_rad[wi], dtype=float)]
+                    denom = max(waypoint_count - 1, 1)
+                    physx_failure = {
+                        "category": "body_contact",
+                        "leg_from_id": leg.from_id,
+                        "leg_to_id": leg.to_id,
+                        "request_id": leg.request_id,
+                        "links": (None if contact.link_name is None else str(contact.link_name)),
+                        "target_id": contact.target_id,
+                        "waypoint_index": int(wi),
+                        "waypoint_count": int(waypoint_count),
+                        "u": float(wi) / float(denom),
+                        "t_s": float(wi) * float(trajectory.dt_s),
+                        "q_rad": q,
+                        "reason": message,
+                    }
                     break
                 if contact.kind is ContactKind.ALLOWED_TIP_CONTACT:
                     set_cube_color(stage, target_paths[leg.to_id], TIP_CONTACT_COLOR_RGBA)
@@ -935,9 +1010,10 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 f"populate_s {populate_text}",
                 flush=True,
             )
-        return updated_result
+        return updated_result, physx_failure
 
     pass_index = 0
+    physx_failures: list[dict[str, Any] | None] = [None] * len(planned_results)
     while True:
         pass_label = "pass-1" if pass_index == 0 else f"replay-{pass_index}"
         if pass_index > 0:
@@ -950,7 +1026,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
             if pass_index > 0 and not app.is_running():
                 break
             try:
-                updated = _play_one_episode(
+                updated, failure = _play_one_episode(
                     episode_index=episode_index,
                     planned=planned,
                     episode_count=len(planned_results),
@@ -965,6 +1041,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 break
             if pass_index == 0:
                 results[episode_index] = updated
+                physx_failures[episode_index] = failure
         if pass_index < 0:
             break
         if args.auto_exit:
@@ -983,6 +1060,14 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
             break
 
     summary = aggregate_multi_target_results(results, root_seed=root_seed)
+    # When --episode-index selects one episode, report index is 0 locally but
+    # callers need the original suite index for regen diagnostics.
+    report_failures: list[dict[str, Any] | None]
+    if selected_episode_index is not None:
+        report_failures = [None] * (selected_episode_index + 1)
+        report_failures[selected_episode_index] = physx_failures[0] if physx_failures else None
+    else:
+        report_failures = physx_failures
     return {
         "schema_version": 1,
         "lighting_ready": lighting_ok,
@@ -990,6 +1075,8 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         "joint_playback_completed": True,
         "summary": asdict(summary),
         "results": [asdict(result) for result in results],
+        "physx_failures": report_failures,
+        "selected_episode_index": selected_episode_index,
         "frozen_requests": [serialize_episode(result.episode) for result in results],
         "error": None,
     }

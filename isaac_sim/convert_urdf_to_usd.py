@@ -45,7 +45,14 @@ def main() -> int:
     )
     try:
         usd = import_urdf_to_usd(prepared, out, app)
+        from isaac_sim.prepared_usd_self_collision import enhance_prepared_mycobot_usd
+
+        # Prepared tree is gitignored; re-author self-collision + contact reports
+        # after every import so arm–arm PhysX contacts are monitorable.
+        enhance_root = usd.parent if usd.name.endswith(".usda") else out.parent
+        patches = enhance_prepared_mycobot_usd(enhance_root)
         print(f"Wrote {usd}")
+        print(f"phase7_usd: self-collision enhance {patches}")
         return 0
     finally:
         app.close()
