@@ -1,3 +1,51 @@
+## BEGIN: 2026-08-03 04:15 -0700
+
+Some issues with the smoke test:
+
+It does not appear that the targets are being removed between episodes. Since the tareget placement is conducted incrementally from a clear field for each episode, this is required.
+
+Also, this problem would have been detected if the PhysX-collides errors were being monitored on the GUI smoke test. I don't think this is the case, since I don't see PhysX errors reported in the console.
+
+Can you update the project documentation with these requirements? Should the detection of PhysX errors be enshrined in a cursor rules file, since it seems to have been dropped between revisions?
+
+Can you create a separate document that describes the meaning of each log file output key name? Also, add a requirement (in cursor rules?) that mandates that this file be updated whenever the log output is amended.
+
+Commit and push the working branch if all tests pass.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-03 04:00 -0700
+
+Play the smoke test for "phase7_5-variable_dz0_30_n6-4-11_seed4242" on a loop.
+
+## END
+
+
+## BEGIN: 2026-08-03 03:55 -0700
+
+Rerun on an endless loop.
+
+## END
+
+
+## BEGIN: 2026-08-03 03:51 -0700
+
+Briefly inform the user about the task result and perform any follow-up actions (if needed). If there's no follow-ups needed, don't explicitly say that.
+
+(system_notification: shell task 835150 Open log console and start GUI smoke completed)
+
+## END
+
+
+## BEGIN: 2026-08-03 03:50 -0700
+
+Execute GUI smoke in a separate console and stream the debug output for viewing.
+
+## END
+
+
 ## BEGIN: 2026-08-02 14:45 -0700
 
 Okay, update the docs for 7.5 and implement this feature as you just described.
@@ -10,7 +58,6 @@ I will run the gui smoke test with you later, so this can be skipped for now.
 
 ## END
 
-# Old prompts:
 
 ## BEGIN: 2026-08-02 14:42 -0700
 

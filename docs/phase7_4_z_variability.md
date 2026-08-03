@@ -187,6 +187,9 @@ Unchanged from Phase 7.2 and required for Phase 7.4 GUI/playback smokes:
   any target) **fails the episode immediately** (`body_contact`) and, with
   the default `max_failed_episodes: 0`, fails suite acceptance. Tip contact
   on the same leg does not waive the body-contact failure.
+- Tip/body evidence must appear on the streamed smoke stdout as
+  `phase7_2_physx:` lines; clear all `/World/Phase7_2/Targets` prims
+  between episodes (see [`console_log_keys.md`](console_log_keys.md)).
 
 Original (superseded) behaviour, kept for history: out-of-reach generated
 centres were discarded and substituted (same XY, Z in band ∩ reach) with ≤3

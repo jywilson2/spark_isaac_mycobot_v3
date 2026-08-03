@@ -1,10 +1,13 @@
 # Phase 7.5 — Variable-target-count Z-density stress suite
 
 **Status:** **COMPLETE** (2026-08-02) — remediation + geometric-full
-primary stop host-re-evidenced (`n6-4-11`, tip=21, body=0; GUI deferred).
-See [Defect: only the first target plans](#defect-only-the-first-target-plans-2026-08-02).
+primary stop host-re-evidenced (`n6-4-11`, tip=21, body=0). Playback
+inter-episode clear + PhysX console tags amended 2026-08-03 (GUI loop
+re-evidence after clear fix still open). See
+[Defect: only the first target plans](#defect-only-the-first-target-plans-2026-08-02).
 **Branch:** `wip_phase7_5`.
 Normative rules: [`spec.md`](../spec.md) §8 Phase 7.5.
+Log keys: [`console_log_keys.md`](console_log_keys.md).
 
 ## Implementation
 
@@ -101,6 +104,21 @@ Playback contacts exactly the accepted targets in acceptance order, from
 the recorded trajectories in the frozen bundle; legs are chained (each
 starts at the previous leg's terminal joint state), so the order is
 structurally fixed, not a replay option.
+
+### Inter-episode clear and PhysX console (playback)
+
+Each episode is populated from a **clear field**. Isaac playback must
+delete **all** prims under `/World/Phase7_2/Targets` before spawning the
+next episode (and before each `--no-auto-exit` loop pass). Clearing only
+the next episode's ids is wrong: candidate serials are disjoint (e.g.
+`n6-4-11` uses ids `{1,5,8,…}` then `{6,7,15,22}`), so leftovers remain
+and produce PhysX overlaps that look like “targets not removed between
+episodes.”
+
+GUI and headless smokes must keep PhysX tip/body monitoring fail-closed
+and print evidence on the streamed console as `phase7_2_physx:` lines.
+See [`console_log_keys.md`](console_log_keys.md) and Cursor rule
+`.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`.
 
 ### What this measures (and what it does not)
 
@@ -271,7 +289,11 @@ criteria).
   `max_total_target_failures: 25`; artifact
   `phase7_5-variable_dz0_30_n6-4-11_seed4242`; suite accepted 3/3; tip=21,
   body=0. Per-episode `tip_contacts` / `populate_s`: 6 / 660.0 s, 4 /
-  687.6 s, 11 / 695.0 s (each stopped on `total_failures`). GUI deferred.
+  687.6 s, 11 / 695.0 s (each stopped on `total_failures`).
+- **Inter-episode clear fix (2026-08-03):** playback now clears all
+  `/World/Phase7_2/Targets` children before each episode; tip/body
+  contacts stream as `phase7_2_physx:`. Re-run GUI loop of the frozen
+  `n6-4-11` bundle to close visual evidence after the clear fix.
 
 ## Relation to Phase 7.4
 

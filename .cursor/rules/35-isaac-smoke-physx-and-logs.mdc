@@ -1,0 +1,42 @@
+---
+description: Isaac GUI/headless smoke PhysX fail-closed monitoring and console log glossary maintenance
+alwaysApply: true
+---
+
+# Isaac smoke PhysX monitoring and console log keys
+
+## PhysX fail-closed (do not drop between revisions)
+
+- Headless **and GUI** multi-target / Phase 7.5 playback smokes must subscribe
+  to PhysX contact reports (`TipBodyContactMonitor` / equivalent) for the
+  entire episode motion.
+- **Prohibited body–target contact** fails the episode (`body_contact`) and
+  must fail suite acceptance when `failed_episodes > max_failed_episodes`.
+- Tip/body contact evidence must be printed on the **streamed smoke console
+  (stdout)** with the normative tag `phase7_2_physx:` (not only Kit UI
+  messages). Absence of these lines when contacts occur is a defect.
+- Kit/PhysX engine overlap or collide errors (including spawn-time
+  penetrating statics from stale prims) must fail the smoke when detected;
+  do not treat them as ignorable Kit noise.
+- Never weaken, skip, or comment out PhysX fail-closed checks to obtain a
+  green GUI/headless run.
+
+## Inter-episode target field clear
+
+- Each episode’s incremental (or fixed) field is planned from a **clear
+  field**. Before spawning an episode’s targets — and before each
+  `--no-auto-exit` replay pass — remove **all** prims under
+  `/World/Phase7_2/Targets`, not only the next episode’s target ids.
+  Disjoint candidate ids across episodes make partial clears leave
+  overlapping cubes and silent PhysX collisions.
+
+## Console log glossary
+
+- Canonical key meanings live in [`docs/console_log_keys.md`](../../docs/console_log_keys.md).
+- **Whenever** console tags, `key=value` tokens, or report JSON fields are
+  added, renamed, removed, or change meaning, update that glossary in the
+  **same change set**, plus `CHANGES.md` and the applicable phase report /
+  `spec.md` when the tag is normative.
+- Prefer stable tag prefixes (`phase7_2_playback:`, `phase7_2_physx:`,
+  `phase7_5_populate:`, …) over ad-hoc unmarked prints for smoke-critical
+  evidence.

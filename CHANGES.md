@@ -1,5 +1,36 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-03 — Inter-episode field clear, PhysX console tags, log glossary
+
+Branch `wip_phase7_5`. GUI replay of `n6-4-11` left prior-episode cubes on
+stage because playback cleared only the *next* episode's target ids
+(disjoint candidate serials). PhysX overlaps were not obvious on the
+streamed console.
+
+1. **`clear_phase7_2_target_field`** — remove all children under
+   `/World/Phase7_2/Targets` before each episode spawn / replay pass;
+   log `phase7_2_playback: cleared N prior target prim(s)…`.
+2. **`phase7_2_physx:`** stdout lines for tip and body contacts.
+3. **Docs / rules:** normative inter-episode clear + PhysX console
+   evidence in `spec.md` §8 Phase 7.2 / 7.5, phase 7.2 / 7.4 / 7.5
+   reports; new [`docs/console_log_keys.md`](docs/console_log_keys.md);
+   always-apply Cursor rule
+   `.cursor/rules/35-isaac-smoke-physx-and-logs.mdc` (PhysX fail-closed +
+   glossary update mandate).
+4. Unit: `tests/unit/test_clear_phase7_2_target_field.py`.
+5. CI: **277** passed, Ruff clean (`./scripts/run_verification.sh ci`).
+
+### Needs review
+
+- Root-owned `.cursor/rules/30-workflow-and-isaac.mdc` could not be
+  patched in this environment (permission denied); rule 35 carries the
+  same mandates. `chown` that file if the workflow cross-link is desired.
+- Kit-native PhysX engine overlap/collide log scraping (beyond
+  `TipBodyContactMonitor`) is specified but not yet implemented as an
+  automatic smoke fail.
+- Re-run GUI loop of frozen `n6-4-11` after the clear fix for visual
+  closure.
+
 ## 2026-08-02 — Phase 7.5: geometric-full primary stop + populate metrics
 
 Branch `wip_phase7_5`. Dense random packing was truncated by a short

@@ -160,6 +160,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         IsaacLightingConfig,
         add_cube_prim,
         add_target_label,
+        clear_phase7_2_target_field,
         compute_viewport_framing,
         configure_kit_for_stage_lighting,
         content_aabb_from_field,
@@ -508,6 +509,16 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
             target.target_id: f"/World/Phase7_2/Targets/target_{target.target_id}"
             for target in episode.field.targets
         }
+        # Clear the entire field root — not only this episode's ids. Incremental
+        # episodes use disjoint candidate serials (e.g. n6 then n4), so
+        # remove_prim on the next episode's paths alone leaves prior cubes.
+        cleared = clear_phase7_2_target_field(stage)
+        if cleared:
+            print(
+                f"phase7_2_playback: cleared {cleared} prior target prim(s) "
+                f"before episode {episode_index + 1}/{episode_count}",
+                flush=True,
+            )
         for path in target_paths.values():
             remove_prim(stage, path)
         for target in episode.field.targets:
@@ -705,6 +716,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                         f"BODY CONTACT {leg.from_id}->{leg.to_id} "
                         f"plan_s={planning_s:.3f} motion_s={motion_duration_s:.3f}"
                     )
+                    print(f"phase7_2_physx: {message}", flush=True)
                     post_message(message)
                     updated = replace(
                         leg,
@@ -737,6 +749,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                         f"plan_s={planning_s:.3f} motion_s={motion_duration_s:.3f} "
                         f"ttc_s={ttc:.3f}"
                     )
+                    print(f"phase7_2_physx: {message}", flush=True)
                     post_message(message)
                     contacted.append(leg.to_id)
                     if not retain:

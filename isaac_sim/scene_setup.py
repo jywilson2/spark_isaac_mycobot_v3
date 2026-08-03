@@ -557,6 +557,31 @@ def remove_prim(stage: Any, prim_path: str) -> None:
         stage.RemovePrim(prim_path)
 
 
+# Namespace for Phase 7.2 / 7.5 numbered target cubes in Isaac playback.
+PHASE7_2_TARGETS_ROOT = "/World/Phase7_2/Targets"
+
+
+def clear_phase7_2_target_field(stage: Any, *, root_path: str = PHASE7_2_TARGETS_ROOT) -> int:
+    """Remove every target prim under the multi-target field root.
+
+    Required before each episode and before each suite replay pass.
+    Incremental episodes use disjoint candidate ids, so clearing only the
+    next episode's paths leaves prior cubes on stage and produces spurious
+    PhysX overlaps.
+    """
+
+    root = stage.GetPrimAtPath(root_path)
+    if not root.IsValid():
+        return 0
+    children = list(root.GetChildren())
+    removed = 0
+    for child in children:
+        path = str(child.GetPath())
+        stage.RemovePrim(path)
+        removed += 1
+    return removed
+
+
 def _add_visual_box(
     stage: Any,
     *,

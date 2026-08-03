@@ -1,6 +1,6 @@
 # STATUS — MyCobot 280 M5 Constrained Approach Planner
 
-Last updated: **2026-08-02**
+Last updated: **2026-08-03**
 
 ## Current phase
 
@@ -56,13 +56,13 @@ screen, `order: z_desc`, goal-set rolls for wide-band suites, regen on
 `max(3, ceil(target_count/3))`.
 
 **Phase 7.5 — Variable-target-count Z-density stress suite: COMPLETE
-(2026-08-02) on `wip_phase7_5`**
+(2026-08-02) on `wip_phase7_5` (docs/playback clear amended 2026-08-03)**
 `target_population: incremental` — targets created/verified/planned
 one-by-one against retained accepted cubes; one `plan_grasp` attempt per
-candidate is the feasibility oracle; population stops after
-`max_consecutive_target_failures` (default 5). Achieved counts become the
-metric and appear in artifact names; normative human-readable console
-format (progress + streak proximity). Module
+candidate is the feasibility oracle; primary stop geometric-full with
+secondary plan-failure budgets. Achieved counts become the metric and
+appear in artifact names; normative console tags catalogued in
+[`docs/console_log_keys.md`](docs/console_log_keys.md). Module
 `mycobot_curobo.incremental_population`, config
 `config/phase7_5_variable_targets_dz_0_30.yml`, host smoke
 `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`.
@@ -71,11 +71,14 @@ format (progress + streak proximity). Module
 post-acceptance plan started at zero clearance to the just-contacted
 retained cube. **Remediation closed:** two-call post-contact retreat
 (`retreat_distance_m` default **0.10 m**) with fail-closed FK
-start-clearance; targets **never removed**; corridor ("maze")
-pre-filter; `candidate_failures` records; playback mid-path + planned-FK
-tip evidence for retreated legs. Host evidence seed-4242: headless
-`n3-0-5`, `suite_accepted: true` under `max_failed_episodes: 1` (2/3;
-tip=8, body=0); GUI replay exit 0. CI **272** + Ruff clean. See
+start-clearance; targets **never removed within an episode**; corridor
+("maze") pre-filter; `candidate_failures` records; playback mid-path +
+planned-FK tip evidence for retreated legs. Host evidence seed-4242:
+headless `n6-4-11`, tip=21, body=0. **Playback clear (2026-08-03):**
+GUI must clear **all** `/World/Phase7_2/Targets` between episodes
+(disjoint candidate ids); PhysX tip/body evidence must stream as
+`phase7_2_physx:` (Cursor rule
+`.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`). See
 [`spec.md`](spec.md) §8 Phase 7.5 and
 [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md).
 

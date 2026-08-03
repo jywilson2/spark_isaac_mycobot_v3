@@ -1547,6 +1547,15 @@ over successive independently validated plans with an explicit world revision.
   **FAIL** immediately (`body_contact`), even if tip contact also occurs.
 - Zero prohibited body–target contacts is required simulation evidence and does
   not replace cuRobo planning or independent validation.
+- **PhysX monitoring (GUI and headless):** playback must subscribe to PhysX
+  contact reports for the entire motion; tip and prohibited body contacts must
+  appear on the streamed smoke stdout as `phase7_2_physx:` lines. Kit UI-only
+  notices are insufficient. Engine overlap/collide errors (including from
+  stale target prims) must fail the smoke when detected.
+- **Inter-episode clear:** before each episode spawn and each suite replay
+  pass, remove all prims under `/World/Phase7_2/Targets` (not only the next
+  episode's ids). Partial clears leave colliding statics across disjoint
+  candidate id sets.
 - **Flange overhang (geometry):** when `target_edge_m < flange_diameter_assumption_m`,
   tip-face contact on a cube top necessarily overhangs the face (defaults:
   14 mm edge vs 31 mm flange ≈ 8.5 mm). The active contact cuboid is omitted
@@ -2283,6 +2292,22 @@ kinematic continuity between legs. Because accepted legs terminate at the
 **retreated** pose, tip-face geometry at the final waypoint is expected to
 miss; playback must accept tip contact observed **mid-trajectory** (PhysX
 or geometric face reach) when no prohibited body contact occurred.
+
+**Inter-episode stage clear (normative).** Each incremental episode is
+populated from a clear planning field. Isaac playback and GUI/headless
+smoke must therefore remove **all** prims under `/World/Phase7_2/Targets`
+before spawning the next episode's cubes and before each `--no-auto-exit`
+replay pass. Clearing only the next episode's target ids is non-compliant:
+candidate serials are disjoint across episodes, so leftover cubes remain
+as colliding statics. Stale-field PhysX overlaps must fail the smoke.
+
+**PhysX console evidence (normative).** Headless and GUI playback must
+subscribe to PhysX contact reports for the whole motion, fail the episode
+on prohibited body–target contact, and print tip/body evidence on the
+streamed smoke stdout under the tag `phase7_2_physx:`. Kit-only messages
+without stdout tags are insufficient. Console tag meanings are catalogued
+in [`docs/console_log_keys.md`](docs/console_log_keys.md); that glossary
+must be updated whenever log keys change.
 
 ### Configuration (normative)
 

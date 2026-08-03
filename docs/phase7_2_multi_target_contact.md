@@ -290,7 +290,11 @@ swapped adapters (see also `spec.md` “Remaining future adapters”):
 `order=listed`, `retain_targets_after_contact=true`.
 
 Isaac-only (not core): viewport labels, recolor, Kit messages, PhysX
-subscription details, USD spawn/despawn.
+subscription details, USD spawn/despawn. **Normative playback ops:** clear
+**all** `/World/Phase7_2/Targets` children before each episode and each
+suite replay pass; stream tip/body PhysX evidence as `phase7_2_physx:` on
+smoke stdout (see [`console_log_keys.md`](console_log_keys.md) and
+`.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`).
 
 ## Configuration
 

@@ -255,6 +255,19 @@ compute-capability warning is retained in that report and is not suppressed.
   `scripts/host/smoke_phase7_2_standard_2x20.sh` (2 episodes × 20 targets;
   two-ring manual field, 14 mm cubes).
 
+## Phase 7.5 variable-target Z-density stress
+
+- Design: [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md)
+- Spec: [`spec.md`](spec.md) §8 Phase 7.5 (`target_population: incremental`).
+- Console / report key glossary:
+  [`docs/console_log_keys.md`](docs/console_log_keys.md) (update in the same
+  change set whenever log keys change).
+- PhysX fail-closed + inter-episode field clear Cursor rule:
+  `.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`.
+- Example: `config/phase7_5_variable_targets_dz_0_30.yml` via
+  `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`.
+- Branch: `wip_phase7_5`.
+
 ## Phase 7.4 Z variability
 
 - Design: [`docs/phase7_4_z_variability.md`](docs/phase7_4_z_variability.md)

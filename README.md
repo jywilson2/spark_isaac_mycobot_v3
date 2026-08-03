@@ -71,7 +71,11 @@ mid-trajectory / planned-FK tip playback for retreated legs. Remediated
 host evidence: headless seed-4242 `n3-0-5` suite accepted (2/3,
 `max_failed_episodes: 1`, tip=8, body=0); GUI replay exit 0. See
 [`docs/phase7_5_variable_target_stress.md`](docs/phase7_5_variable_target_stress.md)
-and `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`.
+and `scripts/host/smoke_phase7_5_variable_dz_0_30.sh`. Console / report key
+meanings: [`docs/console_log_keys.md`](docs/console_log_keys.md). Playback
+must clear all `/World/Phase7_2/Targets` between episodes and stream
+PhysX tip/body evidence as `phase7_2_physx:` (see
+`.cursor/rules/35-isaac-smoke-physx-and-logs.mdc`).
 
 ```mermaid
 flowchart LR
