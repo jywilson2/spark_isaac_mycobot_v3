@@ -166,6 +166,8 @@ def test_smoke_and_verification_wire_required_gui_gate() -> None:
     assert "compute_viewport_framing" in scene_setup
     assert "frame_viewport_on_arm" in player72
     assert "compute_viewport_framing" in player72
+    assert "--run-label" in player72
+    assert "show_playback_hud" in player72
     assert "frame_viewport_on_arm" in phase71
 
 

@@ -14,6 +14,8 @@ from mycobot_curobo.errors import ConfigurationError
 from mycobot_curobo.residual import CartesianResidual, ResidualObservation
 from mycobot_curobo.robot_model import JointLimits
 
+_ALLOWED_FALLBACKS = frozenset({"nominal", "stop"})
+
 
 @dataclass(frozen=True)
 class ResidualSafetyProfile:
@@ -26,6 +28,8 @@ class ResidualSafetyProfile:
     minimum_joint_limit_margin_rad: float
     max_state_age_s: float
     watchdog_timeout_s: float
+    max_joint_delta_rad: float
+    residual_fallback: str
 
 
 class SafetyStatus(str, Enum):
@@ -61,12 +65,20 @@ def load_residual_safety_profile(
         raise ConfigurationError(f"residual safety config not found: {source}")
     payload = yaml.safe_load(source.read_text(encoding="utf-8"))
     try:
-        values = payload["profiles"][name]
+        values = dict(payload["profiles"][name])
     except (KeyError, TypeError) as exc:
         raise ConfigurationError(f"unknown residual safety profile: {name}") from exc
-    profile = ResidualSafetyProfile(name=name, **values)
+    fallback = str(values.pop("residual_fallback", "nominal"))
+    if fallback not in _ALLOWED_FALLBACKS:
+        raise ConfigurationError(
+            f"residual safety profile {name!r} residual_fallback must be one of "
+            f"{sorted(_ALLOWED_FALLBACKS)}"
+        )
+    if "max_joint_delta_rad" not in values:
+        raise ConfigurationError(f"residual safety profile {name!r} requires max_joint_delta_rad")
+    profile = ResidualSafetyProfile(name=name, residual_fallback=fallback, **values)
     for field_name, value in vars(profile).items():
-        if field_name == "name":
+        if field_name in {"name", "residual_fallback"}:
             continue
         numeric = float(value)
         if not math.isfinite(numeric) or numeric <= 0.0:

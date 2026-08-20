@@ -5,7 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 
+from mycobot_curobo.errors import ConfigurationError
 from mycobot_curobo.residual import CartesianResidual, ResidualObservation
 from mycobot_curobo.robot_model import JOINT_NAMES, JointLimits
 from mycobot_curobo.safety import (
@@ -48,6 +50,15 @@ def _projector() -> SafetyProjector:
         ROOT / "config" / "residual_safety.yml",
     )
     return SafetyProjector(profile, _limits())
+
+
+def test_residual_safety_profile_exposes_joint_delta_and_fallback() -> None:
+    profile = load_residual_safety_profile(
+        "simulation_bounded_residual",
+        ROOT / "config" / "residual_safety.yml",
+    )
+    assert profile.max_joint_delta_rad == pytest.approx(0.05)
+    assert profile.residual_fallback == "nominal"
 
 
 def test_oversized_residual_is_explicitly_clipped() -> None:
@@ -122,3 +133,35 @@ def test_stale_state_non_executable_plan_and_joint_envelope_reject() -> None:
         plan_executable=True,
     )
     assert "nominal_joint_outside_feasibility_envelope" in decision.reasons
+
+
+def test_invalid_residual_fallback_is_rejected() -> None:
+    with pytest.raises(ConfigurationError, match="residual_fallback"):
+        # Build a temporary invalid profile file.
+        bad = ROOT / "artifacts" / "tmp_bad_residual_safety.yml"
+        bad.parent.mkdir(parents=True, exist_ok=True)
+        bad.write_text(
+            "profiles:\n  bad:\n"
+            "    max_translation_m: 0.002\n"
+            "    max_rotation_rad: 0.01\n"
+            "    max_lateral_error_m: 0.005\n"
+            "    minimum_joint_limit_margin_rad: 0.02\n"
+            "    max_state_age_s: 0.1\n"
+            "    watchdog_timeout_s: 0.25\n"
+            "    max_joint_delta_rad: 0.05\n"
+            "    residual_fallback: explode\n",
+            encoding="utf-8",
+        )
+        load_residual_safety_profile("bad", bad)
+
+
+def test_demo_visible_profile_has_exaggerated_bounds() -> None:
+    profile = load_residual_safety_profile(
+        "simulation_demo_visible",
+        ROOT / "config" / "residual_safety.yml",
+    )
+    assert profile.max_translation_m == pytest.approx(0.025)
+    assert profile.max_joint_delta_rad == pytest.approx(0.15)
+    assert profile.max_lateral_error_m == pytest.approx(0.030)
+    assert profile.residual_fallback == "nominal"
+

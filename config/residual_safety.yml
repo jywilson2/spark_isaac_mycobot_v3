@@ -1,4 +1,4 @@
-# Phase 5 bounded execution-correction limits. Simulation defaults only; these
+# Phase 5/8 bounded execution-correction limits. Simulation defaults only; these
 # values are not evidence of physical MyCobot accuracy or hardware readiness.
 profiles:
   simulation_zero_residual:
@@ -8,3 +8,24 @@ profiles:
     minimum_joint_limit_margin_rad: 0.02
     max_state_age_s: 0.1
     watchdog_timeout_s: 0.25
+    max_joint_delta_rad: 0.05
+    residual_fallback: nominal
+  simulation_bounded_residual:
+    max_translation_m: 0.002
+    max_rotation_rad: 0.017453292519943295
+    max_lateral_error_m: 0.005
+    minimum_joint_limit_margin_rad: 0.02
+    max_state_age_s: 0.1
+    watchdog_timeout_s: 0.25
+    max_joint_delta_rad: 0.05
+    residual_fallback: nominal
+  # Demo-only exaggerated bounds for GUI visibility. Not an acceptance profile.
+  simulation_demo_visible:
+    max_translation_m: 0.025
+    max_rotation_rad: 0.08726646259971647
+    max_lateral_error_m: 0.030
+    minimum_joint_limit_margin_rad: 0.02
+    max_state_age_s: 0.1
+    watchdog_timeout_s: 0.25
+    max_joint_delta_rad: 0.15
+    residual_fallback: nominal

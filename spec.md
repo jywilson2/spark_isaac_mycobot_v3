@@ -2642,6 +2642,13 @@ phase7_5_replay: ep 2/3 DONE | targets 14 contacted 14 | plan µ=7.1s σ=2.3s (r
 
 ## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
 
+**Status:** **COMPLETE** (2026-08-19) on `wip_phase8` for the acceptance
+criteria below. Non-zero `ResidualCorrector`, bounded Cartesian→Δq mapping,
+SafetyProjector clamping, nominal/stop fallback, sim-only offline training,
+and residual-on vs residual-off reports are implemented. Live Kit `rsl_rl`
+loops remain optional host wrappers around the same contracts; see
+[`docs/phase8_residual_rl.md`](docs/phase8_residual_rl.md).
+
 ### Objective
 
 Train and evaluate a residual policy that improves approach metrics under
@@ -2656,6 +2663,16 @@ Residual RL is in scope because this architecture already separates nominal plan
 3. Clamp corrections through `SafetyProjector` (Cartesian and/or small joint residual as configured).
 4. Compare residual vs `ZeroResidualCorrector` on Phase 6 scenes in simulation.
 5. On any validation failure after correction: fall back to nominal plan or no motion.
+6. **Actuator noise model (required; implementation deferred):** provide a
+   configuration-driven joint-space actuator disturbance model used in
+   residual training and residual-on/off evaluation so corrections are
+   exercised under motor/servo execution noise, not only constant tip bias
+   or measured-joint observation noise. Distinguish clearly from:
+   - tip bias / TCP model mismatch (systematic Cartesian offset), and
+   - measurement noise on sensed joint positions.
+   Landing this model requires retraining residual checkpoints and re-running
+   the Phase 8 residual GUI smoke (`scripts/host/smoke_phase8_residual_gui.sh`)
+   before claiming the amended acceptance.
 
 ### Hard constraints
 
@@ -2675,6 +2692,11 @@ Residual RL is in scope because this architecture already separates nominal plan
 - Residual bounds are configuration-driven and tested.
 - Benchmark reports show residual-on vs residual-off with clear sim-only labeling.
 - Physical hardware is never moved by the training loop.
+- **Deferred (spec amendment 2026-08-20):** residual train/eval paths can enable
+  a documented actuator noise model; enabling or changing that model invalidates
+  prior residual checkpoints until they are retrained and residual GUI smoke is
+  re-run successfully. Implementation is deferred; do not claim this criterion
+  until the model, retrain, and smoke evidence land.
 
 ---
 

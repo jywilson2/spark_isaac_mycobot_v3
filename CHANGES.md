@@ -1,5 +1,129 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-08-20 — Spec: deferred Phase 8 actuator noise model
+
+Add Phase 8 requirement for a configuration-driven joint actuator/servo
+noise model (distinct from tip bias and measurement noise). Implementation
+deferred; landing it requires residual retrain and Phase 8 residual GUI
+smoke re-run. Also remove accidental `path.6224updateupdate` corruption in
+the Phase 8 hard-constraints paragraph.
+
+
+## 2026-08-20 — Clearer Pass A/B HUD wording
+
+Banner / window title now reads
+`TEST Pass A of 2: Residual OFF (biased tip, no correction)` vs
+`TEST Pass B of 2: Residual ON (tip bias corrected)` (white ~10 pt text).
+
+
+## 2026-08-20 — Shrink Phase 8 playback HUD to ~10 pt
+
+Reduce the Pass A/B Kit banner from large display text to approximately
+10-point font with a compact window (`isaac_sim/playback_hud.py`).
+
+
+## 2026-08-20 — Fix inverted residual A/B demo (Pass B misalignment)
+
+Prior demo applied a tip-bias-canceling residual to an already-aligned
+nominal bundle, which *introduced* EE offset on Pass B. Restructure:
+
+1. Inject Cartesian tip bias into joints for Pass A (residual-off / biased).
+2. Apply canceling residual on that biased bundle for Pass B (corrected).
+3. Demo tip bias default **8 mm** X (was 15 mm).
+
+- `apply_cartesian_tip_bias_to_bundle` + `--inject-tip-bias-only`
+- Units: inject shifts TCP; residual-on reduces tip error vs biased-only
+- Evidence (EXIT:0): Pass A biased tip=5 success=1.0; Pass B corrected
+  tip=5 success=1.0; offline TCP ~8 mm → ~0.5 mm after residual
+
+
+## 2026-08-20 — GUI HUD label for Phase 8 A/B playback
+
+Show which residual smoke pass is running as on-screen Kit UI text:
+`PASS A — residual OFF` then `PASS B — residual ON` (DEMO/SUBTLE).
+
+- `isaac_sim/playback_hud.py` + `play_multi_target_suite.py --run-label`
+- `scripts/host/smoke_phase8_residual_gui.sh` passes the HUD string per pass
+
+
+## 2026-08-20 — Demo-visible residual + A/B GUI smoke
+
+Option 1: add `simulation_demo_visible` residual safety profile (25 mm /
+5° / 0.15 rad joint delta) for exaggerated GUI correction visibility —
+demo-only, not an acceptance profile.
+
+Option 2: `scripts/host/smoke_phase8_residual_gui.sh` defaults to demo mode
+and plays residual-off (nominal bundle) then residual-on (corrected
+bundle). Demo trains with tip bias default 15 mm X and `--force-retrain`.
+Use `--subtle` for production-like `simulation_bounded_residual` bounds.
+
+- Apply knobs: `--tip-bias-m`, `--force-retrain`; report
+  `max_abs_joint_delta_rad` / profile / tip bias
+- Unit: `test_demo_visible_profile_has_exaggerated_bounds`
+- Evidence (demo A/B, EXIT:0): residual-off tip=5 success=1.0;
+  residual-on tip=3 success=0.0 (exaggerated correction visibly
+  changes tip-contact outcome). Reports:
+  `artifacts/reports/phase8_residual_gui_demo_{off,on}.json`
+
+**Review:** Demo profile is intentionally oversized; residual-on tip miss /
+lower success is expected for visibility, not an acceptance regression.
+Use `--subtle` for tight-bound regression playback.
+
+
+## 2026-08-20 — Fix Phase 8 residual smoke CWD / robot config path
+
+Host invocation from `$HOME` resolved `config/robots/mycobot_280_m5.yml`
+against `/home/<user>/...`. Smoke now `cd`s to the repo root; residual stack
+and apply script resolve robot/safety configs from the repository path
+(independent of process CWD).
+
+
+## 2026-08-20 — Phase 8 residual GUI smoke with simulated noise
+
+Branch `wip_phase8`. Add residual+noise apply path and host GUI smoke that
+replays a frozen Phase 7.2 integration bundle after exercising
+`PolicyResidualCorrector` / `SafetyProjector` / joint mapper.
+
+- `mycobot_curobo/residual_playback.py`
+- `scripts/apply_residual_noise_to_bundle.py`
+- `scripts/host/smoke_phase8_residual_gui.sh`
+- Evidence: EXIT:0, tip=5, body=0, self=0 on episode 0
+  (`artifacts/reports/phase8_residual_gui_integration_2x5.json`)
+
+Bugs fixed: mid-path terminal-corridor rejects blocked residual apply
+(switched to waypoint-TCP local goals for local corrections); smoke used a
+missing flat USD path (fall back to nested prepared USDA); smoke exited 0
+even when playback failed (now fail-closed on report).
+
+
+## 2026-08-19 — Phase 8 bounded residual RL (sim only)
+
+Branch `wip_phase8`. Land non-zero residual correctors, bounded
+Cartesian→Δq mapping, SafetyProjector joint-delta / fallback config,
+sim-only offline training, and residual-on vs residual-off comparison
+reports.
+
+- Core: `PolicyResidualCorrector`, `FiniteDifferenceResidualMapper`,
+  executor fallback (`nominal`/`stop`), `residual_train` /
+  `residual_compare`
+- Config: `max_joint_delta_rad`, `residual_fallback`; profile
+  `simulation_bounded_residual`
+- Scripts: `train_residual_policy.py`, `compare_residual_benchmark.py`,
+  `scripts/host/train_residual_policy.sh`
+- Docs: `docs/phase8_residual_rl.md`; Phase 8 marked complete for
+  acceptance criteria in `spec.md` / roadmap
+- CI: `./scripts/run_verification.sh ci` — 302 passed, Ruff clean
+
+Bugs fixed along the way: Phase 5 `nonzero_residual_not_implemented`
+blocker; incorrect `BenchmarkResult` fixture shape in comparison unit
+test; Ruff E501/import issues on new modules.
+
+**Review:** Live Kit `rsl_rl` training remains optional; GPU planner-backed
+residual compare should be run on host when operators want Phase 6 scene
+metrics. `isaac_lab/` dir was not writable here — host observation bridge
+is under `scripts/host/residual_observation.py`.
+
+
 ## 2026-08-03 — Move `notes/` to `docs/notes/`
 
 Branch `wip_phase8`. Relocate the human-only notes tree under `docs/notes/`

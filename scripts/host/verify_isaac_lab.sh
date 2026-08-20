@@ -46,4 +46,4 @@ echo "=== Host Isaac Lab detect ==="
 )
 
 echo "Isaac Lab detect complete."
-echo "Note: Phase 8 residual env / training scripts are not wired yet (see STATUS.md)."
+echo "Note: Phase 8 offline residual training is available via scripts/host/train_residual_policy.sh."

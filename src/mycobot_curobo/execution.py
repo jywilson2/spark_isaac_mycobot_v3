@@ -12,13 +12,14 @@ from mycobot_curobo.errors import ConfigurationError
 from mycobot_curobo.frames import TaskFrameConfig, build_task_frame_candidates
 from mycobot_curobo.planner import PlanningRequest
 from mycobot_curobo.residual import ResidualCorrector, ResidualObservation
+from mycobot_curobo.residual_mapping import ResidualJointMapper
 from mycobot_curobo.robot_model import (
     JOINT_NAMES,
     Pose,
     RobotModelSpec,
     forward_kinematics,
 )
-from mycobot_curobo.safety import SafetyDecision, SafetyProjector
+from mycobot_curobo.safety import SafetyDecision, SafetyProjector, lateral_distance_m
 from mycobot_curobo.trajectory import JointTrajectory
 from mycobot_curobo.validation import ValidatedPlan
 
@@ -151,7 +152,7 @@ class ExecutionResult:
 
 
 class TrajectoryExecutor:
-    """Replay a validated plan through zero residual and deterministic safety checks."""
+    """Replay a validated plan through residual correction and deterministic safety checks."""
 
     def __init__(
         self,
@@ -162,6 +163,7 @@ class TrajectoryExecutor:
         pose_evaluator: TcpPoseEvaluator,
         adapter: CommandAdapter,
         task_frame_config: TaskFrameConfig,
+        joint_mapper: ResidualJointMapper | None = None,
     ) -> None:
         self._corrector = corrector
         self._projector = projector
@@ -169,6 +171,7 @@ class TrajectoryExecutor:
         self._pose_evaluator = pose_evaluator
         self._adapter = adapter
         self._task_frame_config = task_frame_config
+        self._joint_mapper = joint_mapper
 
     def execute(
         self,
@@ -177,7 +180,7 @@ class TrajectoryExecutor:
         *,
         started_at_s: float = 0.0,
     ) -> ExecutionResult:
-        """Emit unchanged nominal commands or stop before the first unsafe command."""
+        """Emit nominal or bounded residual-corrected commands; stop or fall back on failure."""
 
         start = float(started_at_s)
         if not math.isfinite(start) or start < 0.0:
@@ -194,6 +197,7 @@ class TrajectoryExecutor:
             raise ConfigurationError("execution selected goal index is invalid")
         goal = candidates[selected_index]
         emitted: list[JointCommand] = []
+        fallback = self._projector.profile.residual_fallback
 
         for index in range(source.sample_count):
             nominal = source.sample(index)
@@ -229,23 +233,32 @@ class TrajectoryExecutor:
                 )
             if decision.projected_residual is None:
                 raise ConfigurationError("accepted safety decision is missing a residual")
-            if not decision.projected_residual.is_zero:
-                return self._stop(
-                    emitted,
-                    "nonzero_residual_not_implemented",
-                    index,
-                    "Phase 5 cannot map Cartesian residuals into joint commands",
-                )
 
-            # Phase 5's corrected command is exactly nominal. The projector has
-            # independently rechecked freshness, joint feasibility, and the TCP
-            # corridor for this waypoint before the adapter can observe it.
+            position_rad = nominal.joint_position_rad
+            if not decision.projected_residual.is_zero:
+                mapped = self._apply_residual(
+                    nominal.joint_position_rad,
+                    decision.projected_residual,
+                    observation,
+                )
+                if mapped is None:
+                    if fallback == "stop":
+                        return self._stop(
+                            emitted,
+                            "residual_validation_failed",
+                            index,
+                            "bounded residual mapping/validation failed",
+                        )
+                    position_rad = nominal.joint_position_rad
+                else:
+                    position_rad = mapped
+
             command = JointCommand(
                 request_id=request.request_id,
                 waypoint_index=index,
                 time_from_start_s=nominal.time_from_start_s,
                 joint_names=JOINT_NAMES,
-                position_rad=nominal.joint_position_rad,
+                position_rad=position_rad,
                 velocity_rad_s=nominal.joint_velocity_rad_s,
                 safety=decision,
             )
@@ -259,6 +272,51 @@ class TrajectoryExecutor:
             failure_waypoint_index=None,
             reason=None,
         )
+
+    def _apply_residual(
+        self,
+        nominal_joint_position_rad: tuple[float, ...],
+        residual,
+        observation: ResidualObservation,
+    ) -> tuple[float, ...] | None:
+        """Map and independently re-validate a local residual; None means reject correction."""
+
+        if self._joint_mapper is None:
+            return None
+        try:
+            delta = self._joint_mapper.map_to_joint_delta(residual, nominal_joint_position_rad)
+        except ConfigurationError:
+            return None
+        if len(delta) != len(nominal_joint_position_rad):
+            return None
+        max_delta = self._projector.profile.max_joint_delta_rad
+        if any(abs(value) > max_delta + 1.0e-12 for value in delta):
+            return None
+        corrected = tuple(
+            float(nominal + offset)
+            for nominal, offset in zip(nominal_joint_position_rad, delta, strict=True)
+        )
+        lower = self._projector.joint_limits.lower_rad + (
+            self._projector.profile.minimum_joint_limit_margin_rad
+        )
+        upper = self._projector.joint_limits.upper_rad - (
+            self._projector.profile.minimum_joint_limit_margin_rad
+        )
+        corrected_arr = np.asarray(corrected, dtype=float)
+        if np.any(corrected_arr < lower) or np.any(corrected_arr > upper):
+            return None
+        try:
+            corrected_pose = self._pose_evaluator.evaluate(corrected)
+        except ConfigurationError:
+            return None
+        lateral = lateral_distance_m(
+            np.asarray(corrected_pose.position_m, dtype=float),
+            np.asarray(observation.goal_position_base_m, dtype=float),
+            np.asarray(observation.approach_direction_base, dtype=float),
+        )
+        if lateral > self._projector.profile.max_lateral_error_m:
+            return None
+        return corrected
 
     @staticmethod
     def _stop(

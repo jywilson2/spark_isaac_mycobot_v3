@@ -69,7 +69,7 @@ advertised maximum 12.0 remains visible.
 
 ## Remaining boundary
 
-Phase 8 may add a non-zero residual corrector only behind these contracts and
-only with a separately accepted bounded local mapping followed by independent
-validation. Hardware adapters remain out of scope until Phase 9 and must stay
-disabled by default.
+Phase 8 adds a non-zero residual corrector behind these contracts with a
+bounded local Cartesian-to-joint map and independent post-map corridor /
+joint-envelope checks (`docs/phase8_residual_rl.md`). Hardware adapters remain
+out of scope until later phases and must stay disabled by default.

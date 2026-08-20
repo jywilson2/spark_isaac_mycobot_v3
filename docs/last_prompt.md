@@ -1,3 +1,154 @@
+## BEGIN: 2026-08-20 09:23 -0700
+
+Please add an actuator noise model and include this in the requirements.
+
+This should cause the RL to be retrained and the smoke test to be rerun. For now, however, lets defer implementation to a later time.
+
+Once the requirements have been updated, then commit and push to github in the current working branch.
+
+## END
+
+# Old prompts:
+
+## BEGIN: 2026-08-20 00:18 -0700
+
+Is there a way to make the affect of the Residual RL more visible when running the smoke test? Any ideas?
+
+## END
+
+
+## BEGIN: 2026-08-20 00:14 -0700
+
+When running from a host shell outside of the isaac-ros container:
+
+jywilson@spark-a995:~$ /home/jywilson/workspaces/isaac_ros-dev/src/spark_isaac_mycobot_v3/scripts/host/smoke_phase8_residual_gui.sh --gui --auto-exit
+phase8_residual_gui: train/apply residual+noise
+Traceback (most recent call last):
+  File "/home/jywilson/workspaces/isaac_ros-dev/src/spark_isaac_mycobot_v3/scripts/apply_residual_noise_to_bundle.py", line 71, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/jywilson/workspaces/isaac_ros-dev/src/spark_isaac_mycobot_v3/scripts/apply_residual_noise_to_bundle.py", line 39, in main
+    payload, stats = apply_residual_noise_to_bundle(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jywilson/workspaces/isaac_ros-dev/src/spark_isaac_mycobot_v3/src/mycobot_curobo/residual_playback.py", line 247, in apply_residual_noise_to_bundle
+    corrector, projector, mapper, pose_evaluator = build_default_residual_stack(
+                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jywilson/workspaces/isaac_ros-dev/src/spark_isaac_mycobot_v3/src/mycobot_curobo/residual_playback.py", line 218, in build_default_residual_stack
+    spec = load_robot_model_spec() if robot_spec is None else robot_spec
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jywilson/workspaces/isaac_ros-dev/src/spark_isaac_mycobot_v3/src/mycobot_curobo/robot_model.py", line 609, in load_robot_model_spec
+    raise ConfigurationError(f"robot config not found: {path}")
+mycobot_curobo.errors.ConfigurationError: robot config not found: /home/jywilson/config/robots/mycobot_280_m5.yml
+
+
+## END
+
+
+## BEGIN: 2026-08-20 00:02 -0700
+
+Can you execute the GUI smoke test using the residual corrections with simulated noise to exercise the RL code.
+
+## END
+
+
+## BEGIN: 2026-08-19 23:59 -0700
+
+Does it make sense to include the smoke test as a verification step?
+
+## END
+
+
+## BEGIN: 2026-08-19 23:56 -0700
+
+Did the acceptance include the execution of the GUI smoke test?
+
+## END
+
+
+## BEGIN: 2026-08-19 23:54 -0700
+
+Was was the acceptance test result?
+
+## END
+
+
+## BEGIN: 2026-08-19 18:46 -0700
+
+Explore the Phase 5 residual/execution seam and Phase 6 benchmark in /home/jywilson/workspaces/isaac_ros-dev/src/spark_isaac_mycobot_v3 for Phase 8 implementation.
+
+Return a structured report covering:
+
+1. All modules involved in residual correction / execution / SafetyProjector:
+   - file paths, key classes/functions, how ZeroResidualCorrector is wired into TrajectoryExecutor
+   - how non-zero residuals are currently rejected (Phase 5 behavior)
+   - residual_safety.yml loading
+   - any Cartesian-to-joint mapping or lack thereof
+
+2. Phase 6 benchmark API:
+   - how to run benchmarks programmatically
+   - report format
+   - scene/config paths useful for residual-on vs residual-off comparison
+
+3. Existing scripts, CLI commands, package exports related to residual/execution/benchmark
+
+4. Isaac Sim / Isaac Lab scaffolding already present that Phase 8 could wrap (training env hooks, observations)
+
+5. Any existing Phase 8 docs, TODOs, or stubs
+
+6. Recommended minimal Phase 8 architecture that satisfies acceptance criteria WITHOUT requiring physical hardware, WITHOUT installing cuRobo into container for unit tests if possible, and keeping core mycobot_curobo ROS/Isaac-independent.
+
+Be thorough: read docs/phase5_execution_residual.md, safety.py, execution-related modules, benchmark.py, cli.py residual/execution entry points, and tests/unit for safety/execution.
+
+Return concrete file paths and function signatures the implementer should extend.
+
+## END
+
+
+## BEGIN: 2026-08-19 18:45 -0700
+
+Begin implementation of Phase 8, and continue iteration until all acceptance tests pass.
+
+When the implementation is complete summarize the changes and the bugs fixed along the way.
+
+## END
+
+## BEGIN: 2026-08-19 18:37 -0700
+
+This line in spec.md does not appear when in Preview mode:
+
+## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
+
+## END
+
+
+## BEGIN: 2026-08-19 18:34 -0700
+
+show me the specs for Phase 8
+
+## END
+
+
+## BEGIN: 2026-08-19 18:30 -0700
+
+Ctrl-F does not produce a response. What is the keybinding to search the existing document in focus?
+
+## END
+
+
+## BEGIN: 2026-08-19 18:28 -0700
+
+When I use "ctrl-f" the search entry field does not appear.
+
+## END
+
+
+## BEGIN: 2026-08-19 18:23 -0700
+
+Where is the specification for Phase 8?
+
+## END
+
+
 ## BEGIN: 2026-08-03 14:45 -0700
 
 Can you move the notes directory to the docs directory, changing other files that reference this directory as well.
@@ -6,7 +157,6 @@ The commit/push and fast-forward on main.
 
 ## END
 
-# Old prompts:
 
 ## BEGIN: 2026-08-03 14:28 -0700
 

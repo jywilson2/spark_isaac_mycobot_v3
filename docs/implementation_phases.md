@@ -368,7 +368,10 @@ implementation may begin on `wip_phase7_5`.
 
 **Branch:** `wip_phase8`
 
-**Status:** Open (2026-08-03) after Phase 7.5 landing.
+**Status:** Complete (2026-08-19) for acceptance criteria — see
+[`docs/phase8_residual_rl.md`](phase8_residual_rl.md). Offline sim-only
+trainer + residual-on/off reports landed; optional live Kit RL remains a
+host wrapper around the same contracts.
 
 **Objective:** Train a residual policy that outputs a **bounded Cartesian
 correction** (and/or small joint residual mapped through the Phase 5 seam),
@@ -387,6 +390,10 @@ exclusive motion planner.
 - Clamped residual bounds (defaults aligned with safety projector);
 - Offline eval: residual vs zero-residual on Phase 6 benchmark scenes in sim;
 - Checkpoints treated as advisory — validation failure → fall back to nominal plan / no motion.
+- **Actuator noise model (required; implementation deferred 2026-08-20):**
+  configuration-driven joint actuator/servo disturbance in train and eval,
+  distinct from tip-bias mismatch and measured-joint observation noise.
+  Landing it requires residual retrain + Phase 8 residual GUI smoke re-run.
 
 **Must not:**
 

@@ -82,9 +82,19 @@ https://github.com/user-attachments/assets/0d204391-c383-4e00-93ef-c992c0de9d85
 
 ## Current phase
 
-**Active branch:** `wip_phase8` — Phase 8 bounded residual RL (sim only).
+**Active branch:** `wip_phase8` — Phase 8 bounded residual RL **complete** (sim only).
 
-### Just completed (Phase 7.5)
+### Just completed (Phase 8)
+
+- Non-zero `ResidualCorrector` + bounded Cartesian→Δq map
+- SafetyProjector `max_joint_delta_rad` / `residual_fallback`
+- Sim-only offline training (`scripts/train_residual_policy.py`)
+- Residual-on vs residual-off comparison reports (`sim_only`)
+- Demo-visible GUI smoke A/B
+  (`scripts/host/smoke_phase8_residual_gui.sh`; `--subtle` for tight bounds)
+- Report: [`docs/phase8_residual_rl.md`](docs/phase8_residual_rl.md)
+
+### Earlier (Phase 7.5)
 
 - Variable-target-count Z-density stress (`target_population: incremental`)
 - Post-contact retreat so next legs start clear of retained cubes
@@ -137,8 +147,10 @@ flowchart LR
 
 ### Not implemented yet
 
+- Phase 8 actuator noise model (required; deferred — retrain + residual GUI
+  smoke required when landed)
 - Generic non-empty-world clearance beyond the Phase 7.1 cube adapter
-- Non-zero residual correction / residual RL training (**Phase 8** — open)
+- Live Isaac Lab Kit `rsl_rl` training loop (optional; offline Phase 8 trainer landed)
 - Fabricated contact tool and evaluation (Phases 9 / 9.1)
 - Hardware dry-run and physical validation (Phases 10–11)
 

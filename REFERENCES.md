@@ -304,8 +304,10 @@ compute-capability warning is retained in that report and is not suppressed.
   `require_flange_face_containment` /
   `flange_face_overhang_tolerance_m`.
 
-## Phase 8 residual RL (planned)
+## Phase 8 residual RL
 
+- Report: [`docs/phase8_residual_rl.md`](docs/phase8_residual_rl.md)
+- Offline sim-only trainer + residual-on/off comparison reports landed
 - Training only in Isaac Lab / Isaac Sim; residual must use Phase 5
   `ResidualCorrector` + `SafetyProjector` contracts in `spec.md` §4.6 / §6.5.
 - Residuals are bounded local execution corrections, not planners; no

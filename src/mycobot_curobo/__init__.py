@@ -10,7 +10,9 @@ eligibility. Phase 5 adds a dry-run execution seam with zero residual output
 and deterministic safety projection; it has no hardware-driver dependency.
 Phase 6 adds reproducible randomized cases, replay records, taxonomy, and
 JSON/Markdown reports. Phase 7 adds an Isaac-neutral validated playback-plan
-contract while keeping Kit imports outside this package.
+contract while keeping Kit imports outside this package. Phase 8 adds a
+bounded residual corrector, local Cartesian-to-joint map, and sim-only
+train/eval helpers without importing Isaac Lab into this package.
 """
 
 from mycobot_curobo.benchmark import (
@@ -70,9 +72,28 @@ from mycobot_curobo.planner import (
 )
 from mycobot_curobo.residual import (
     CartesianResidual,
+    FixedResidualCorrector,
+    PolicyResidualCorrector,
     ResidualCorrector,
     ResidualObservation,
+    ResidualPolicyCheckpoint,
     ZeroResidualCorrector,
+    load_residual_policy_checkpoint,
+    save_residual_policy_checkpoint,
+)
+from mycobot_curobo.residual_compare import (
+    ResidualComparisonReport,
+    build_residual_comparison_report,
+    write_residual_comparison_report,
+)
+from mycobot_curobo.residual_mapping import (
+    FiniteDifferenceResidualMapper,
+    FixedJointDeltaMapper,
+)
+from mycobot_curobo.residual_train import (
+    ResidualTrainSummary,
+    assert_sim_only_training_environment,
+    train_offline_residual_policy,
 )
 from mycobot_curobo.robot_model import (
     BASE_LINK,
@@ -128,6 +149,9 @@ __all__ = [
     "BenchmarkSummary",
     "FailureCategory",
     "FLANGE_LINK",
+    "FiniteDifferenceResidualMapper",
+    "FixedJointDeltaMapper",
+    "FixedResidualCorrector",
     "JOINT_NAMES",
     "JointLimits",
     "JointCommand",
@@ -142,10 +166,14 @@ __all__ = [
     "PlanningFailure",
     "PlanningOutcome",
     "PlanningRequest",
+    "PolicyResidualCorrector",
     "ReplayRobotStateProvider",
+    "ResidualComparisonReport",
     "ResidualCorrector",
     "ResidualObservation",
+    "ResidualPolicyCheckpoint",
     "ResidualSafetyProfile",
+    "ResidualTrainSummary",
     "RobotModelSpec",
     "RobotStateSample",
     "RuntimeSnapshot",
@@ -165,6 +193,8 @@ __all__ = [
     "ValidationProfile",
     "ValidationReport",
     "ValidationViolation",
+    "assert_sim_only_training_environment",
+    "build_residual_comparison_report",
     "build_surface_goal_set",
     "build_task_frame_candidates",
     "aggregate_results",
@@ -176,18 +206,22 @@ __all__ = [
     "load_planner_profile",
     "load_playback_plan",
     "load_robot_model_spec",
+    "load_residual_policy_checkpoint",
     "load_residual_safety_profile",
     "load_validation_profile",
     "reorder_joint_state",
     "playback_plan_from_dict",
     "require_executable_plan",
     "sample_benchmark_cases",
+    "save_residual_policy_checkpoint",
     "serialize_request",
+    "train_offline_residual_policy",
     "verify_environment",
     "validate_nominal_plan",
     "validated_plan_to_playback_dict",
     "write_benchmark_reports",
     "write_playback_plan",
+    "write_residual_comparison_report",
     "ZeroResidualCorrector",
     "InMemoryCommandAdapter",
 ]

@@ -69,6 +69,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="When set, play only this 0-based episode (PhysX gate / regen).",
     )
+    parser.add_argument(
+        "--run-label",
+        type=str,
+        default="",
+        help="GUI banner text identifying which test/pass is playing (A/B, etc.).",
+    )
     return parser.parse_args(argv)
 
 
@@ -487,6 +493,16 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
             f"framed={framed} eye={eye_m} target={target_m})",
             flush=True,
         )
+        run_label = str(getattr(args, "run_label", "") or "").strip()
+        if run_label:
+            from isaac_sim.playback_hud import show_playback_hud
+
+            hud = show_playback_hud(run_label)
+            print(
+                f"phase7_2_playback: HUD run_label={run_label!r} "
+                f"shown={hud is not None}",
+                flush=True,
+            )
     dof_names = tuple(str(name) for name in robot.dof_names)
     physics_dt_s = world.get_physics_dt()
     planned_results = tuple(results)

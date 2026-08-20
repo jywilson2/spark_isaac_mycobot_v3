@@ -1,4 +1,4 @@
-"""Phase 5 dry-run trajectory execution tests."""
+"""Phase 5/8 dry-run trajectory execution tests."""
 
 from __future__ import annotations
 
@@ -19,7 +19,12 @@ from mycobot_curobo.execution import (
 )
 from mycobot_curobo.frames import TaskFrameConfig
 from mycobot_curobo.planner import NamedJointState, NominalPlan, PlanningRequest
-from mycobot_curobo.residual import CartesianResidual, ZeroResidualCorrector
+from mycobot_curobo.residual import (
+    CartesianResidual,
+    FixedResidualCorrector,
+    ZeroResidualCorrector,
+)
+from mycobot_curobo.residual_mapping import FixedJointDeltaMapper
 from mycobot_curobo.robot_model import JOINT_NAMES, JointLimits, Pose
 from mycobot_curobo.safety import ResidualSafetyProfile, SafetyProjector
 from mycobot_curobo.targets import SurfaceTarget
@@ -31,6 +36,10 @@ from mycobot_curobo.validation import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _small_corrector() -> FixedResidualCorrector:
+    return FixedResidualCorrector(CartesianResidual.create([0.0, 0.0, 0.001], [0.0, 0.0, 0.0]))
 
 
 class FixedPoseEvaluator:
@@ -52,11 +61,6 @@ class StaleStateProvider:
             position_rad=nominal.joint_position_rad,
             timestamp_s=command_time_s - 1.0,
         )
-
-
-class FixedResidualCorrector:
-    def correction(self, observation) -> CartesianResidual:
-        return CartesianResidual.create([0.0, 0.0, 0.001], [0.0, 0.0, 0.0])
 
 
 def _trajectory(positions: np.ndarray) -> JointTrajectory:
@@ -133,16 +137,23 @@ def _case() -> tuple[ValidatedPlan, PlanningRequest]:
     )
 
 
-def _projector() -> SafetyProjector:
-    profile = ResidualSafetyProfile(
-        name="unit",
-        max_translation_m=0.002,
-        max_rotation_rad=0.02,
-        max_lateral_error_m=0.005,
-        minimum_joint_limit_margin_rad=0.02,
-        max_state_age_s=0.1,
-        watchdog_timeout_s=0.25,
-    )
+def _profile(**overrides: float | str) -> ResidualSafetyProfile:
+    values: dict[str, float | str] = {
+        "name": "unit",
+        "max_translation_m": 0.002,
+        "max_rotation_rad": 0.02,
+        "max_lateral_error_m": 0.005,
+        "minimum_joint_limit_margin_rad": 0.02,
+        "max_state_age_s": 0.1,
+        "watchdog_timeout_s": 0.25,
+        "max_joint_delta_rad": 0.05,
+        "residual_fallback": "nominal",
+    }
+    values.update(overrides)
+    return ResidualSafetyProfile(**values)  # type: ignore[arg-type]
+
+
+def _projector(**overrides: float | str) -> SafetyProjector:
     limits = JointLimits(
         names=JOINT_NAMES,
         lower_rad=np.full(6, -2.0),
@@ -151,7 +162,7 @@ def _projector() -> SafetyProjector:
         acceleration_rad_s2=np.ones(6),
         jerk_rad_s3=np.ones(6),
     )
-    return SafetyProjector(profile, limits)
+    return SafetyProjector(_profile(**overrides), limits)
 
 
 def _executor(
@@ -159,15 +170,18 @@ def _executor(
     *,
     corrector=ZeroResidualCorrector(),
     state_provider=ReplayRobotStateProvider(),
+    joint_mapper=None,
+    projector=None,
 ) -> tuple[TrajectoryExecutor, InMemoryCommandAdapter]:
     adapter = InMemoryCommandAdapter()
     executor = TrajectoryExecutor(
         corrector=corrector,
-        projector=_projector(),
+        projector=projector or _projector(),
         state_provider=state_provider,
         pose_evaluator=FixedPoseEvaluator(np.array([0.1, 0.0, 0.2])),
         adapter=adapter,
         task_frame_config=TaskFrameConfig(),
+        joint_mapper=joint_mapper,
     )
     return executor, adapter
 
@@ -206,21 +220,85 @@ def test_stale_state_stops_before_first_command() -> None:
     assert adapter.commands == []
 
 
-def test_nonzero_residual_cannot_generate_a_replacement_joint_path() -> None:
+def test_nonzero_residual_applies_bounded_local_joint_delta() -> None:
     plan, request = _case()
-    executor, adapter = _executor(plan, corrector=FixedResidualCorrector())
+    delta = (0.01, 0.0, 0.0, 0.0, 0.0, 0.0)
+    executor, _ = _executor(
+        plan,
+        corrector=_small_corrector(),
+        joint_mapper=FixedJointDeltaMapper(delta),
+    )
+
+    result = executor.execute(plan, request, started_at_s=10.0)
+
+    assert result.completed
+    nominal = plan.nominal_plan.combined_trajectory.position_rad
+    commanded = command_positions(result)
+    assert not np.array_equal(commanded, nominal)
+    assert np.allclose(commanded, nominal + np.asarray(delta))
+
+
+def test_nonzero_residual_without_mapper_falls_back_to_nominal() -> None:
+    plan, request = _case()
+    executor, _ = _executor(
+        plan,
+        corrector=_small_corrector(),
+        joint_mapper=None,
+    )
+
+    result = executor.execute(plan, request, started_at_s=10.0)
+
+    assert result.completed
+    assert np.array_equal(
+        command_positions(result),
+        plan.nominal_plan.combined_trajectory.position_rad,
+    )
+
+
+def test_residual_validation_failure_can_stop_instead_of_nominal_fallback() -> None:
+    plan, request = _case()
+    executor, adapter = _executor(
+        plan,
+        corrector=_small_corrector(),
+        joint_mapper=None,
+        projector=_projector(residual_fallback="stop"),
+    )
 
     result = executor.execute(plan, request, started_at_s=10.0)
 
     assert not result.completed
-    assert result.failure_category == "nonzero_residual_not_implemented"
+    assert result.failure_category == "residual_validation_failed"
     assert adapter.commands == []
+
+
+def test_oversized_joint_delta_is_rejected_then_falls_back_to_nominal() -> None:
+    plan, request = _case()
+    executor, _ = _executor(
+        plan,
+        corrector=_small_corrector(),
+        joint_mapper=FixedJointDeltaMapper((0.2, 0.0, 0.0, 0.0, 0.0, 0.0)),
+        projector=_projector(max_joint_delta_rad=0.05),
+    )
+
+    result = executor.execute(plan, request, started_at_s=10.0)
+
+    assert result.completed
+    assert np.array_equal(
+        command_positions(result),
+        plan.nominal_plan.combined_trajectory.position_rad,
+    )
 
 
 def test_phase5_modules_have_no_physical_driver_dependency() -> None:
     sources = "\n".join(
         (ROOT / "src" / "mycobot_curobo" / name).read_text(encoding="utf-8")
-        for name in ("residual.py", "safety.py", "execution.py")
+        for name in (
+            "residual.py",
+            "safety.py",
+            "execution.py",
+            "residual_mapping.py",
+            "residual_train.py",
+        )
     ).lower()
     for forbidden in ("pymycobot", "serial", "rclpy", "isaacsim", "isaaclab"):
         assert forbidden not in sources

@@ -1,8 +1,21 @@
 # STATUS — MyCobot 280 M5 Constrained Approach Planner
 
-Last updated: **2026-08-03**
+Last updated: **2026-08-20**
 
 ## Current phase
+
+**Phase 8 — Bounded residual RL: COMPLETE** (2026-08-19) on `wip_phase8`
+for acceptance criteria. Non-zero residual corrector, bounded Cartesian→Δq
+map, SafetyProjector joint-delta/fallback config, sim-only offline training,
+and residual-on/off reports. See
+[`docs/phase8_residual_rl.md`](docs/phase8_residual_rl.md).
+Demo-visible residual GUI smoke (A/B off→on) uses profile
+`simulation_demo_visible` by default (`--subtle` for acceptance-like
+bounds); not an acceptance gate. Pass A plays tip-biased joints
+(residual-off); Pass B cancels that bias (residual-on). On-screen Kit HUD
+labels each pass. **Deferred requirement:** configuration-driven actuator
+noise model (distinct from tip bias / measurement noise); landing it requires
+residual retrain + residual GUI smoke re-run.
 
 **Phase 7.2 — Multi-target tip-contact clearance suite: COMPLETE**
 Including deferral / reconsider after tip-removals, playback in plan-creation
@@ -198,19 +211,24 @@ planning-success claims, or hardware-readiness claims carry forward.
       `--no-auto-exit`.
 - [x] No physical command, alternate planner, or physical-accuracy claim.
 
-## Next step / resume (2026-08-03)
+## Next step / resume (2026-08-19)
 
-**Where we left off:** On `wip_phase8`. README demos use GitHub
-`user-attachments` bare URLs (7.3 and 7.5). Phase 7.5 evidence `n6-4-8`
-tip=18, body=0, self=0 —
-https://github.com/user-attachments/assets/0d204391-c383-4e00-93ef-c992c0de9d85
+**Where we left off:** Phase 8 acceptance criteria complete on `wip_phase8`;
+residual GUI smoke with simulated noise also EXIT:0 (2026-08-20)
+([`docs/phase8_residual_rl.md`](docs/phase8_residual_rl.md)). CI
+`./scripts/run_verification.sh ci` green (302 unit tests). Offline sim-only
+residual train/eval + residual-on/off reports landed; optional live Kit RL
+is a host wrapper around the same contracts.
 
 **Next steps:**
 
-1. Phase 8 (bounded residual RL, sim only) on `wip_phase8`. Entry criteria
-   verified 2026-07-31. **Note:** residual policies trained under
-   scaffolding-only spheres may need retraining under the denser
-   world-cover set now armed by default.
+1. Phase 9 (fabricated contact test tool) on `wip_phase9` after Phase 8
+   landing / `main` fast-forward per branch policy.
+2. Optional host GPU: `scripts/compare_residual_benchmark.py` with a trained
+   checkpoint against Phase 6 scenes for planner-backed residual-on/off
+   metrics (sim-only labeling).
+3. **Note:** residual policies trained under scaffolding-only spheres may
+   need retraining under the denser world-cover set now armed by default.
 
 
 ## 2026-08-02 accuracy note (Phase 7.4 closure)
