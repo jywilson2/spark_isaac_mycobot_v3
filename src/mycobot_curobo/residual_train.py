@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
+from mycobot_curobo.actuator_noise import (
+    ActuatorNoiseProfile,
+    JointActuatorNoiseModel,
+    load_actuator_noise_profile,
+)
 from mycobot_curobo.errors import ConfigurationError
 from mycobot_curobo.residual import (
     ResidualObservation,
@@ -36,6 +42,8 @@ class ResidualTrainSummary:
     checkpoint_path: str
     sim_only: bool
     backend: str
+    actuator_noise_profile: str
+    actuator_noise_joint_std_rad: float
 
 
 def _synthetic_observations(
@@ -43,6 +51,7 @@ def _synthetic_observations(
     count: int,
     seed: int,
     tip_bias_m: np.ndarray,
+    actuator_model: JointActuatorNoiseModel,
 ) -> tuple[list[ResidualObservation], np.ndarray, np.ndarray]:
     rng = np.random.default_rng(seed)
     observations: list[ResidualObservation] = []
@@ -52,7 +61,11 @@ def _synthetic_observations(
         goal = np.array([0.15, 0.0, 0.20], dtype=float) + rng.normal(0.0, 0.01, size=3)
         nominal_tcp = goal - tip_bias_m + rng.normal(0.0, 0.0005, size=3)
         joint_nominal = rng.normal(0.0, 0.05, size=6)
-        joint_measured = joint_nominal + rng.normal(0.0, 0.01, size=6)
+        # Actuator disturbance on executed joints (motor/servo), then sensor noise.
+        actuator_delta = actuator_model.sample_delta_rad(count=1, rng=rng)[0]
+        joint_executed = joint_nominal + actuator_delta
+        measurement_noise = rng.normal(0.0, 0.01, size=6)
+        joint_measured = joint_executed + measurement_noise
         observation = ResidualObservation.create(
             request_id=f"phase8-train-{index}",
             waypoint_index=0,
@@ -77,8 +90,10 @@ def train_offline_residual_policy(
     sample_count: int = 128,
     seed: int = 8008,
     tip_bias_m: tuple[float, float, float] = (0.001, 0.0, 0.0),
+    actuator_noise_profile: str = "simulation_default",
+    actuator_noise_config: Path | str | None = None,
 ) -> ResidualTrainSummary:
-    """Fit a linear residual policy on synthetic sim mismatch samples."""
+    """Fit a linear residual policy on synthetic sim mismatch + actuator noise."""
 
     assert_sim_only_training_environment()
     if sample_count < 8:
@@ -87,8 +102,17 @@ def train_offline_residual_policy(
     if bias.shape != (3,) or not np.all(np.isfinite(bias)):
         raise ConfigurationError("tip_bias_m must be a finite length-3 vector")
 
+    profile: ActuatorNoiseProfile = load_actuator_noise_profile(
+        actuator_noise_profile,
+        path=actuator_noise_config,
+    )
+    actuator_model = JointActuatorNoiseModel(profile)
+
     observations, features, targets = _synthetic_observations(
-        count=sample_count, seed=seed, tip_bias_m=bias
+        count=sample_count,
+        seed=seed,
+        tip_bias_m=bias,
+        actuator_model=actuator_model,
     )
     feature_dim = int(features.shape[1])
     # Augment with bias column for affine fit.
@@ -117,9 +141,8 @@ def train_offline_residual_policy(
         before.append(float(np.linalg.norm(tip_error)))
         feature = observation_feature_vector(observation)
         predicted = gain @ feature + np.asarray(translation_bias)
-        after.append(float(np.linalg.norm(tip_error + predicted - (-bias) + (-bias))))
         # Residual is applied to TCP as +translation; ideal cancels bias so tip_error+pred ≈ 0
-        after[-1] = float(np.linalg.norm(tip_error + predicted))
+        after.append(float(np.linalg.norm(tip_error + predicted)))
         del target
 
     return ResidualTrainSummary(
@@ -129,4 +152,6 @@ def train_offline_residual_policy(
         checkpoint_path=str(path),
         sim_only=True,
         backend="offline_synthetic_sim",
+        actuator_noise_profile=profile.name,
+        actuator_noise_joint_std_rad=float(profile.joint_std_rad),
     )

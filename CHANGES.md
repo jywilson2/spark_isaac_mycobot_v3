@@ -1,5 +1,23 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-09-11 — Phase 8 residual smoke on Phase 7.2 standard 2×10
+
+Host evidence: Phase 7.2 `smoke_phase7_2_standard_2x10.sh --gui --auto-exit
+--root-seed 4242` EXIT:0 (tip=20, body=0, self=0). Phase 8 residual demo A/B
+on that frozen bundle (episode 0) EXIT:0 — Pass A/B tip=10, success=1.0 under
+actuator `simulation_demo`. Reports:
+`phase8_residual_gui_standard_2x10_{off,on}.json`.
+
+
+## 2026-09-11 — Phase 8 actuator noise model + retrain
+
+Land configuration-driven joint actuator/servo noise
+(`config/actuator_noise.yml`, `mycobot_curobo.actuator_noise`) for residual
+train and residual-on/off eval. Distinct from tip bias and measurement noise.
+Retrain residual checkpoints and re-run residual GUI smoke as required by
+the Phase 8 acceptance amendment.
+
+
 ## 2026-08-20 — Spec: deferred Phase 8 actuator noise model
 
 Add Phase 8 requirement for a configuration-driven joint actuator/servo
@@ -35,6 +53,8 @@ nominal bundle, which *introduced* EE offset on Pass B. Restructure:
 - Units: inject shifts TCP; residual-on reduces tip error vs biased-only
 - Evidence (EXIT:0): Pass A biased tip=5 success=1.0; Pass B corrected
   tip=5 success=1.0; offline TCP ~8 mm → ~0.5 mm after residual
+- Retrain + GUI smoke with actuator noise (2026-09-11): CI 318 passed;
+  demo A/B tip=5/5 success=1.0 under `simulation_demo` actuator profile
 
 
 ## 2026-08-20 — GUI HUD label for Phase 8 A/B playback

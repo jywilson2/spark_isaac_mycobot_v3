@@ -1,0 +1,24 @@
+# Phase 8 joint actuator / servo disturbance profiles (simulation only).
+# Distinct from tip bias (Cartesian model mismatch) and measurement noise
+# (sensed joint positions). These values are not hardware accuracy claims.
+profiles:
+  simulation_none:
+    enabled: false
+    joint_std_rad: 0.0
+    seed: 9001
+    clamp_to_limits: true
+    description: "Disabled actuator disturbance (identity)."
+  simulation_default:
+    enabled: true
+    # ~0.3 deg isotropic joint tracking noise for residual train/eval.
+    joint_std_rad: 0.005
+    seed: 9001
+    clamp_to_limits: true
+    description: "Default sim motor/servo tracking noise for Phase 8 residual train/eval."
+  simulation_demo:
+    enabled: true
+    # Slightly larger for GUI visibility under demo residual bounds.
+    joint_std_rad: 0.008
+    seed: 9001
+    clamp_to_limits: true
+    description: "Demo-visible actuator noise for Phase 8 residual GUI smoke."

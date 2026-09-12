@@ -1,21 +1,19 @@
 # STATUS — MyCobot 280 M5 Constrained Approach Planner
 
-Last updated: **2026-08-20**
+Last updated: **2026-09-11**
 
 ## Current phase
 
-**Phase 8 — Bounded residual RL: COMPLETE** (2026-08-19) on `wip_phase8`
-for acceptance criteria. Non-zero residual corrector, bounded Cartesian→Δq
-map, SafetyProjector joint-delta/fallback config, sim-only offline training,
-and residual-on/off reports. See
-[`docs/phase8_residual_rl.md`](docs/phase8_residual_rl.md).
+**Phase 8 — Bounded residual RL: COMPLETE** (2026-09-11) on `wip_phase8`
+including the actuator-noise amendment. Non-zero residual corrector, bounded
+Cartesian→Δq map, SafetyProjector joint-delta/fallback config, sim-only
+offline training, residual-on/off reports, and joint actuator noise profiles.
+See [`docs/phase8_residual_rl.md`](docs/phase8_residual_rl.md).
 Demo-visible residual GUI smoke (A/B off→on) uses profile
 `simulation_demo_visible` by default (`--subtle` for acceptance-like
 bounds); not an acceptance gate. Pass A plays tip-biased joints
-(residual-off); Pass B cancels that bias (residual-on). On-screen Kit HUD
-labels each pass. **Deferred requirement:** configuration-driven actuator
-noise model (distinct from tip bias / measurement noise); landing it requires
-residual retrain + residual GUI smoke re-run.
+(residual-off); Pass B cancels that bias (residual-on). Actuator noise
+profiles default to `simulation_demo` / `simulation_default`.
 
 **Phase 7.2 — Multi-target tip-contact clearance suite: COMPLETE**
 Including deferral / reconsider after tip-removals, playback in plan-creation

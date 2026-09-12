@@ -66,24 +66,26 @@ if [[ "${DEMO_MODE}" -eq 1 ]]; then
   TIP_BIAS_X="${SPARK_PHASE8_TIP_BIAS_X:-0.008}"
   TIP_BIAS_Y="${SPARK_PHASE8_TIP_BIAS_Y:-0.0}"
   TIP_BIAS_Z="${SPARK_PHASE8_TIP_BIAS_Z:-0.0}"
+  ACTUATOR_NOISE_PROFILE="${SPARK_PHASE8_ACTUATOR_NOISE_PROFILE:-simulation_demo}"
   BIASED_BUNDLE="${SPARK_PHASE8_OFF_BUNDLE:-${REPO_ROOT}/artifacts/reports/phase8_residual_gui_demo_off.bundle.json}"
   RESIDUAL_BUNDLE="${SPARK_PHASE8_BUNDLE:-${REPO_ROOT}/artifacts/reports/phase8_residual_gui_demo_on.bundle.json}"
   REPORT_OFF="${SPARK_PHASE8_REPORT_OFF:-${REPO_ROOT}/artifacts/reports/phase8_residual_gui_demo_off.json}"
   REPORT_ON="${SPARK_PHASE8_REPORT_ON:-${REPO_ROOT}/artifacts/reports/phase8_residual_gui_demo_on.json}"
   FORCE_RETRAIN_FLAG=(--force-retrain)
-  echo "phase8_residual_gui: mode=DEMO_VISIBLE profile=${SAFETY_PROFILE} tip_bias=(${TIP_BIAS_X},${TIP_BIAS_Y},${TIP_BIAS_Z})"
+  echo "phase8_residual_gui: mode=DEMO_VISIBLE profile=${SAFETY_PROFILE} tip_bias=(${TIP_BIAS_X},${TIP_BIAS_Y},${TIP_BIAS_Z}) actuator_noise=${ACTUATOR_NOISE_PROFILE}"
 else
   SAFETY_PROFILE="${SPARK_PHASE8_SAFETY_PROFILE:-simulation_bounded_residual}"
   CHECKPOINT="${SPARK_PHASE8_CHECKPOINT:-${REPO_ROOT}/artifacts/residuals/phase8_gui_smoke_policy.json}"
   TIP_BIAS_X="${SPARK_PHASE8_TIP_BIAS_X:-0.001}"
   TIP_BIAS_Y="${SPARK_PHASE8_TIP_BIAS_Y:-0.0}"
   TIP_BIAS_Z="${SPARK_PHASE8_TIP_BIAS_Z:-0.0}"
+  ACTUATOR_NOISE_PROFILE="${SPARK_PHASE8_ACTUATOR_NOISE_PROFILE:-simulation_default}"
   BIASED_BUNDLE="${SPARK_PHASE8_OFF_BUNDLE:-${REPO_ROOT}/artifacts/reports/phase8_residual_gui_off.bundle.json}"
   RESIDUAL_BUNDLE="${SPARK_PHASE8_BUNDLE:-${REPO_ROOT}/artifacts/reports/phase8_residual_gui_integration_2x5.bundle.json}"
   REPORT_OFF="${SPARK_PHASE8_REPORT_OFF:-${REPO_ROOT}/artifacts/reports/phase8_residual_gui_off.json}"
   REPORT_ON="${SPARK_PHASE8_REPORT_ON:-${REPO_ROOT}/artifacts/reports/phase8_residual_gui_on.json}"
   FORCE_RETRAIN_FLAG=()
-  echo "phase8_residual_gui: mode=SUBTLE profile=${SAFETY_PROFILE} tip_bias=(${TIP_BIAS_X},${TIP_BIAS_Y},${TIP_BIAS_Z})"
+  echo "phase8_residual_gui: mode=SUBTLE profile=${SAFETY_PROFILE} tip_bias=(${TIP_BIAS_X},${TIP_BIAS_Y},${TIP_BIAS_Z}) actuator_noise=${ACTUATOR_NOISE_PROFILE}"
 fi
 
 if [[ ! -f "${SOURCE_BUNDLE}" ]]; then
@@ -148,6 +150,7 @@ python3 "${REPO_ROOT}/scripts/apply_residual_noise_to_bundle.py" \
   --inject-tip-bias-only \
   --tip-bias-m "${TIP_BIAS_X}" "${TIP_BIAS_Y}" "${TIP_BIAS_Z}" \
   --residual-safety-profile "${SAFETY_PROFILE}" \
+  --actuator-noise-profile "${ACTUATOR_NOISE_PROFILE}" \
   --noise-seed 8008
 
 echo "phase8_residual_gui: train/apply residual on biased bundle (PASS B prep)"
@@ -160,7 +163,8 @@ python3 "${REPO_ROOT}/scripts/apply_residual_noise_to_bundle.py" \
   --measurement-noise-std-rad "${NOISE_STD}" \
   --noise-seed 8008 \
   --tip-bias-m "${TIP_BIAS_X}" "${TIP_BIAS_Y}" "${TIP_BIAS_Z}" \
-  --residual-safety-profile "${SAFETY_PROFILE}"
+  --residual-safety-profile "${SAFETY_PROFILE}" \
+  --actuator-noise-profile "${ACTUATOR_NOISE_PROFILE}"
 
 # A/B: residual-off (biased) then residual-on (corrected).
 if [[ "${DEMO_MODE}" -eq 1 ]]; then

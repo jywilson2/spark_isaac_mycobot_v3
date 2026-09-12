@@ -14,6 +14,10 @@ from typing import Sequence
 
 import numpy as np
 
+from mycobot_curobo.actuator_noise import (
+    JointActuatorNoiseModel,
+    load_actuator_noise_profile,
+)
 from mycobot_curobo.errors import ConfigurationError
 from mycobot_curobo.execution import CpuTcpPoseEvaluator
 from mycobot_curobo.residual import (
@@ -253,9 +257,7 @@ def _goal_approach_by_request(
 ) -> dict[str, tuple[tuple[float, float, float], tuple[float, float, float]]]:
     """Map request_id -> (contact goal, approach) from episode legs + targets."""
 
-    goal_by_request: dict[
-        str, tuple[tuple[float, float, float], tuple[float, float, float]]
-    ] = {}
+    goal_by_request: dict[str, tuple[tuple[float, float, float], tuple[float, float, float]]] = {}
     for result in payload.get("results", []):
         episode = result.get("episode") or {}
         targets = {
@@ -296,6 +298,44 @@ def _stats_payload(
         }
         for request_id, stats in stats_by_id.items()
     }
+
+
+def _apply_actuator_noise_to_payload(
+    payload: dict,
+    *,
+    actuator_noise_profile: str,
+    noise_seed: int,
+    projector: SafetyProjector,
+) -> dict[str, object]:
+    """Disturb commanded joints in-place; return actuator metadata."""
+
+    profile = load_actuator_noise_profile(actuator_noise_profile)
+    model = JointActuatorNoiseModel(profile)
+    meta: dict[str, object] = {
+        **profile.to_dict(),
+        "applied": False,
+        "trajectories_disturbed": [],
+    }
+    if not profile.enabled:
+        return meta
+
+    lower = projector.joint_limits.lower_rad
+    upper = projector.joint_limits.upper_rad
+    touched: list[str] = []
+    trajectories = payload.get("trajectories") or {}
+    for index, (request_id, trajectory) in enumerate(trajectories.items()):
+        positions = np.asarray(trajectory["position_rad"], dtype=float)
+        disturbed = model.disturb_joint_positions(
+            positions,
+            seed=noise_seed + 17_000 + index,
+            lower_rad=lower if profile.clamp_to_limits else None,
+            upper_rad=upper if profile.clamp_to_limits else None,
+        )
+        trajectory["position_rad"] = disturbed.tolist()
+        touched.append(str(request_id))
+    meta["applied"] = True
+    meta["trajectories_disturbed"] = sorted(touched)
+    return meta
 
 
 def _apply_corrector_to_bundle_trajectories(
@@ -343,6 +383,7 @@ def apply_cartesian_tip_bias_to_bundle(
     residual_safety_profile: str = "simulation_bounded_residual",
     measurement_noise_std_rad: float = 0.0,
     noise_seed: int = 8008,
+    actuator_noise_profile: str = "simulation_none",
 ) -> tuple[dict, dict[str, ResidualApplyStats]]:
     """Return a copy of a Phase 7.2 bundle with a fixed Cartesian tip bias injected.
 
@@ -375,6 +416,12 @@ def apply_cartesian_tip_bias_to_bundle(
         measurement_noise_std_rad=measurement_noise_std_rad,
         noise_seed=noise_seed,
     )
+    actuator_meta = _apply_actuator_noise_to_payload(
+        payload,
+        actuator_noise_profile=actuator_noise_profile,
+        noise_seed=noise_seed,
+        projector=projector,
+    )
     payload["residual_playback"] = {
         "sim_only": True,
         "mode": "inject_tip_bias",
@@ -383,6 +430,7 @@ def apply_cartesian_tip_bias_to_bundle(
         "measurement_noise_std_rad": measurement_noise_std_rad,
         "noise_seed": noise_seed,
         "residual_safety_profile": residual_safety_profile,
+        "actuator_noise": actuator_meta,
         "trajectories_touched": sorted(stats_by_id.keys()),
         "stats": _stats_payload(stats_by_id),
     }
@@ -396,6 +444,7 @@ def apply_residual_noise_to_bundle(
     measurement_noise_std_rad: float,
     noise_seed: int = 8008,
     residual_safety_profile: str = "simulation_bounded_residual",
+    actuator_noise_profile: str = "simulation_default",
 ) -> tuple[dict, dict[str, ResidualApplyStats]]:
     """Return a copy of a Phase 7.2 bundle with residual-corrected trajectories."""
 
@@ -415,6 +464,12 @@ def apply_residual_noise_to_bundle(
         measurement_noise_std_rad=measurement_noise_std_rad,
         noise_seed=noise_seed,
     )
+    actuator_meta = _apply_actuator_noise_to_payload(
+        payload,
+        actuator_noise_profile=actuator_noise_profile,
+        noise_seed=noise_seed,
+        projector=projector,
+    )
     payload["residual_playback"] = {
         "sim_only": True,
         "mode": "residual_correct",
@@ -422,6 +477,7 @@ def apply_residual_noise_to_bundle(
         "measurement_noise_std_rad": measurement_noise_std_rad,
         "noise_seed": noise_seed,
         "residual_safety_profile": residual_safety_profile,
+        "actuator_noise": actuator_meta,
         "trajectories_touched": sorted(stats_by_id.keys()),
         "stats": _stats_payload(stats_by_id),
     }

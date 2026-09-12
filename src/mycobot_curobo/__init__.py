@@ -15,6 +15,11 @@ bounded residual corrector, local Cartesian-to-joint map, and sim-only
 train/eval helpers without importing Isaac Lab into this package.
 """
 
+from mycobot_curobo.actuator_noise import (
+    ActuatorNoiseProfile,
+    JointActuatorNoiseModel,
+    load_actuator_noise_profile,
+)
 from mycobot_curobo.benchmark import (
     BenchmarkCase,
     BenchmarkConfig,
@@ -134,6 +139,7 @@ from mycobot_curobo.version_guard import (
 )
 
 __all__ = [
+    "ActuatorNoiseProfile",
     "EnvironmentReport",
     "EnvironmentVerificationError",
     "ExecutionResult",
@@ -153,6 +159,7 @@ __all__ = [
     "FixedJointDeltaMapper",
     "FixedResidualCorrector",
     "JOINT_NAMES",
+    "JointActuatorNoiseModel",
     "JointLimits",
     "JointCommand",
     "KinematicCollisionBatch",
@@ -206,6 +213,7 @@ __all__ = [
     "load_planner_profile",
     "load_playback_plan",
     "load_robot_model_spec",
+    "load_actuator_noise_profile",
     "load_residual_policy_checkpoint",
     "load_residual_safety_profile",
     "load_validation_profile",

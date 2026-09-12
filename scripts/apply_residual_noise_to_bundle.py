@@ -57,6 +57,15 @@ def main() -> int:
         type=str,
         default="simulation_bounded_residual",
     )
+    parser.add_argument(
+        "--actuator-noise-profile",
+        type=str,
+        default="simulation_default",
+        help=(
+            "Joint actuator/servo noise profile from config/actuator_noise.yml "
+            "(distinct from tip bias and measurement noise)"
+        ),
+    )
     args = parser.parse_args()
 
     tip_bias = tuple(float(value) for value in args.tip_bias_m)
@@ -69,6 +78,7 @@ def main() -> int:
             residual_safety_profile=args.residual_safety_profile,
             measurement_noise_std_rad=0.0,
             noise_seed=args.noise_seed,
+            actuator_noise_profile=args.actuator_noise_profile,
         )
         mode = "inject_tip_bias"
     else:
@@ -80,6 +90,7 @@ def main() -> int:
                 sample_count=96,
                 seed=args.noise_seed,
                 tip_bias_m=tip_bias,
+                actuator_noise_profile=args.actuator_noise_profile,
             )
             print(
                 json.dumps(
@@ -94,6 +105,7 @@ def main() -> int:
             measurement_noise_std_rad=args.measurement_noise_std_rad,
             noise_seed=args.noise_seed,
             residual_safety_profile=args.residual_safety_profile,
+            actuator_noise_profile=args.actuator_noise_profile,
         )
         mode = "residual_correct"
 
@@ -108,6 +120,7 @@ def main() -> int:
         (item.max_abs_joint_delta_rad for item in stats.values()),
         default=0.0,
     )
+    actuator_meta = (payload.get("residual_playback") or {}).get("actuator_noise") or {}
     print(
         json.dumps(
             {
@@ -118,6 +131,8 @@ def main() -> int:
                 "residual_applied_waypoints": applied,
                 "max_abs_joint_delta_rad": max_delta,
                 "residual_safety_profile": args.residual_safety_profile,
+                "actuator_noise_profile": args.actuator_noise_profile,
+                "actuator_noise_applied": bool(actuator_meta.get("applied", False)),
                 "tip_bias_m": list(tip_bias),
                 "sim_only": True,
                 "measurement_noise_std_rad": (

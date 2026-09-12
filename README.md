@@ -90,6 +90,7 @@ https://github.com/user-attachments/assets/0d204391-c383-4e00-93ef-c992c0de9d85
 - SafetyProjector `max_joint_delta_rad` / `residual_fallback`
 - Sim-only offline training (`scripts/train_residual_policy.py`)
 - Residual-on vs residual-off comparison reports (`sim_only`)
+- Joint actuator noise profiles (`config/actuator_noise.yml`)
 - Demo-visible GUI smoke A/B
   (`scripts/host/smoke_phase8_residual_gui.sh`; `--subtle` for tight bounds)
 - Report: [`docs/phase8_residual_rl.md`](docs/phase8_residual_rl.md)
@@ -147,8 +148,6 @@ flowchart LR
 
 ### Not implemented yet
 
-- Phase 8 actuator noise model (required; deferred — retrain + residual GUI
-  smoke required when landed)
 - Generic non-empty-world clearance beyond the Phase 7.1 cube adapter
 - Live Isaac Lab Kit `rsl_rl` training loop (optional; offline Phase 8 trainer landed)
 - Fabricated contact tool and evaluation (Phases 9 / 9.1)

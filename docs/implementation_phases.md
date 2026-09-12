@@ -390,10 +390,11 @@ exclusive motion planner.
 - Clamped residual bounds (defaults aligned with safety projector);
 - Offline eval: residual vs zero-residual on Phase 6 benchmark scenes in sim;
 - Checkpoints treated as advisory — validation failure → fall back to nominal plan / no motion.
-- **Actuator noise model (required; implementation deferred 2026-08-20):**
-  configuration-driven joint actuator/servo disturbance in train and eval,
-  distinct from tip-bias mismatch and measured-joint observation noise.
-  Landing it requires residual retrain + Phase 8 residual GUI smoke re-run.
+- **Actuator noise model (landed 2026-09-11):** configuration-driven joint
+  actuator/servo disturbance in train and eval
+  (`config/actuator_noise.yml`), distinct from tip-bias mismatch and
+  measured-joint observation noise. Enabling/changing the profile requires
+  residual retrain + Phase 8 residual GUI smoke re-run.
 
 **Must not:**
 

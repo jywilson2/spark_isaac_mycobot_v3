@@ -227,12 +227,19 @@ def residual_train_main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--sample-count", type=int, default=128)
     parser.add_argument("--seed", type=int, default=8008)
     parser.add_argument("--tip-bias-m", type=float, nargs=3, default=(0.001, 0.0, 0.0))
+    parser.add_argument(
+        "--actuator-noise-profile",
+        type=str,
+        default="simulation_default",
+        help="Joint actuator noise profile (config/actuator_noise.yml)",
+    )
     args = parser.parse_args(argv)
     summary = train_offline_residual_policy(
         output_path=str(args.output),
         sample_count=args.sample_count,
         seed=args.seed,
         tip_bias_m=tuple(args.tip_bias_m),
+        actuator_noise_profile=args.actuator_noise_profile,
     )
     print(json.dumps(asdict(summary), indent=2, sort_keys=True))
     return 0

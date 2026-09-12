@@ -499,8 +499,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
 
             hud = show_playback_hud(run_label)
             print(
-                f"phase7_2_playback: HUD run_label={run_label!r} "
-                f"shown={hud is not None}",
+                f"phase7_2_playback: HUD run_label={run_label!r} shown={hud is not None}",
                 flush=True,
             )
     dof_names = tuple(str(name) for name in robot.dof_names)

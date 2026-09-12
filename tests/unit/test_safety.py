@@ -164,4 +164,3 @@ def test_demo_visible_profile_has_exaggerated_bounds() -> None:
     assert profile.max_joint_delta_rad == pytest.approx(0.15)
     assert profile.max_lateral_error_m == pytest.approx(0.030)
     assert profile.residual_fallback == "nominal"
-

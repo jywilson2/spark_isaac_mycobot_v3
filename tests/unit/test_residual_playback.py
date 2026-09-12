@@ -98,9 +98,12 @@ def test_apply_residual_noise_to_bundle_labels_sim_only(tmp_path: Path) -> None:
         checkpoint_path=str(checkpoint),
         measurement_noise_std_rad=0.01,
         noise_seed=8008,
+        actuator_noise_profile="simulation_default",
     )
     assert payload["residual_playback"]["sim_only"] is True
     assert payload["residual_playback"]["mode"] == "residual_correct"
+    assert payload["residual_playback"]["actuator_noise"]["name"] == "simulation_default"
+    assert payload["residual_playback"]["actuator_noise"]["applied"] is True
     assert first_id in stats
     assert stats[first_id].waypoint_count > 0
 
@@ -118,9 +121,7 @@ def test_inject_tip_bias_shifts_tcp_toward_bias(tmp_path: Path) -> None:
     )
     assert biased_payload["residual_playback"]["mode"] == "inject_tip_bias"
     assert stats[first_id].applied_count >= 1
-    biased = np.asarray(
-        biased_payload["trajectories"][first_id]["position_rad"], dtype=float
-    )
+    biased = np.asarray(biased_payload["trajectories"][first_id]["position_rad"], dtype=float)
     assert not np.allclose(biased, nominal)
     pose_evaluator = CpuTcpPoseEvaluator(
         load_robot_model_spec(root / "config" / "robots" / "mycobot_280_m5.yml")
@@ -155,15 +156,14 @@ def test_residual_on_biased_reduces_tip_error_vs_biased_only(tmp_path: Path) -> 
         measurement_noise_std_rad=0.0,
         noise_seed=8008,
         residual_safety_profile="simulation_demo_visible",
+        actuator_noise_profile="simulation_none",
     )
     assert corr_stats[first_id].applied_count >= 1
     pose_evaluator = CpuTcpPoseEvaluator(
         load_robot_model_spec(root / "config" / "robots" / "mycobot_280_m5.yml")
     )
     nominal = np.asarray(bundle["trajectories"][first_id]["position_rad"], dtype=float)
-    biased = np.asarray(
-        biased_payload["trajectories"][first_id]["position_rad"], dtype=float
-    )
+    biased = np.asarray(biased_payload["trajectories"][first_id]["position_rad"], dtype=float)
     corrected = np.asarray(
         corrected_payload["trajectories"][first_id]["position_rad"], dtype=float
     )
