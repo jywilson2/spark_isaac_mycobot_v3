@@ -75,6 +75,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="",
         help="GUI banner text identifying which test/pass is playing (A/B, etc.).",
     )
+    parser.add_argument(
+        "--disable-terminal-joint-snap",
+        action="store_true",
+        default=False,
+        help=(
+            "Opt-in characterization only. Leave the terminal joint snap enabled "
+            "for smoke. When set, do not hard-set joints to the planned terminal "
+            "before measuring tip error."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -505,6 +515,8 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
     dof_names = tuple(str(name) for name in robot.dof_names)
     physics_dt_s = world.get_physics_dt()
     planned_results = tuple(results)
+    disable_terminal_snap = bool(getattr(args, "disable_terminal_joint_snap", False))
+    open_loop_tip_errors: list[dict[str, Any]] = []
 
     class _PlaybackStopped(Exception):
         """Raised when the Kit window closes during playback/replay."""
@@ -729,22 +741,62 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
                 motion_duration_s = time.perf_counter() - motion_started
                 snapped = False
                 if self_collision_during_motion is None:
-                    # Snap to the planned terminal waypoint so tip-face classification
-                    # is not lost to short-hold PD lag under headless stepping.
-                    snapped = _snap_joint_positions(robot, terminal)
-                    current = terminal
-                    for _ in range(_physics_steps_for_duration(args.hold_s, physics_dt_s)):
-                        if not app.is_running():
-                            raise _PlaybackStopped()
+                    if disable_terminal_snap:
+                        # Characterization path: keep PD tracking error. Smoke
+                        # leaves this flag off and still snaps.
+                        for _ in range(_physics_steps_for_duration(args.hold_s, physics_dt_s)):
+                            if not app.is_running():
+                                raise _PlaybackStopped()
+                            world.step(render=args.gui)
+                            if monitor.classify().kind is ContactKind.PROHIBITED_SELF_COLLISION:
+                                self_collision_during_motion = monitor.classify()
+                                break
+                    else:
+                        # Snap to the planned terminal waypoint so tip-face classification
+                        # is not lost to short-hold PD lag under headless stepping.
+                        snapped = _snap_joint_positions(robot, terminal)
+                        current = terminal
+                        for _ in range(_physics_steps_for_duration(args.hold_s, physics_dt_s)):
+                            if not app.is_running():
+                                raise _PlaybackStopped()
+                            _snap_joint_positions(robot, terminal)
+                            world.step(render=args.gui)
+                            if monitor.classify().kind is ContactKind.PROHIBITED_SELF_COLLISION:
+                                self_collision_during_motion = monitor.classify()
+                                break
+                        # Re-apply terminal joints after the last physics step so contact
+                        # classification sees the planned tip pose, not a collision push-out.
                         _snap_joint_positions(robot, terminal)
-                        world.step(render=args.gui)
-                        if monitor.classify().kind is ContactKind.PROHIBITED_SELF_COLLISION:
-                            self_collision_during_motion = monitor.classify()
-                            break
-                    # Re-apply terminal joints after the last physics step so contact
-                    # classification sees the planned tip pose, not a collision push-out.
-                    _snap_joint_positions(robot, terminal)
                 target_obj = episode.field.target_by_id(leg.to_id)
+                if disable_terminal_snap:
+                    from mycobot_curobo.touch_characterization import decompose_tip_error_m
+
+                    tip = _tip_pose_from_joints(robot)
+                    face = np.asarray(target_obj.to_surface_target().position_base_m, dtype=float)
+                    approach = -np.asarray(target_obj.outward_normal_base, dtype=float)
+                    sample: dict[str, Any] = {
+                        "episode_index": episode_index,
+                        "from_id": leg.from_id,
+                        "to_id": leg.to_id,
+                        "request_id": leg.request_id,
+                        "terminal_joint_snap": False,
+                    }
+                    if tip is None:
+                        sample["error"] = "tip_unavailable"
+                    else:
+                        error = decompose_tip_error_m(tip, face, approach)
+                        sample["lateral_m"] = error.lateral_m
+                        sample["along_approach_m"] = error.along_approach_m
+                        sample["total_m"] = error.total_m
+                        print(
+                            "touch_characterization: open_loop_tip_error "
+                            f"episode={episode_index} {leg.from_id}->{leg.to_id} "
+                            f"lateral_m={error.lateral_m:.6f} "
+                            f"along_approach_m={error.along_approach_m:.6f} "
+                            f"total_m={error.total_m:.6f} snap=0",
+                            flush=True,
+                        )
+                    open_loop_tip_errors.append(sample)
                 # Re-classify with active-target tip priority (flange overhang on a
                 # face smaller than the flange can emit mixed mesh reports).
                 final_monitor = monitor.classify()
@@ -1083,7 +1135,7 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         report_failures[selected_episode_index] = physx_failures[0] if physx_failures else None
     else:
         report_failures = physx_failures
-    return {
+    report = {
         "schema_version": 1,
         "lighting_ready": lighting_ok,
         "stage_lighting_mode": stage_lighting_mode_active(),
@@ -1095,6 +1147,10 @@ def _play_validated_episodes(*, app: Any, args: argparse.Namespace) -> dict[str,
         "frozen_requests": [serialize_episode(result.episode) for result in results],
         "error": None,
     }
+    if disable_terminal_snap:
+        report["terminal_joint_snap"] = False
+        report["open_loop_tip_errors"] = open_loop_tip_errors
+    return report
 
 
 def main(argv: list[str] | None = None) -> int:

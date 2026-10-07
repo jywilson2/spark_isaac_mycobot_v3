@@ -364,6 +364,21 @@ implementation may begin on `wip_phase7_5`.
 
 ---
 
+## Touch-failure characterization (opt-in, not a phase)
+
+Measurement only. It does not add a roadmap phase, a second planner, guarded
+contact moves, an ESDF/TSDF world, MPC, or residual-RL rescoping, and it does
+not switch integration 2×5 onto the workspace map or the 1012-sphere overlay.
+See [`spec.md`](../spec.md) §8 “Touch-failure characterization” and
+[`touch_characterization.md`](touch_characterization.md).
+
+```bash
+./scripts/host/run_touch_characterization.sh
+python3 scripts/run_touch_characterization.py --no-planner
+```
+
+---
+
 ## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
 
 **Branch:** `wip_phase8`

@@ -27,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           # CPU runners: install lightweight unit/lint deps only. Do not pull
           # nvidia-curobo (Git/CUDA) — unit tests mock planning and do not need it.
-          python -m pip install "numpy>=1.24" "pyyaml>=6.0" "pytest>=7.4,<9" "ruff>=0.4"
+          python -m pip install "numpy>=1.24" "pyyaml>=6.0" "pytest>=7.4,<9" "ruff>=0.4" "matplotlib>=3.8"
           python -m pip install --no-deps -e .
 
       - name: Unit tests and lint

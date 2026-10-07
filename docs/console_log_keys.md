@@ -26,6 +26,7 @@ are scalar-first `wxyz` when present in JSON.
 | `phase7_5_replay:` | playback + format helpers | Frozen-bundle replay BEGIN / per-leg / DONE. |
 | `phase7_5_physx_regen:` | host plan pipeline (post-episode PhysX gate) | Discard / retry / exhausted lines for PhysX-failed episodes; must carry sphere-cover diagnostic fields. |
 | `phase7_5_episode_metrics:` | plan + play hosts | Compact per-episode `tip_contacts` / `populate_s` echo. |
+| `touch_characterization:` | `scripts/run_touch_characterization.py`, playback when `--disable-terminal-joint-snap` | Opt-in failure bins, sphere-curve rates, placement tallies, and open-loop tip error. Absent from default smoke. |
 | `[ep i/n] from->to …` | `format_leg_console_row` | Per-leg plan/valid/contact timings (Phase 7.2 style). |
 | `[i/n] targets=…` | `format_episode_console_row` | Per-episode aggregate success row. |
 | `Phase 7.2: …` | `format_suite_summary` | Suite success rate + tip/body contact totals. |
@@ -181,6 +182,30 @@ non-compliant.
 | `results[*].contacted_ids` / `removed_ids` | Playback contact / removal evidence. |
 | `z_density` | Designated Z band metadata for incremental suites. |
 | `lighting_ready` / `joint_playback_completed` | Playback report booleans. |
+
+---
+
+## `touch_characterization:` keys
+
+Opt-in. Default smoke does not emit this tag. Units are metres and counts.
+Rates are fractions in \[0, 1\]. Simulation metrics only.
+
+| Token | Meaning |
+|-------|---------|
+| `attempts=` | Runner legs classified into the six bins. |
+| `geometric_infeasibility=` | Flange-diameter sweep hits a neighbor AABB. Wins over the planner result. |
+| `world_model_blindness=` | Validated plan; scaffolding clearance ≥ 0 and dense-overlay clearance < 0. Proxy `dense_overlay_vs_scaffolding_32`, not PhysX. |
+| `ik_failure=` | Phase 6 `no_reachable_ik`. |
+| `trajopt_plan_grasp_failure=` | Other Phase 6 planning failures, including collision infeasibility (`phase6_category` keeps that split). |
+| `validation_rejection=` | `plan_grasp` returned a plan that independent validation rejected. |
+| `success=` | Validated plan that is not geometrically blocked and not proxy-blind. |
+| `geometric_precheck` | Full-field analytic census before planning (`targets`, `geometric_infeasibility`). |
+| `sphere_curve` | `label`, `role` (`world`, `world_distal`, `self`), `spheres`, `false_infeasible_rate`, `queries`. |
+| `placement` | `policy` (`forward_aabb` or `workspace_map`), `draws`, `rim_failures`, `start_collision_failures`, `accepted`. Counts are independent. |
+| `open_loop_tip_error` | Playback only, snap disabled. `lateral_m`, `along_approach_m`, `total_m`, `snap=0`. |
+| `summary=` | Path of `touch_characterization_summary.json`. |
+
+Playback JSON gains `terminal_joint_snap=false` and `open_loop_tip_errors` only when `--disable-terminal-joint-snap` is set. Smoke reports omit those keys.
 
 ---
 

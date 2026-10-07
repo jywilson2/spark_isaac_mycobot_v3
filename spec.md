@@ -2639,6 +2639,52 @@ phase7_5_replay: ep 2/3 DONE | targets 14 contacted 14 | plan µ=7.1s σ=2.3s (r
 
 ---
 
+### Touch-failure characterization (opt-in)
+
+This is not a roadmap phase and it does not change Phase 7.2–7.5 or Phase 8
+acceptance. Default smoke, the integration 2×5 placement policy, planner
+profiles, the armed Option B collision-sphere robot, and pass/fail thresholds
+stay as they are. The mode is an explicit measurement of why multi-target
+tip-contact attempts fail.
+
+Entry point: `scripts/run_touch_characterization.py` and
+`scripts/host/run_touch_characterization.sh`. Config:
+`config/touch_characterization.yml` (not loaded by smoke). Report:
+[`docs/touch_characterization.md`](docs/touch_characterization.md).
+
+1. **Failure attribution.** Seeded fixed-population fields go through
+   `MultiTargetEpisodeRunner` and the configured planner profile (no second
+   planner). Each leg is binned as geometric infeasibility (flange-diameter
+   sphere swept from pre-approach to contact versus neighbor AABBs), IK
+   failure (Phase 6 `no_reachable_ik`), trajopt / `plan_grasp` failure (every
+   other Phase 6 planning failure, including collision infeasibility, which
+   remains visible as `phase6_category`), validation rejection, world-model
+   blindness, or success.
+2. **World-model blindness proxy.** Label
+   `dense_overlay_vs_scaffolding_32`. A validated plan is blind when
+   scaffolding-sphere clearance is ≥ 0 and Phase 1.1 overlay clearance is
+   < 0 at the terminal joints. This is not a PhysX replay. The overlay is
+   read for the sweep only; it is not newly armed as the default robot.
+3. **Open-loop terminal error.** Playback flag
+   `--disable-terminal-joint-snap` (default off). Smoke keeps the terminal
+   joint snap. When the flag is set, stdout uses
+   `touch_characterization: open_loop_tip_error` with lateral, along-approach,
+   and total tip error in metres. These are simulation metrics.
+4. **Sphere-cover curve.** In-memory subsamples of the overlay, plus
+   distal-only (`joint5`, `joint6`, `joint6_flange`), scaffolding self, and
+   full overlay world sets. The reported rate is the fraction of
+   centre-cloud-clear poses a sphere set marks in collision (false
+   infeasible). Known-valid means every reference sphere *centre* clears the
+   cuboid while at least one radius intersects it.
+5. **Workspace-map comparison.** Opt-in draws from
+   `artifacts/workspace/tip_contact_workspace_v1.json` versus uniform draws in
+   the forward field AABB. Reports rim failures and start-state sphere
+   collisions. The integration suite sampler is unchanged.
+
+Console tag: `touch_characterization:` (see `docs/console_log_keys.md`).
+
+---
+
 
 ## Phase 8 — Bounded residual RL (Isaac Lab / Isaac Sim)
 

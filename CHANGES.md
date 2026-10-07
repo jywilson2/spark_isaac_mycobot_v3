@@ -1,5 +1,28 @@
 # CHANGES — MyCobot 280 M5 Constrained Approach Planner
 
+## 2026-10-07 — Opt-in touch-failure characterization
+
+Add a documented measurement mode (not a roadmap phase) that attributes
+multi-target tip-contact attempts, compares a workspace-map placement policy
+with the forward AABB sampler, and sweeps collision-sphere density for a
+false-infeasible rate. Default smoke, integration 2×5, planner profiles, the
+armed Option B robot, and pass/fail thresholds are unchanged. Playback grows
+`--disable-terminal-joint-snap` (default off) for open-loop tip error.
+Console tag `touch_characterization:` is in `docs/console_log_keys.md`.
+
+Host evidence (simulation metrics only): 20×2 planning, seed 4242, profile
+`benchmark_reproducible`, exit 0. All 40 attempts are Phase 6
+`trajectory_optimization_failure` (29 grasp-pose, 6 goalset None, 5
+approach-pose). Geometric flange sweep and the world-model proxy are 0.
+Sphere-curve false-infeasible rate on 8 grazing queries is 0 at 51–100
+overlay spheres and 1.0 at the full 1012; scaffolding-32 is 0 on those
+queries. Placement on this AABB: forward AABB 1/200 start-collision, workspace
+map 0/200, rim 0 for both. Open-loop playback used standard 2×10 episode 0
+because this planner run validated nothing; with the snap off, median total
+tip error is 3.9 mm (lateral 0.7 mm, along-approach about −3.7 mm). Figures
+under `docs/figures/touch_characterization_*`.
+
+
 ## 2026-09-11 — Phase 8 residual smoke on Phase 7.2 standard 2×10
 
 Host evidence: Phase 7.2 `smoke_phase7_2_standard_2x10.sh --gui --auto-exit

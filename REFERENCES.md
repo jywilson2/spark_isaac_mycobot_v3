@@ -304,6 +304,16 @@ compute-capability warning is retained in that report and is not suppressed.
   `require_flange_face_containment` /
   `flange_face_overhang_tolerance_m`.
 
+## Touch-failure characterization (opt-in)
+
+- Report: [`docs/touch_characterization.md`](docs/touch_characterization.md)
+- Spec: [`spec.md`](spec.md) §8 “Touch-failure characterization (opt-in)”
+  (not a roadmap phase).
+- Module: `src/mycobot_curobo/touch_characterization.py`
+- Config: `config/touch_characterization.yml` (smoke does not load it).
+- Workspace map input (unchanged): `artifacts/workspace/tip_contact_workspace_v1.json`.
+- Figures: `docs/figures/touch_characterization_*.png` and `.svg`.
+
 ## Phase 8 residual RL
 
 - Report: [`docs/phase8_residual_rl.md`](docs/phase8_residual_rl.md)

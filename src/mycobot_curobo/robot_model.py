@@ -712,3 +712,35 @@ def forward_kinematics(
         position_m=transform[:3, 3].copy(),
         quaternion_wxyz=rotation_matrix_to_quaternion_wxyz(transform[:3, :3]),
     )
+
+
+def link_transforms_base(
+    position_rad: Sequence[float],
+    *,
+    spec: RobotModelSpec | None = None,
+) -> dict[str, np.ndarray]:
+    """Return 4×4 base-from-link transforms for the serial chain, including ``g_base``.
+
+    World-cover virtual links are not in the URDF chain. Callers that attach
+    spheres to ``*_world_cover`` frames should copy the parent link transform
+    (the Option B fixed joint is identity).
+    """
+
+    model_spec = load_robot_model_spec() if spec is None else spec
+    q = _as_finite_vector(position_rad, len(model_spec.joint_names), "joint positions")
+    if np.any(q < model_spec.limits.lower_rad) or np.any(q > model_spec.limits.upper_rad):
+        raise ConfigurationError("joint positions violate configured limits")
+    chain, _ = _parse_urdf(model_spec.urdf_path, model_spec.base_link, model_spec.flange_link)
+    q_by_name = dict(zip(model_spec.joint_names, q, strict=True))
+    transform = np.eye(4, dtype=float)
+    frames: dict[str, np.ndarray] = {model_spec.base_link: transform.copy()}
+    for joint in chain:
+        transform = transform @ joint.origin
+        if joint.joint_type == "revolute":
+            motion = np.eye(4, dtype=float)
+            motion[:3, :3] = _axis_angle_matrix(joint.axis, q_by_name[joint.name])
+            transform = transform @ motion
+        elif joint.joint_type != "fixed":
+            raise ConfigurationError(f"unsupported joint type: {joint.joint_type}")
+        frames[joint.child] = transform.copy()
+    return frames

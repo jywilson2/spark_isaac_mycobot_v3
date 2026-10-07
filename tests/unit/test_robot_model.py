@@ -17,6 +17,7 @@ from mycobot_curobo.robot_model import (
     TCP_LINK,
     clear_robot_model_caches,
     forward_kinematics,
+    link_transforms_base,
     load_curobo_robot_config,
     load_robot_model_spec,
     reorder_joint_state,
@@ -198,3 +199,14 @@ def test_uncached_forward_kinematics_uses_spec_cache() -> None:
     elapsed_s = time.perf_counter() - started
     # Cached path is ~0.1 ms/call; uncached reload was ~100 ms/call.
     assert elapsed_s < 0.5, f"FK cache ineffective: {elapsed_s:.3f}s for 200 calls"
+
+
+def test_link_transforms_match_identity_tcp_fk() -> None:
+    spec = load_robot_model_spec(ROBOT_CONFIG)
+    position = np.zeros(6, dtype=float)
+    frames = link_transforms_base(position, spec=spec)
+    pose = forward_kinematics(position, spec=spec)
+    assert BASE_LINK in frames
+    assert FLANGE_LINK in frames
+    assert frames[BASE_LINK].shape == (4, 4)
+    np.testing.assert_allclose(frames[FLANGE_LINK][:3, 3], pose.position_m, atol=1.0e-9)

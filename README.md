@@ -476,6 +476,16 @@ Measured +Z tip-contact candidate map (before further field expand):
 Integration 2×5 enables `require_flange_face_containment` with flange-sized
 cubes (`target_edge_m: 0.031`) so tip contact does not overhang the face.
 
+Touch-failure characterization is a separate opt-in mode. It does not change
+smoke, integration placement, planner profiles, or the armed sphere robot:
+
+```bash
+./scripts/host/run_touch_characterization.sh
+python3 scripts/run_touch_characterization.py --no-planner
+```
+
+Write-up: [`docs/touch_characterization.md`](docs/touch_characterization.md).
+
 `--targets N`, `--episodes N`, and `--root-seed N` are defined in
 [`spec.md`](spec.md) §8 Phase 7.2 / §9. Omitting `--root-seed` draws an
 independent random seed for each episode (maximize coverage); pass

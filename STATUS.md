@@ -1,6 +1,6 @@
 # STATUS — MyCobot 280 M5 Constrained Approach Planner
 
-Last updated: **2026-09-11**
+Last updated: **2026-10-07**
 
 ## Current phase
 
@@ -14,6 +14,15 @@ Demo-visible residual GUI smoke (A/B off→on) uses profile
 bounds); not an acceptance gate. Pass A plays tip-biased joints
 (residual-off); Pass B cancels that bias (residual-on). Actuator noise
 profiles default to `simulation_demo` / `simulation_default`.
+
+**Touch-failure characterization (opt-in, not a phase):** measurement mode for
+multi-target tip-contact failures. It does not change default smoke,
+integration 2×5 placement, planner profiles, the armed Option B robot, or
+pass/fail gates. Host run 2026-10-07 (20×2, seed 4242, profile
+`benchmark_reproducible`): 40/40 trajopt / plan_grasp failures, 0 geometric,
+0 IK, 0 validated plans. Open-loop playback of standard 2×10 episode 0 with
+the terminal snap off: median total tip error 3.9 mm (simulation). See
+[`docs/touch_characterization.md`](docs/touch_characterization.md).
 
 **Phase 7.2 — Multi-target tip-contact clearance suite: COMPLETE**
 Including deferral / reconsider after tip-removals, playback in plan-creation
